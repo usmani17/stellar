@@ -77,6 +77,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         isOpen,
         messages,
         isLoading,
+        loadingHistorySessionId,
         inputValue,
         setInputValue,
         sendMessage,
@@ -98,6 +99,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         workingOnRequest,
         runTestSse,
         todoList,
+        runningSessionIds,
     } = useAssistant();
 
     const { user } = useAuth();
@@ -1294,7 +1296,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                             onClick={() => handleSessionSelect(session.id)}
                                             className="assistant-tab-pill-button"
                                             title={session.title || "Untitled"}
-                                            disabled={isLoading}
+                                            disabled={isLoading && currentSessionId === session.id}
                                         >
                                             {isLoading && currentSessionId === session.id && (
                                                 <div className="flex gap-0.5">
@@ -1371,12 +1373,12 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                             key={session.id}
                                                             className={`assistant-history-item ${currentSessionId === session.id ? "assistant-history-item-active" : ""}`}
                                                         >
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleSessionSelect(session.id)}
-                                                                className="assistant-history-item-button"
-                                                                disabled={isLoading}
-                                                            >
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSessionSelect(session.id)}
+                                                className="assistant-history-item-button"
+                                                disabled={isLoading && currentSessionId === session.id}
+                                            >
                                                                 {isLoading && currentSessionId === session.id ? (
                                                                     <div className="flex gap-0.5 shrink-0">
                                                                         <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
@@ -1468,19 +1470,47 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             {/* Page variant: toolbar above messages */}
             {variant === "page" && (
                 <div className="px-4 py-2 border-b border-[#E8E8E3] flex items-center gap-2">
-                    {/* Todo progress in header — only while streaming with incomplete todos */}
+                    {/* Todo progress + background-running banner in same toolbar row */}
                     {(() => {
-                        if (!isStreaming || !todoList || todoList.length === 0) return <div className="flex-1" />;
-                        const done = todoList.filter((t) => t.status === "TODO_STATUS_COMPLETE" || t.status === "TODO_STATUS_COMPLETED").length;
-                        if (done === todoList.length) return <div className="flex-1" />;
-                        const active = todoList.find((t) => t.status === "TODO_STATUS_IN_PROGRESS");
-                        return (
-                            <div className="todo-header-progress flex-1">
-                                <Loader2 className="w-3 h-3 animate-spin text-forest-f40 shrink-0" />
-                                <span className="todo-header-progress-count">{done}/{todoList.length}</span>
-                                {active && <span className="todo-header-progress-label">{active.content}</span>}
-                            </div>
-                        );
+                        const isRunningInBg = !!(currentSessionId && runningSessionIds.has(currentSessionId));
+                        if (isStreaming && todoList && todoList.length > 0) {
+                            const done = todoList.filter((t) => t.status === "TODO_STATUS_COMPLETE" || t.status === "TODO_STATUS_COMPLETED").length;
+                            const allDone = done === todoList.length;
+                            const active = todoList.find((t) => t.status === "TODO_STATUS_IN_PROGRESS");
+                            if (!allDone) {
+                                return (
+                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        <div className="todo-header-progress flex-1 min-w-0">
+                                            <Loader2 className="w-3 h-3 animate-spin text-forest-f40 shrink-0" />
+                                            <span className="todo-header-progress-count">{done}/{todoList.length}</span>
+                                            {active && <span className="todo-header-progress-label">{active.content}</span>}
+                                        </div>
+                                        {/* Inline "safe to navigate away" hint during active streaming */}
+                                        <span className="hidden sm:flex items-center gap-1.5 shrink-0 text-[11px] text-forest-f30 border border-forest-f40/20 rounded-full px-2.5 py-0.5 bg-forest-f40/5 whitespace-nowrap">
+                                            <span className="relative flex h-1.5 w-1.5 shrink-0">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-forest-f40 opacity-75" />
+                                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-forest-f40" />
+                                            </span>
+                                            Safe to navigate away — will keep running
+                                        </span>
+                                    </div>
+                                );
+                            }
+                        }
+                        if (isRunningInBg && !isStreaming) {
+                            return (
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <span className="relative flex shrink-0 h-2 w-2">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-forest-f40 opacity-75" />
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-forest-f40" />
+                                    </span>
+                                    <p className="text-xs text-forest-f50 flex-1">
+                                        Stellar is still working — you can navigate away and come back anytime.
+                                    </p>
+                                </div>
+                            );
+                        }
+                        return <div className="flex-1" />;
                     })()}
                     {/* Hidden: Test SSE button (kept for future testing)
                     {runTestSse && (
@@ -1547,8 +1577,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     }
                 }}
             >
-                {isLoading && currentSessionId && !hasMessages ? (
-                    /* Loading history for selected session */
+                {loadingHistorySessionId === currentSessionId && currentSessionId && !hasMessages ? (
+                    /* Loading history for selected session — uses dedicated flag independent of isLoading */
                     <div className="flex flex-col items-center justify-center h-full gap-4">
                         <div className="flex items-center gap-2 text-[#556179]">
                             <div className="flex gap-1">
