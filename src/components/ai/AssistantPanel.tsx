@@ -1530,7 +1530,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     <>
                     <button
                         type="button"
-                        onClick={() => effectiveSessionId && selectSession(effectiveSessionId, { forceReload: true })}
+                        onClick={() => effectiveSessionId && selectSession(effectiveSessionId)}
                         disabled={isLoading || isStreaming}
                         className="flex items-center justify-center w-7 h-7 rounded text-forest-f30 hover:text-forest-f40 hover:bg-sandstorm-s40/60 transition-colors disabled:opacity-40"
                         aria-label="Refresh conversation"
@@ -1690,6 +1690,17 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                             <div className="chat-message-content">
                                                 <div className="chat-message-header">
                                                     <span className="chat-message-header-label">You</span>
+                                                    <div className="chat-message-actions">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleCopyResponse(message.id, message.content)}
+                                                            className="chat-action-btn"
+                                                            title={copiedMessageId === message.id ? "Copied!" : "Copy prompt"}
+                                                            aria-label="Copy prompt"
+                                                        >
+                                                            {copiedMessageId === message.id ? <Check className="w-3.5 h-3.5 text-forest-f40" /> : <Clipboard className="w-3.5 h-3.5" />}
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 <div className="chat-user-card">
                                                     <h2 className="text-lg font-bold text-forest-f60 leading-snug font-agrandir">
