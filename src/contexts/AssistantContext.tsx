@@ -122,6 +122,12 @@ interface AssistantContextType {
 
   /** Manually trigger session list reload (e.g. when chat history sidebar expands) */
   loadSessions: () => Promise<void>;
+  /** Fetch the next page of sessions and append to the list (infinite scroll). */
+  loadMoreSessions: () => Promise<void>;
+  /** False when all pages have been fetched. */
+  hasMoreSessions: boolean;
+  /** True while a loadMoreSessions fetch is in flight. */
+  isLoadingMoreSessions: boolean;
 
   /** Google Sheets integrations for the selected account (from profile cache, same API as profiles) */
   googleSheetsIntegrations: GoogleSheetsIntegration[];
@@ -170,6 +176,14 @@ export const AssistantProvider: React.FC<{
   const [runningSessionIds, setRunningSessionIds] = useState<Set<string>>(new Set());
   const runningSessionIdsRef = useRef<Set<string>>(new Set());
   runningSessionIdsRef.current = runningSessionIds;
+
+  const [hasMoreSessions, setHasMoreSessions] = useState(true);
+  const [isLoadingMoreSessions, setIsLoadingMoreSessions] = useState(false);
+  // Tracks how many API-sourced sessions have been loaded (excludes in-memory-only entries).
+  const apiSessionCountRef = useRef(0);
+  // Refs so loadMoreSessions stays stable (no stale-closure churn on every state change).
+  const hasMoreSessionsRef = useRef(true);
+  const isLoadingMoreSessionsRef = useRef(false);
 
   const [assistantScope, setAssistantScopeState] = useState<AssistantScope>({
     accountId: null,
@@ -283,6 +297,11 @@ export const AssistantProvider: React.FC<{
       // Always fetch all user sessions (backend ignores account_id for listing)
       const resp = await pixisAiSessionsService.list(token, { limit: 50 });
       const list = Array.isArray(resp?.sessions) ? resp.sessions : [];
+      apiSessionCountRef.current = list.length;
+      // Reset pagination: a fresh load always starts from page 1
+      const moreAvailable = list.length === 50;
+      setHasMoreSessions(moreAvailable);
+      hasMoreSessionsRef.current = moreAvailable;
       setSessions((prev) => {
         const byId = new Map(prev.map((s) => [s.id, s]));
         const fromApi = list.map((api) => {
@@ -312,6 +331,43 @@ export const AssistantProvider: React.FC<{
       console.error("Failed to load sessions:", err);
     } finally {
       setIsLoadingSessions(false);
+    }
+  }, [getAccessToken]);
+
+  const loadMoreSessions = useCallback(async () => {
+    // Use refs so this callback stays stable and never goes stale
+    if (isLoadingMoreSessionsRef.current || !hasMoreSessionsRef.current) return;
+    const token = await getAccessToken();
+    if (!token) return;
+
+    isLoadingMoreSessionsRef.current = true;
+    setIsLoadingMoreSessions(true);
+    try {
+      const offset = apiSessionCountRef.current;
+      const resp = await pixisAiSessionsService.list(token, { limit: 50, offset });
+      const list = Array.isArray(resp?.sessions) ? resp.sessions : [];
+      if (list.length < 50) {
+        hasMoreSessionsRef.current = false;
+        setHasMoreSessions(false);
+      }
+      if (list.length === 0) return;
+      apiSessionCountRef.current += list.length;
+      setSessions((prev) => {
+        const existingIds = new Set(prev.map((s) => s.id));
+        const newEntries = list
+          .filter((api) => !existingIds.has(api.id))
+          .map((api) => ({ ...api } as SessionWithMessages));
+        return [...prev, ...newEntries];
+      });
+      const runningFromList = list.filter((s) => s.is_running).map((s) => s.id);
+      if (runningFromList.length > 0) {
+        setRunningSessionIds((prev) => new Set([...prev, ...runningFromList]));
+      }
+    } catch (err) {
+      console.error("Failed to load more sessions:", err);
+    } finally {
+      isLoadingMoreSessionsRef.current = false;
+      setIsLoadingMoreSessions(false);
     }
   }, [getAccessToken]);
 
@@ -657,6 +713,23 @@ export const AssistantProvider: React.FC<{
     },
     [getAccessToken]
   );
+
+  // Auto-select on /chat page load: prefer first running session, else first in list.
+  // Uses a ref to ensure it fires at most once per page visit.
+  const autoSelectedRef = useRef(false);
+  useEffect(() => {
+    // Reset the flag whenever the user navigates away from /chat
+    if (!isChatPage) {
+      autoSelectedRef.current = false;
+      return;
+    }
+    if (autoSelectedRef.current || currentSessionId || isLoadingSessions || sessions.length === 0) return;
+    autoSelectedRef.current = true;
+    const firstRunning = sessions.find((s) => runningSessionIds.has(s.id));
+    const target = firstRunning ?? sessions[0];
+    if (target) selectSession(target.id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isChatPage, currentSessionId, isLoadingSessions, sessions, runningSessionIds]);
 
   const startNewSession = useCallback(() => {
     setCurrentSessionId(null);
@@ -1449,6 +1522,9 @@ export const AssistantProvider: React.FC<{
         todoList,
         runTestSse: import.meta.env.DEV ? runTestSse : undefined,
         loadSessions,
+        loadMoreSessions,
+        hasMoreSessions,
+        isLoadingMoreSessions,
         googleSheetsIntegrations,
       }}
     >
