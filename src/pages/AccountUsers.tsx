@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { X } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useAccounts } from "../contexts/AccountsContext";
 import { useSidebar } from "../contexts/SidebarContext";
@@ -11,6 +12,7 @@ import { Alert, Dropdown, Loader, Checkbox } from "../components/ui";
 import { ConfirmationModal } from "../components/ui/ConfirmationModal";
 import { ErrorModal } from "../components/ui/ErrorModal";
 import { type Account, type Channel } from "../services/accounts";
+import { cn } from "../lib/cn";
 
 /** Multi-select dropdown with search - campaign filter style (FILTER / VALUE with checkboxes + search). */
 function MultiSelectWithSearch({
@@ -159,6 +161,123 @@ const PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 350;
 const SUCCESS_ALERT_AUTO_DISMISS_MS = 5000;
 
+type UserFormFieldKey =
+  | "email"
+  | "password"
+  | "password2"
+  | "first_name"
+  | "last_name"
+  | "role"
+  | "_form";
+
+type UserFormErrors = Partial<Record<UserFormFieldKey, string>>;
+
+function mapSingleApiErrorToFields(msg: string, mode: "create" | "edit"): UserFormErrors {
+  const lower = msg.toLowerCase();
+  if (lower.includes("passwords do not match")) {
+    return { password2: msg };
+  }
+  if (
+    lower.includes("email") &&
+    (lower.includes("already") || lower.includes("member") || lower.includes("exists"))
+  ) {
+    return { email: msg };
+  }
+  if (
+    lower.includes("role must") ||
+    lower.includes("assign admin") ||
+    lower.includes("admin role")
+  ) {
+    return { role: msg };
+  }
+  if (lower.includes("profile to edit your own name")) {
+    return { _form: msg };
+  }
+  if (
+    mode === "create" &&
+    (lower.includes("password") ||
+      lower.includes("at least") ||
+      lower.includes("too common") ||
+      lower.includes("entirely numeric") ||
+      lower.includes("too short"))
+  ) {
+    return { password: msg };
+  }
+  if (lower.includes("required")) {
+    return { _form: msg };
+  }
+  return { _form: msg };
+}
+
+function parseWorkspaceUserFormError(err: unknown, mode: "create" | "edit"): UserFormErrors {
+  const data = (err as { response?: { data?: unknown } })?.response?.data;
+  if (data && typeof data === "object") {
+    const d = data as Record<string, unknown>;
+    const out: UserFormErrors = {};
+
+    const firstString = (v: unknown): string | undefined => {
+      if (Array.isArray(v) && v.length && typeof v[0] === "string") return v[0];
+      if (typeof v === "string") return v;
+      return undefined;
+    };
+
+    for (const key of ["email", "password", "password2", "first_name", "last_name", "role"] as const) {
+      const msg = firstString(d[key]);
+      if (msg) out[key] = msg;
+    }
+    const nf = firstString(d.non_field_errors);
+    if (nf) out._form = nf;
+
+    if (Object.keys(out).length > 0) return out;
+
+    if (Array.isArray(d.detail) && d.detail.length && typeof d.detail[0] === "string") {
+      return mapSingleApiErrorToFields(d.detail[0], mode);
+    }
+    if (typeof d.detail === "string" && d.detail) {
+      return mapSingleApiErrorToFields(d.detail, mode);
+    }
+    if (typeof d.error === "string" && d.error) {
+      return mapSingleApiErrorToFields(d.error, mode);
+    }
+  }
+  return { _form: mode === "create" ? "Failed to create user" : "Failed to update user" };
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <p className="text-[12px] text-red-r30 mt-1" role="alert">
+      {message}
+    </p>
+  );
+}
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Client-side required-field checks for create user (avoids native HTML5 validation popups). */
+function getCreateFormClientErrors(
+  email: string,
+  password: string,
+  password2: string,
+): UserFormErrors {
+  const errors: UserFormErrors = {};
+  const em = email.trim();
+  if (!em) {
+    errors.email = "Email is required";
+  } else if (!EMAIL_REGEX.test(em)) {
+    errors.email = "Enter a valid email address";
+  }
+  if (!password) {
+    errors.password = "Password is required";
+  }
+  if (!password2) {
+    errors.password2 = "Confirm password is required";
+  } else if (password && password2 && password !== password2) {
+    errors.password2 = "Passwords do not match";
+  }
+  return errors;
+}
+
 export const AccountUsers: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
@@ -231,6 +350,8 @@ function AccountUsersContent({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [createFormErrors, setCreateFormErrors] = useState<UserFormErrors>({});
+  const [editFormErrors, setEditFormErrors] = useState<UserFormErrors>({});
 
   const [createEmail, setCreateEmail] = useState("");
   const [createFirstName, setCreateFirstName] = useState("");
@@ -333,13 +454,15 @@ function AccountUsersContent({
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!workspaceId) return;
-    if (createPassword !== createPassword2) {
-      setError("Passwords do not match");
+    const clientErrors = getCreateFormClientErrors(createEmail, createPassword, createPassword2);
+    if (Object.keys(clientErrors).length > 0) {
+      setCreateFormErrors(clientErrors);
       return;
     }
     setCreateLoading(true);
     setError("");
     setMessage("");
+    setCreateFormErrors({});
     try {
       const { user: newUser } = await workspaceService.createUser(workspaceId, {
         email: createEmail.trim().toLowerCase(),
@@ -403,10 +526,10 @@ function AccountUsersContent({
       setCreateAccountIds([]);
       setCreateChannelIds([]);
       setCreatePanelOpen(false);
+      setCreateFormErrors({});
       fetchUsers();
     } catch (err: unknown) {
-      const axErr = err as { response?: { data?: { error?: string } } };
-      setError(axErr.response?.data?.error || "Failed to create user");
+      setCreateFormErrors(parseWorkspaceUserFormError(err, "create"));
     } finally {
       setCreateLoading(false);
     }
@@ -473,6 +596,7 @@ function AccountUsersContent({
     setEditRole(((u.role as string) === "owner" || (u.role as string) === "admin" ? "admin" : u.role) as "admin" | "manager" | "team");
     setError("");
     setMessage("");
+    setEditFormErrors({});
   };
 
   const handleEditUser = async (e: React.FormEvent) => {
@@ -481,6 +605,7 @@ function AccountUsersContent({
     setEditLoading(true);
     setError("");
     setMessage("");
+    setEditFormErrors({});
     try {
       await workspaceService.updateUser(workspaceId, editUser.id, {
         first_name: editFirstName.trim(),
@@ -489,10 +614,10 @@ function AccountUsersContent({
       });
       setMessage("User updated");
       setEditUser(null);
+      setEditFormErrors({});
       fetchUsers();
     } catch (err: unknown) {
-      const axErr = err as { response?: { data?: { error?: string } } };
-      setError(axErr.response?.data?.error || "Failed to update user");
+      setEditFormErrors(parseWorkspaceUserFormError(err, "edit"));
     } finally {
       setEditLoading(false);
     }
@@ -530,6 +655,7 @@ function AccountUsersContent({
                 setCreatePanelOpen(!createPanelOpen);
                 setError("");
                 setMessage("");
+                setCreateFormErrors({});
               }}
               className="create-entity-button w-full"
             >
@@ -546,14 +672,27 @@ function AccountUsersContent({
               </svg>
             </button>
           )}
-          <input
-            type="text"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search by email or name..."
-            className="campaign-input w-48"
-            aria-label="Search users"
-          />
+          <div className="relative w-48 shrink-0">
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search by email or name..."
+              className={cn("campaign-input w-full", searchInput.length > 0 && "pr-9")}
+              aria-label="Search users"
+            />
+            {searchInput.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSearchInput("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-[#556179] hover:text-[#072929] transition-colors"
+                aria-label="Clear search"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
           <Dropdown<string>
             options={ROLE_FILTER_OPTIONS}
             value={roleFilter}
@@ -568,7 +707,7 @@ function AccountUsersContent({
       {isManagerOrOwner && createPanelOpen && (
         <div className="">
           <div className="relative border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6]">
-            <form onSubmit={handleCreateUser}>
+            <form noValidate onSubmit={handleCreateUser}>
               <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-[16px] font-semibold text-[#072929]">
@@ -576,7 +715,10 @@ function AccountUsersContent({
                   </h2>
                   <button
                     type="button"
-                    onClick={() => setCreatePanelOpen(false)}
+                    onClick={() => {
+                      setCreatePanelOpen(false);
+                      setCreateFormErrors({});
+                    }}
                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     aria-label="Close"
                   >
@@ -586,26 +728,53 @@ function AccountUsersContent({
                   </button>
                 </div>
                 <div className="space-y-6">
+                  <FieldError message={createFormErrors._form} />
                   <div className="grid grid-cols-4 gap-6">
                     <div>
                       <label className="form-label">First name</label>
                       <input
                         type="text"
                         value={createFirstName}
-                        onChange={(e) => setCreateFirstName(e.target.value)}
-                        className="campaign-input w-full"
+                        onChange={(e) => {
+                          setCreateFirstName(e.target.value);
+                          setCreateFormErrors((p) => {
+                            if (!p.first_name) return p;
+                            const n = { ...p };
+                            delete n.first_name;
+                            return n;
+                          });
+                        }}
+                        className={cn(
+                          "campaign-input w-full",
+                          createFormErrors.first_name && "campaign-input--error",
+                        )}
                         placeholder="First name"
+                        aria-invalid={!!createFormErrors.first_name}
                       />
+                      <FieldError message={createFormErrors.first_name} />
                     </div>
                     <div>
                       <label className="form-label">Last name</label>
                       <input
                         type="text"
                         value={createLastName}
-                        onChange={(e) => setCreateLastName(e.target.value)}
-                        className="campaign-input w-full"
+                        onChange={(e) => {
+                          setCreateLastName(e.target.value);
+                          setCreateFormErrors((p) => {
+                            if (!p.last_name) return p;
+                            const n = { ...p };
+                            delete n.last_name;
+                            return n;
+                          });
+                        }}
+                        className={cn(
+                          "campaign-input w-full",
+                          createFormErrors.last_name && "campaign-input--error",
+                        )}
                         placeholder="Last name"
+                        aria-invalid={!!createFormErrors.last_name}
                       />
+                      <FieldError message={createFormErrors.last_name} />
                     </div>
                   </div>
                   <div className="grid grid-cols-4 gap-6">
@@ -614,21 +783,49 @@ function AccountUsersContent({
                       <input
                         type="email"
                         value={createEmail}
-                        onChange={(e) => setCreateEmail(e.target.value)}
-                        required
-                        className="campaign-input w-full"
+                        autoComplete="email"
+                        onChange={(e) => {
+                          setCreateEmail(e.target.value);
+                          setCreateFormErrors((p) => {
+                            if (!p.email) return p;
+                            const n = { ...p };
+                            delete n.email;
+                            return n;
+                          });
+                        }}
+                        className={cn(
+                          "campaign-input w-full",
+                          createFormErrors.email && "campaign-input--error",
+                        )}
                         placeholder="user@example.com"
+                        aria-invalid={!!createFormErrors.email}
+                        aria-required
                       />
+                      <FieldError message={createFormErrors.email} />
                     </div>
                     <div>
-                      <label className="form-label">Role</label>
+                      <label className="form-label">
+                        Role <span>*</span>
+                      </label>
                       <Dropdown<string>
                         options={ROLE_OPTIONS}
                         value={createRole}
-                        onChange={(v) => setCreateRole(v as "manager" | "team")}
+                        onChange={(v) => {
+                          setCreateRole(v as "manager" | "team");
+                          setCreateFormErrors((p) => {
+                            if (!p.role) return p;
+                            const n = { ...p };
+                            delete n.role;
+                            return n;
+                          });
+                        }}
                         placeholder="Select role"
-                        buttonClassName="edit-button w-full"
+                        buttonClassName={cn(
+                          "edit-button w-full",
+                          createFormErrors.role && "edit-button--error",
+                        )}
                       />
+                      <FieldError message={createFormErrors.role} />
                     </div>
                   </div>
                   <div className="grid grid-cols-4 gap-6">
@@ -637,22 +834,52 @@ function AccountUsersContent({
                       <input
                         type="password"
                         value={createPassword}
-                        onChange={(e) => setCreatePassword(e.target.value)}
-                        required
-                        className="campaign-input w-full"
+                        onChange={(e) => {
+                          setCreatePassword(e.target.value);
+                          setCreateFormErrors((p) => {
+                            if (!p.password && !p.password2) return p;
+                            const n = { ...p };
+                            delete n.password;
+                            delete n.password2;
+                            return n;
+                          });
+                        }}
+                        autoComplete="new-password"
+                        className={cn(
+                          "campaign-input w-full",
+                          createFormErrors.password && "campaign-input--error",
+                        )}
                         placeholder="Password"
+                        aria-invalid={!!createFormErrors.password}
+                        aria-required
                       />
+                      <FieldError message={createFormErrors.password} />
                     </div>
                     <div>
                       <label className="form-label">Confirm password <span>*</span></label>
                       <input
                         type="password"
                         value={createPassword2}
-                        onChange={(e) => setCreatePassword2(e.target.value)}
-                        required
-                        className="campaign-input w-full"
+                        autoComplete="new-password"
+                        onChange={(e) => {
+                          setCreatePassword2(e.target.value);
+                          setCreateFormErrors((p) => {
+                            if (!p.password2 && !p.password) return p;
+                            const n = { ...p };
+                            delete n.password2;
+                            delete n.password;
+                            return n;
+                          });
+                        }}
+                        className={cn(
+                          "campaign-input w-full",
+                          createFormErrors.password2 && "campaign-input--error",
+                        )}
                         placeholder="Confirm password"
+                        aria-invalid={!!createFormErrors.password2}
+                        aria-required
                       />
+                      <FieldError message={createFormErrors.password2} />
                     </div>
                   </div>
                   {createRole === "manager" && (
@@ -687,7 +914,14 @@ function AccountUsersContent({
                 </div>
               </div>
               <div className="p-4 border-t border-gray-200 flex items-center justify-end gap-3">
-                <button type="button" onClick={() => setCreatePanelOpen(false)} className="cancel-button">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreatePanelOpen(false);
+                    setCreateFormErrors({});
+                  }}
+                  className="cancel-button"
+                >
                   Cancel
                 </button>
                 <button type="submit" disabled={createLoading} className="apply-button">
@@ -711,7 +945,10 @@ function AccountUsersContent({
                   </h2>
                   <button
                     type="button"
-                    onClick={() => setEditUser(null)}
+                    onClick={() => {
+                      setEditUser(null);
+                      setEditFormErrors({});
+                    }}
                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     aria-label="Close"
                   >
@@ -721,26 +958,47 @@ function AccountUsersContent({
                   </button>
                 </div>
                 <div className="space-y-6">
+                  <FieldError message={editFormErrors._form} />
                   <div className="grid grid-cols-4 gap-6">
                     <div>
                       <label className="form-label">First name</label>
                       <input
                         type="text"
                         value={editFirstName}
-                        onChange={(e) => setEditFirstName(e.target.value)}
+                        onChange={(e) => {
+                          setEditFirstName(e.target.value);
+                          setEditFormErrors((p) => {
+                            if (!p.first_name) return p;
+                            const n = { ...p };
+                            delete n.first_name;
+                            return n;
+                          });
+                        }}
                         className="campaign-input w-full"
                         placeholder="First name"
+                        aria-invalid={!!editFormErrors.first_name}
                       />
+                      <FieldError message={editFormErrors.first_name} />
                     </div>
                     <div>
                       <label className="form-label">Last name</label>
                       <input
                         type="text"
                         value={editLastName}
-                        onChange={(e) => setEditLastName(e.target.value)}
+                        onChange={(e) => {
+                          setEditLastName(e.target.value);
+                          setEditFormErrors((p) => {
+                            if (!p.last_name) return p;
+                            const n = { ...p };
+                            delete n.last_name;
+                            return n;
+                          });
+                        }}
                         className="campaign-input w-full"
                         placeholder="Last name"
+                        aria-invalid={!!editFormErrors.last_name}
                       />
+                      <FieldError message={editFormErrors.last_name} />
                     </div>
                   </div>
                   <div className="grid grid-cols-4 gap-6">
@@ -766,16 +1024,32 @@ function AccountUsersContent({
                             : ROLE_OPTIONS
                         }
                         value={editRole}
-                        onChange={(v) => setEditRole(v as "admin" | "manager" | "team")}
+                        onChange={(v) => {
+                          setEditRole(v as "admin" | "manager" | "team");
+                          setEditFormErrors((p) => {
+                            if (!p.role) return p;
+                            const n = { ...p };
+                            delete n.role;
+                            return n;
+                          });
+                        }}
                         placeholder="Select role"
                         buttonClassName="edit-button w-full"
                       />
+                      <FieldError message={editFormErrors.role} />
                     </div>
                   </div>
                 </div>
               </div>
               <div className="p-4 border-t border-gray-200 flex items-center justify-end gap-3">
-                <button type="button" onClick={() => setEditUser(null)} className="cancel-button">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditUser(null);
+                    setEditFormErrors({});
+                  }}
+                  className="cancel-button"
+                >
                   Cancel
                 </button>
                 <button type="submit" disabled={editLoading} className="apply-button">

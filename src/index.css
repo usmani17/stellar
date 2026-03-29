@@ -599,6 +599,14 @@ body input[type="submit"]:disabled {
   cursor: not-allowed !important;
 }
 
+.edit-button.edit-button--error,
+.edit-button.edit-button--error:hover,
+.edit-button.edit-button--error:focus,
+.edit-button.edit-button--error:focus-visible {
+  border-color: #ce1313 !important;
+  box-shadow: 0 0 0 1px #ce1313 !important;
+}
+
 /* Google table inline dropdowns - compact height and white background */
 .google-table-dropdown {
   height: 31px !important;
@@ -927,6 +935,15 @@ button .text-\[12px\] {
   outline: none;
   box-shadow: 0 0 0 1px #136D6D;
   border-color: #136D6D;
+}
+
+.campaign-input.campaign-input--error {
+  border-color: #ce1313 !important;
+}
+
+.campaign-input.campaign-input--error:focus {
+  box-shadow: 0 0 0 1px #ce1313 !important;
+  border-color: #ce1313 !important;
 }
 
 .campaign-input::placeholder {
