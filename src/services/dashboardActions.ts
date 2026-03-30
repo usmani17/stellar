@@ -3,6 +3,7 @@
  */
 
 import api from "./api";
+import { getCurrentWorkspaceId } from "../lib/workspace";
 import type {
   ActionExecution,
   ActionProposal,
@@ -214,6 +215,7 @@ export async function streamKeywordAnalysis(
   }
 ): Promise<KeywordAnalysisStreamResult> {
   const token = localStorage.getItem("accessToken");
+  const workspaceId = getCurrentWorkspaceId();
   const url = `${API_BASE_URL}${API_BASE}/${accountId}/dashboards/${dashboardId}/actions/keyword-analysis/stream/?mode=run`;
 
   const res = await fetch(url, {
@@ -221,6 +223,7 @@ export async function streamKeywordAnalysis(
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(workspaceId != null ? { "X-Workspace-Id": String(workspaceId) } : {}),
     },
     body: JSON.stringify(payload),
     credentials: "include",

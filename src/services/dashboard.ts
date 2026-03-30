@@ -6,6 +6,7 @@
 
 import api from "./api";
 import type { DashboardConfig, DashboardComponent } from "../pages/workflows/types/dashboard";
+import { getCurrentWorkspaceId } from "../lib/workspace";
 
 const API_BASE = "/assistant";
 
@@ -267,8 +268,10 @@ export async function getDashboardComponentDataStream(
       const qs = params.toString();
       const url = `${baseURL}${API_BASE}/${accountId}/dashboards/${dashboardId}/components/${componentId}/stream/${qs ? `?${qs}` : ""}`;
       const token = localStorage.getItem("accessToken");
+      const workspaceId = getCurrentWorkspaceId();
       const headers: HeadersInit = {
         ...(token && { Authorization: `Bearer ${token}` }),
+        ...(workspaceId != null && { "X-Workspace-Id": String(workspaceId) }),
       };
       const response = await fetch(url, { headers });
       if (!response.ok) {

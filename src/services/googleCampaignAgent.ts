@@ -1,5 +1,6 @@
 import api from "./api";
 import { getAccountIdFromStorage } from "../utils/urlHelpers";
+import { getCurrentWorkspaceId } from "../lib/workspace";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
@@ -71,6 +72,7 @@ export async function sendAgentMessageStream(
   },
 ): Promise<void> {
   const token = localStorage.getItem("accessToken");
+  const workspaceId = getCurrentWorkspaceId();
   const accountId = getAccountIdFromStorage();
   const res = await fetch(
     `${API_BASE_URL}/google-campaign-agent/chat/stream/`,
@@ -79,6 +81,7 @@ export async function sendAgentMessageStream(
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(workspaceId != null ? { "X-Workspace-Id": String(workspaceId) } : {}),
       },
       body: JSON.stringify({
         message,
