@@ -46,7 +46,7 @@ const KB_TEMPLATES: KbTemplate[] = [
     name: "Brand Response Guidelines",
     trigger_type: "brand_level",
     badge: "BRAND LEVEL",
-    description: "Tone, terminology, and report structure for Stellar responses.",
+    description: "Tone, terminology, and report structure for Prism responses.",
     kb: 'Always present spend in USD. Use "investment" instead of "cost" when discussing budget. When performance is poor, lead with the diagnosis and recommended fix, not just the metric. Avoid phrases like "underperforming badly" or "wasted spend." Use "opportunity to optimize" or "efficiency gap." When asked for a report, structure it as: Key Wins, Areas to Watch, Recommended Actions.',
   },
   {
@@ -365,7 +365,7 @@ export const BrandKnowledge: React.FC = () => {
             <div>
               <h1 className="text-2xl font-agrandir font-bold text-forest-f60">Brand Knowledge</h1>
               <p className="text-sm text-forest-f30 mt-1">
-                Enhance Stellar's capabilities to help it understand the nuances of your brand.
+                Enhance Prism's capabilities to help it understand the nuances of your brand.
               </p>
             </div>
             <Button onClick={() => openCreate()} className="gap-1.5">
@@ -692,12 +692,12 @@ export const BrandKnowledge: React.FC = () => {
                   <Sparkles className="w-4 h-4 text-forest-f40" />
                 </label>
                 <p className="text-xs text-forest-f30 mb-2">
-                  Define how Stellar expands prompts when users click Enhance for this brand.
+                  Define how Prism expands prompts when users click Enhance for this brand.
                 </p>
                 <MarkdownPromptEditor
                   value={formEnhancePrompt}
                   onChange={setFormEnhancePrompt}
-                  placeholder="Describe how Stellar should expand prompts for this brand..."
+                  placeholder="Describe how Prism should expand prompts for this brand..."
                   minHeight="120px"
                 />
                 <p className="text-xs text-forest-f30 text-right mt-0.5">{formEnhancePrompt.length}/5000</p>

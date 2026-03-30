@@ -14,7 +14,7 @@ import { useAccounts } from "../../contexts/AccountsContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useChannels } from "../../hooks/queries/useChannels";
 import { ConfirmationModal, SelectBrandRequiredModal } from "../ui";
-import StellarLogo from "../../assets/images/stellar-logo-v2 1.svg";
+import PrismLogo from "../../assets/images/prism-logo.svg";
 import CampaignIconRegular from "../../assets/images/campaign.svg";
 import CampaignWhiteIcon from "../../assets/campaign-white.svg";
 import AdGroupIcon from "../../assets/images/adgroups.svg";
@@ -446,8 +446,8 @@ export const Sidebar: React.FC = () => {
         <div className="mb-2 flex items-center gap-3 justify-between">
           {!isCollapsed && (
             <img
-              src={StellarLogo}
-              alt="Stellar Logo"
+              src={PrismLogo}
+              alt="Prism Logo"
               className="h-[30px] w-auto"
             />
           )}

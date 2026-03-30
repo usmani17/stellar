@@ -118,7 +118,7 @@ function PublicDashboardInner({
         <footer
           className={`py-6 text-center text-xs ${isDark ? "text-neutral-500" : "text-forest-f30"}`}
         >
-          Powered by Stellar
+          Powered by Prism
         </footer>
       </div>
     </div>

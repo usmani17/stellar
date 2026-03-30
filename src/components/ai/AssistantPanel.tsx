@@ -6,7 +6,7 @@ import { useAccounts, type AccountProfileOption } from "../../contexts/AccountsC
 import { useAuth } from "../../contexts/AuthContext";
 import type { PixisTimelineItem } from "../../services/ai/pixisChat";
 import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search, Share2, Copy, Check, RefreshCw, FlaskConical, Clipboard, Loader2 } from "lucide-react";
-import StellarLogo from "../../assets/images/steller-logo-mini.svg";
+import PrismLogo from "../../assets/images/prism-logo-mini.svg";
 import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
 import { MessageContent } from "../ai/MessageContent";
 import { ContentWithCharts } from "../ai/ContentWithCharts";
@@ -344,6 +344,22 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     // Reset scroll-follow when switching sessions so we scroll to bottom for new conversation
     useEffect(() => {
         userScrolledUpRef.current = false;
+    }, [currentSessionId]);
+
+    // Smooth scroll to bottom when a session is loaded (session switch or initial load)
+    useEffect(() => {
+        if (!currentSessionId) return;
+        const container = messagesScrollContainerRef.current;
+        if (!container) return;
+        // Small delay so the DOM has painted the messages before we measure scrollHeight
+        const t = setTimeout(() => {
+            const target = container.scrollHeight - container.clientHeight;
+            if (target <= 0) return;
+            programmaticScrollUntilRef.current = Date.now() + 600;
+            container.scrollTo({ top: target, behavior: "smooth" });
+        }, 60);
+        return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentSessionId]);
 
     // Auto-scroll to bottom when new messages arrive — instant, throttled, and respect user scroll-up
@@ -1505,7 +1521,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                         <span className="relative inline-flex rounded-full h-2 w-2 bg-forest-f40" />
                                     </span>
                                     <p className="text-xs text-forest-f50 flex-1">
-                                        Stellar is still working — you can navigate away and come back anytime.
+                                        Prism is still working — you can navigate away and come back anytime.
                                     </p>
                                 </div>
                             );
@@ -1593,7 +1609,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     /* Empty State: logo, hint text, and prompts (setup card is above in its own section) */
                     <div className="flex flex-col items-center justify-center h-full gap-6">
                         <div className="mb-0">
-                            <img src={StellarLogo} alt="Assistant" className="h-16 w-16" />
+                            <img src={PrismLogo} alt="Assistant" className="h-16 w-16" />
                         </div>
                         <h3 className="text-lg font-medium text-forest-f60">
                             Assistant
@@ -1722,11 +1738,11 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 return (
                                     <div key={message.id} className="chat-message-row mt-6">
                                         <div className="chat-avatar chat-ai-avatar">
-                                            <img src={StellarLogo} alt="Stellar" />
+                                            <img src={PrismLogo} alt="Prism" />
                                         </div>
                                         <div className="chat-message-content">
                                             <div className="chat-message-header">
-                                                <span className="chat-message-header-label">Stellar</span>
+                                                <span className="chat-message-header-label">Prism</span>
                                                 {!aiStreaming && !isStreaming && (
                                                     <div className="chat-message-actions">
                                                         {responseText && (
@@ -1864,11 +1880,11 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         {isStreaming && (messages.length === 0 || messages[messages.length - 1]?.type !== "ai") && (
                             <div className="chat-message-row mt-6">
                                 <div className="chat-avatar chat-ai-avatar">
-                                    <img src={StellarLogo} alt="Stellar" />
+                                    <img src={PrismLogo} alt="Prism" />
                                 </div>
                                 <div className="chat-message-content">
                                     <div className="chat-message-header">
-                                        <span className="chat-message-header-label">Stellar</span>
+                                        <span className="chat-message-header-label">Prism</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-forest-f30 mt-2">
                                         <span className="w-1.5 h-1.5 bg-forest-f40 rounded-full animate-pulse" />

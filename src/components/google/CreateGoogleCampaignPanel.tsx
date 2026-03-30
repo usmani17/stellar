@@ -1165,7 +1165,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     
     setFormData({
       campaign_type: "PERFORMANCE_MAX",
-      name: `PMAX Campaign Stellar FE - ${timestampStr} - 1`,
+      name: `PMAX Campaign Prism FE - ${timestampStr} - 1`,
       budget_amount: 10,
       budget_name: "Test PMax Budget",
       status: "PAUSED",
@@ -1227,7 +1227,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     
     setFormData({
       campaign_type: "SHOPPING",
-      name: `Shopping Campaign Stellar FE - ${timestampStr} - 1`,
+      name: `Shopping Campaign Prism FE - ${timestampStr} - 1`,
       budget_amount: 10,
       budget_name: "Test Shopping Budget",
       status: "PAUSED",
@@ -1278,7 +1278,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     
     setFormData({
       campaign_type: "SEARCH",
-      name: `Search Campaign Stellar FE - ${timestampStr} - 1`,
+      name: `Search Campaign Prism FE - ${timestampStr} - 1`,
       budget_amount: 10,
       budget_name: "Test Search Budget",
       status: "PAUSED",

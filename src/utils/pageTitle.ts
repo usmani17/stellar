@@ -2,11 +2,11 @@
  * Utility functions for managing page titles
  */
 
-const DEFAULT_TITLE = "Stellar";
-const TITLE_PREFIX = "Stellar";
+const DEFAULT_TITLE = "Prism";
+const TITLE_PREFIX = "Prism";
 
 /**
- * Sets the page title with the Stellar prefix
+ * Sets the page title with the Prism prefix
  * @param title - The page title (e.g., "Google Campaigns")
  * @returns The full title that was set
  */

@@ -5,7 +5,7 @@ import { getSharedChat, type SharedChatResponse, type SharedThreadTurn, type Sha
 import { ContentWithCharts } from "../components/ai/ContentWithCharts";
 import { MessageContent } from "../components/ai/MessageContent";
 import { isEventStream, extractDisplayContentFromEvents, eventsToTimeline } from "../utils/chartJsonParser";
-import StellarLogo from "../assets/images/steller-logo-mini.svg";
+import PrismLogo from "../assets/images/prism-logo-mini.svg";
 
 type LoadState = "loading" | "error" | "ready";
 
@@ -186,13 +186,13 @@ export function PublicChatPage() {
                 <div className="max-w-5xl mx-auto px-6 py-3 flex flex-col gap-2">
                     {/* Row 1: logo + title */}
                     <div className="flex items-center gap-3 min-w-0">
-                        <img src={StellarLogo} alt="Stellar" className="h-8 w-8 shrink-0" />
+                        <img src={PrismLogo} alt="Prism" className="h-8 w-8 shrink-0" />
                         <div className="min-w-0">
                             <h1 className="text-lg font-semibold text-forest-f60 leading-tight font-agrandir">
                                 {loadState === "ready" ? sessionTitle : "Shared conversation"}
                             </h1>
                             <p className="text-[11px] text-forest-f30">
-                                Shared via Stellar
+                                Shared via Prism
                                 {data?.thread_id ? " · Single response" : data?.history?.length ? ` · ${data.history.length} turn${data.history.length !== 1 ? "s" : ""}` : ""}
                             </p>
                         </div>
@@ -262,7 +262,7 @@ export function PublicChatPage() {
                 <p className="text-[11px] text-forest-f30">
                     Powered by{" "}
                     <a href="/" className="text-forest-f40 hover:underline font-medium">
-                        Stellar
+                        Prism
                     </a>
                 </p>
             </footer>

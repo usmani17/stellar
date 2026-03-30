@@ -172,7 +172,7 @@ export interface KeywordAnalysisStreamRequest {
   action_id?: number;
   seed_keywords?: string[];
   constraints?: Record<string, unknown>;
-  /** Passed to Stellar; merged into the Pixis keyword-analysis text prompt (not raw JSON). */
+  /** Passed to Prism; merged into the Pixis keyword-analysis text prompt (not raw JSON). */
   guardrails?: Record<string, unknown>;
   prompt?: string;
   customer_id?: string;

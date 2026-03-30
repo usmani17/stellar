@@ -1,6 +1,6 @@
 import React from "react";
 import { useAssistant } from "../../contexts/AssistantContext";
-import StellarLogo from "../../assets/images/steller-logo-mini.svg";
+import PrismLogo from "../../assets/images/prism-logo-mini.svg";
 
 // Trigger button to toggle Assistant panel
 export const AssistantTrigger: React.FC<{ className?: string }> = ({
@@ -17,7 +17,7 @@ export const AssistantTrigger: React.FC<{ className?: string }> = ({
         } ${className}`}
     >
       <img
-        src={StellarLogo}
+        src={PrismLogo}
         alt="Assistant"
         className="h-5 w-5"
         style={{ filter: isOpen ? "brightness(0) invert(1)" : "none" }}
