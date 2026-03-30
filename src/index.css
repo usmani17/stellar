@@ -1789,9 +1789,6 @@ button .text-\[12px\] {
 }
 
 .assistant-activity-block-scroll {
-  max-height: 280px;
-  overflow-y: auto;
-  overflow-x: hidden;
   padding: 0.75rem 1rem;
 }
 
@@ -1902,6 +1899,31 @@ button .text-\[12px\] {
   transition: all 0.2s ease;
 }
 
+.todo-header-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #072929;
+  min-width: 0;
+}
+
+.todo-header-progress-count {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-variant-numeric: tabular-nums;
+  color: #136D6D;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.todo-header-progress-label {
+  color: #506766;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
 /* ── Todo panel ── */
 .todo-panel-header {
   display: flex;
@@ -1966,6 +1988,31 @@ button .text-\[12px\] {
   font-weight: 500;
 }
 
+@keyframes todo-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes todo-flash {
+  0% { background: transparent; }
+  20% { background: rgba(19, 109, 109, 0.1); }
+  100% { background: transparent; }
+}
+
+.todo-row-enter {
+  animation: todo-slide-in 0.35s ease-out both;
+}
+
+.todo-row-flash {
+  animation: todo-flash 0.6s ease-out;
+}
+
 /* ── Subagent panel ── */
 .subagent-panel {
   padding: 0;
@@ -1977,7 +2024,7 @@ button .text-\[12px\] {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 8px 12px;
+  padding: 14px 16px;
   cursor: pointer;
   background: none;
   border: none;
@@ -1989,17 +2036,18 @@ button .text-\[12px\] {
 }
 
 .subagent-type-badge {
-  font-size: 9px;
+  font-size: 11px;
   font-family: ui-monospace, SFMono-Regular, monospace;
-  padding: 1px 6px;
+  padding: 3px 10px;
   background: rgba(19, 109, 109, 0.08);
   color: #136D6D;
-  border-radius: 4px;
+  border-radius: 5px;
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .subagent-description {
-  font-size: 12px;
+  font-size: 14px;
   color: #072929;
   white-space: nowrap;
   overflow: hidden;
@@ -2007,18 +2055,33 @@ button .text-\[12px\] {
 }
 
 .subagent-duration {
-  font-size: 10px;
+  font-size: 11px;
   color: #506766;
 }
 
+.subagent-elapsed {
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  color: #136D6D;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@keyframes subagent-pulse {
+  0%, 100% { border-color: rgba(19, 109, 109, 0.12); }
+  50% { border-color: rgba(19, 109, 109, 0.35); }
+}
+
+.subagent-panel.is-running {
+  animation: subagent-pulse 2.5s ease-in-out infinite;
+}
+
 .subagent-steps {
-  padding: 4px 12px 10px;
+  padding: 12px 16px 16px;
   border-top: 1px solid rgba(232, 232, 227, 0.5);
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  max-height: 300px;
-  overflow-y: auto;
+  gap: 4px;
 }
 
 .subagent-message {

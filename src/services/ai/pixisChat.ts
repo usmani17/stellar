@@ -211,7 +211,7 @@ export type StreamPixisChatCallbacks = {
   onCampaignDraft?: (data: CampaignDraftData) => void;
   onResult?: (data: PixisChatStreamEvent) => void;
   onError?: (err: Error) => void;
-  onKeepalive?: () => void;
+  onKeepalive?: (runningSubagents?: { call_id: string; description: string; subagentType?: string; elapsed_ms: number }[]) => void;
 };
 
 export async function streamPixisChat(
@@ -282,7 +282,8 @@ export async function streamPixisChat(
           const subtype = ev.subtype ?? "";
 
           if (etype === "keepalive") {
-            callbacks.onKeepalive?.();
+            const rs = ev.running_subagents as { call_id: string; description: string; subagentType?: string; elapsed_ms: number }[] | undefined;
+            callbacks.onKeepalive?.(Array.isArray(rs) ? rs : undefined);
             continue;
           }
 

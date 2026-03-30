@@ -5,13 +5,14 @@ import { useAssistant, type SessionWithMessages } from "../../contexts/Assistant
 import { useAccounts, type AccountProfileOption } from "../../contexts/AccountsContext";
 import { useAuth } from "../../contexts/AuthContext";
 import type { PixisTimelineItem } from "../../services/ai/pixisChat";
-import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search, Share2, Copy, Check, RefreshCw, FlaskConical, Clipboard } from "lucide-react";
+import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search, Share2, Copy, Check, RefreshCw, FlaskConical, Clipboard, Loader2 } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
 import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
 import { MessageContent } from "../ai/MessageContent";
 import { ContentWithCharts } from "../ai/ContentWithCharts";
 import { CampaignDraftPreview } from "../ai/CampaignDraftPreview";
 import { AssistantActivityBlock } from "../ai/AssistantActivityBlock";
+import { SubagentPanel } from "../ai/SubagentPanel";
 import { TodoPanel } from "../ai/TodoPanel";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
@@ -76,6 +77,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         isOpen,
         messages,
         isLoading,
+        loadingHistorySessionId,
         inputValue,
         setInputValue,
         sendMessage,
@@ -96,6 +98,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         campaignState,
         workingOnRequest,
         runTestSse,
+        todoList,
+        runningSessionIds,
     } = useAssistant();
 
     const { user } = useAuth();
@@ -1292,7 +1296,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                             onClick={() => handleSessionSelect(session.id)}
                                             className="assistant-tab-pill-button"
                                             title={session.title || "Untitled"}
-                                            disabled={isLoading}
+                                            disabled={isLoading && currentSessionId === session.id}
                                         >
                                             {isLoading && currentSessionId === session.id && (
                                                 <div className="flex gap-0.5">
@@ -1369,12 +1373,12 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                             key={session.id}
                                                             className={`assistant-history-item ${currentSessionId === session.id ? "assistant-history-item-active" : ""}`}
                                                         >
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleSessionSelect(session.id)}
-                                                                className="assistant-history-item-button"
-                                                                disabled={isLoading}
-                                                            >
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSessionSelect(session.id)}
+                                                className="assistant-history-item-button"
+                                                disabled={isLoading && currentSessionId === session.id}
+                                            >
                                                                 {isLoading && currentSessionId === session.id ? (
                                                                     <div className="flex gap-0.5 shrink-0">
                                                                         <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
@@ -1465,7 +1469,49 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             ) : null}
             {/* Page variant: toolbar above messages */}
             {variant === "page" && (
-                <div className="px-4 py-2 border-b border-[#E8E8E3] flex items-center justify-end gap-2">
+                <div className="px-4 py-2 border-b border-[#E8E8E3] flex items-center gap-2">
+                    {/* Todo progress + background-running banner in same toolbar row */}
+                    {(() => {
+                        const isRunningInBg = !!(currentSessionId && runningSessionIds.has(currentSessionId));
+                        if (isStreaming && todoList && todoList.length > 0) {
+                            const done = todoList.filter((t) => t.status === "TODO_STATUS_COMPLETE" || t.status === "TODO_STATUS_COMPLETED").length;
+                            const allDone = done === todoList.length;
+                            const active = todoList.find((t) => t.status === "TODO_STATUS_IN_PROGRESS");
+                            if (!allDone) {
+                                return (
+                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        <div className="todo-header-progress flex-1 min-w-0">
+                                            <Loader2 className="w-3 h-3 animate-spin text-forest-f40 shrink-0" />
+                                            <span className="todo-header-progress-count">{done}/{todoList.length}</span>
+                                            {active && <span className="todo-header-progress-label">{active.content}</span>}
+                                        </div>
+                                        {/* Inline "safe to navigate away" hint during active streaming */}
+                                        <span className="hidden sm:flex items-center gap-1.5 shrink-0 text-[11px] text-forest-f30 border border-forest-f40/20 rounded-full px-2.5 py-0.5 bg-forest-f40/5 whitespace-nowrap">
+                                            <span className="relative flex h-1.5 w-1.5 shrink-0">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-forest-f40 opacity-75" />
+                                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-forest-f40" />
+                                            </span>
+                                            Safe to navigate away — will keep running
+                                        </span>
+                                    </div>
+                                );
+                            }
+                        }
+                        if (isRunningInBg && !isStreaming) {
+                            return (
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <span className="relative flex shrink-0 h-2 w-2">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-forest-f40 opacity-75" />
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-forest-f40" />
+                                    </span>
+                                    <p className="text-xs text-forest-f50 flex-1">
+                                        Stellar is still working — you can navigate away and come back anytime.
+                                    </p>
+                                </div>
+                            );
+                        }
+                        return <div className="flex-1" />;
+                    })()}
                     {/* Hidden: Test SSE button (kept for future testing)
                     {runTestSse && (
                     <button
@@ -1484,7 +1530,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     <>
                     <button
                         type="button"
-                        onClick={() => effectiveSessionId && selectSession(effectiveSessionId, { forceReload: true })}
+                        onClick={() => effectiveSessionId && selectSession(effectiveSessionId)}
                         disabled={isLoading || isStreaming}
                         className="flex items-center justify-center w-7 h-7 rounded text-forest-f30 hover:text-forest-f40 hover:bg-sandstorm-s40/60 transition-colors disabled:opacity-40"
                         aria-label="Refresh conversation"
@@ -1531,8 +1577,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     }
                 }}
             >
-                {isLoading && currentSessionId && !hasMessages ? (
-                    /* Loading history for selected session */
+                {loadingHistorySessionId === currentSessionId && currentSessionId && !hasMessages ? (
+                    /* Loading history for selected session — uses dedicated flag independent of isLoading */
                     <div className="flex flex-col items-center justify-center h-full gap-4">
                         <div className="flex items-center gap-2 text-[#556179]">
                             <div className="flex gap-1">
@@ -1644,6 +1690,17 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                             <div className="chat-message-content">
                                                 <div className="chat-message-header">
                                                     <span className="chat-message-header-label">You</span>
+                                                    <div className="chat-message-actions">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleCopyResponse(message.id, message.content)}
+                                                            className="chat-action-btn"
+                                                            title={copiedMessageId === message.id ? "Copied!" : "Copy prompt"}
+                                                            aria-label="Copy prompt"
+                                                        >
+                                                            {copiedMessageId === message.id ? <Check className="w-3.5 h-3.5 text-forest-f40" /> : <Clipboard className="w-3.5 h-3.5" />}
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 <div className="chat-user-card">
                                                     <h2 className="text-lg font-bold text-forest-f60 leading-snug font-agrandir">
@@ -1658,7 +1715,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             if (message.type === "ai") {
                                 const { content, timeline, isStreaming: aiStreaming, error } = message;
                                 const lastText = [...timeline].reverse().find((i): i is Extract<PixisTimelineItem, { type: "text" }> => i.type === "text" && !!i.content);
-                                const ACTIVITY_SET = new Set(["thinking", "tool_call", "subagent"]);
                                 const todoItem = timeline.find((t): t is Extract<PixisTimelineItem, { type: "todo_update" }> => t.type === "todo_update");
                                 const timelineWithoutTodo = timeline.filter((t) => t.type !== "todo_update");
                                 const responseText = lastText?.content || content || "";
@@ -1706,18 +1762,26 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                             )}
                                             <div className="flex flex-col gap-3 w-full mt-2" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
                                                 {(() => {
-                                                    type Segment = { type: "activity"; items: PixisTimelineItem[] } | { type: "text"; content: string; idx: number };
-                                                    const isActivity = (i: PixisTimelineItem) => {
+                                                    type Segment =
+                                                        | { type: "activity"; items: PixisTimelineItem[] }
+                                                        | { type: "subagent"; item: Extract<PixisTimelineItem, { type: "subagent" }> }
+                                                        | { type: "text"; content: string; idx: number };
+                                                    const isToolActivity = (i: PixisTimelineItem) => {
                                                         if (i.type === "thinking") return !!i.content?.trim();
-                                                        return ACTIVITY_SET.has(i.type);
+                                                        return i.type === "tool_call";
                                                     };
                                                     const segments: Segment[] = [];
                                                     let i = 0;
                                                     while (i < timelineWithoutTodo.length) {
                                                         const item = timelineWithoutTodo[i];
-                                                        if (isActivity(item)) {
+                                                        if (item.type === "subagent") {
+                                                            segments.push({ type: "subagent", item: item as Extract<PixisTimelineItem, { type: "subagent" }> });
+                                                            i++;
+                                                            continue;
+                                                        }
+                                                        if (isToolActivity(item)) {
                                                             const run: PixisTimelineItem[] = [];
-                                                            while (i < timelineWithoutTodo.length && isActivity(timelineWithoutTodo[i])) {
+                                                            while (i < timelineWithoutTodo.length && isToolActivity(timelineWithoutTodo[i])) {
                                                                 run.push(timelineWithoutTodo[i]);
                                                                 i++;
                                                             }
@@ -1734,6 +1798,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                     if (timeline.length === 0 && aiStreaming) {
                                                         segments.unshift({ type: "activity", items: [] });
                                                     }
+                                                    const lastActivityIdx = segments.reduce((acc, s, i) => s.type === "activity" ? i : acc, -1);
                                                     return segments.map((seg, si) => {
                                                         if (seg.type === "activity") {
                                                             const showBlock = seg.items.length > 0 || (timeline.length === 0 && aiStreaming);
@@ -1743,7 +1808,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                                     key={`act-${si}`}
                                                                     items={seg.items}
                                                                     defaultThoughtsExpanded
-                                                                    workingOnRequest={workingOnRequest}
+                                                                    workingOnRequest={si === lastActivityIdx && workingOnRequest}
                                                                     placeholder={
                                                                         seg.items.length === 0 && timeline.length === 0 && aiStreaming ? (
                                                                             <div className="flex items-center gap-2 text-forest-f30">
@@ -1752,6 +1817,20 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                                             </div>
                                                                         ) : undefined
                                                                     }
+                                                                />
+                                                            );
+                                                        }
+                                                        if (seg.type === "subagent") {
+                                                            return (
+                                                                <SubagentPanel
+                                                                    key={seg.item.call_id ?? `sa-${si}`}
+                                                                    callId={seg.item.call_id}
+                                                                    description={seg.item.description}
+                                                                    subagentType={seg.item.subagentType}
+                                                                    status={seg.item.status}
+                                                                    steps={seg.item.steps}
+                                                                    durationMs={seg.item.durationMs}
+                                                                    startedAtMs={seg.item.timestamp_ms}
                                                                 />
                                                             );
                                                         }

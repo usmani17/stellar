@@ -31,6 +31,8 @@ export interface PixisSession {
   updated_at?: string;
   /** Multi-profile context stored when session used multiple profiles. */
   profiles_json?: PixisSessionProfile[] | null;
+  /** True when the agent subprocess for this session is still running in the backend. */
+  is_running?: boolean;
 }
 
 export interface PixisEvent {
@@ -53,6 +55,9 @@ export interface PixisThreadHistory {
 
 export interface PixisHistoryResponse {
   history: PixisThreadHistory[];
+  /** True when the agent subprocess for this session is still running in memory.
+   * The frontend should auto-reconnect to the live stream when this is true. */
+  is_running?: boolean;
 }
 
 const getBaseUrl = (): string => {

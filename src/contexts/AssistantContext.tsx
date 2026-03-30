@@ -86,7 +86,7 @@ interface AssistantContextType {
 
   sendMessage: (content: string) => Promise<void>;
   cancelRun: () => Promise<void>;
-  selectSession: (sessionId: string, options?: { forceReload?: boolean }) => Promise<void>;
+  selectSession: (sessionId: string) => Promise<void>;
   startNewSession: () => void;
   deleteSession: (sessionId: string) => Promise<void>;
   updateSessionTitle: (sessionId: string, title: string) => void;
@@ -94,6 +94,9 @@ interface AssistantContextType {
   inputValue: string;
   setInputValue: (value: string) => void;
   isLoading: boolean;
+  /** ID of the session currently having its history fetched — used to show loading state
+   *  independently of isLoading (which is tied to the active stream). */
+  loadingHistorySessionId: string | null;
   isLoadingSessions: boolean;
   deletingSessionId: string | null;
   suggestedPrompts: SuggestedPrompt[];
@@ -102,6 +105,8 @@ interface AssistantContextType {
   isStreaming: boolean;
   /** True when keepalive received during streaming (long tool run); show "Working on request..." */
   workingOnRequest: boolean;
+  /** IDs of sessions whose agent is currently running (streaming or background). */
+  runningSessionIds: Set<string>;
 
   assistantScope: AssistantScope;
   setAssistantScope: (updates: Partial<AssistantScope>) => void;
@@ -117,6 +122,12 @@ interface AssistantContextType {
 
   /** Manually trigger session list reload (e.g. when chat history sidebar expands) */
   loadSessions: () => Promise<void>;
+  /** Fetch the next page of sessions and append to the list (infinite scroll). */
+  loadMoreSessions: () => Promise<void>;
+  /** False when all pages have been fetched. */
+  hasMoreSessions: boolean;
+  /** True while a loadMoreSessions fetch is in flight. */
+  isLoadingMoreSessions: boolean;
 
   /** Google Sheets integrations for the selected account (from profile cache, same API as profiles) */
   googleSheetsIntegrations: GoogleSheetsIntegration[];
@@ -158,9 +169,21 @@ export const AssistantProvider: React.FC<{
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingHistorySessionId, setLoadingHistorySessionId] = useState<string | null>(null);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [workingOnRequest, setWorkingOnRequest] = useState(false);
+  const [runningSessionIds, setRunningSessionIds] = useState<Set<string>>(new Set());
+  const runningSessionIdsRef = useRef<Set<string>>(new Set());
+  runningSessionIdsRef.current = runningSessionIds;
+
+  const [hasMoreSessions, setHasMoreSessions] = useState(true);
+  const [isLoadingMoreSessions, setIsLoadingMoreSessions] = useState(false);
+  // Tracks how many API-sourced sessions have been loaded (excludes in-memory-only entries).
+  const apiSessionCountRef = useRef(0);
+  // Refs so loadMoreSessions stays stable (no stale-closure churn on every state change).
+  const hasMoreSessionsRef = useRef(true);
+  const isLoadingMoreSessionsRef = useRef(false);
 
   const [assistantScope, setAssistantScopeState] = useState<AssistantScope>({
     accountId: null,
@@ -186,6 +209,8 @@ export const AssistantProvider: React.FC<{
   const campaignStateRef = useRef<CampaignDraftData | undefined>(undefined);
   const [todoList, setTodoList] = useState<TodoItem[]>([]);
   const todoListRef = useRef<TodoItem[]>([]);
+  // Tracks the latest selectSession call so stale concurrent fetches are ignored
+  const selectSessionAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (
@@ -272,6 +297,11 @@ export const AssistantProvider: React.FC<{
       // Always fetch all user sessions (backend ignores account_id for listing)
       const resp = await pixisAiSessionsService.list(token, { limit: 50 });
       const list = Array.isArray(resp?.sessions) ? resp.sessions : [];
+      apiSessionCountRef.current = list.length;
+      // Reset pagination: a fresh load always starts from page 1
+      const moreAvailable = list.length === 50;
+      setHasMoreSessions(moreAvailable);
+      hasMoreSessionsRef.current = moreAvailable;
       setSessions((prev) => {
         const byId = new Map(prev.map((s) => [s.id, s]));
         const fromApi = list.map((api) => {
@@ -282,12 +312,62 @@ export const AssistantProvider: React.FC<{
             campaignState: existing?.campaignState,
           } as SessionWithMessages;
         });
-        return fromApi;
+        // Preserve any in-memory sessions NOT in the API list that have messages
+        // or are actively streaming (e.g. brand-new sessions not yet persisted to DB,
+        // or sessions whose messages were loaded by selectSession just before this call).
+        const apiIds = new Set(list.map((a) => a.id));
+        const preserved = prev.filter(
+          (s) => !apiIds.has(s.id) && (s.messages?.length || s.id === streamingSessionIdRef.current || s.id === pendingNewSessionRef.current?.id)
+        );
+        return [...fromApi, ...preserved];
       });
+      // Populate runningSessionIds from the list response so the sidebar
+      // shows the pulsing indicator on page load without clicking each session.
+      const runningFromList = list.filter((s) => s.is_running).map((s) => s.id);
+      if (runningFromList.length > 0) {
+        setRunningSessionIds((prev) => new Set([...prev, ...runningFromList]));
+      }
     } catch (err) {
       console.error("Failed to load sessions:", err);
     } finally {
       setIsLoadingSessions(false);
+    }
+  }, [getAccessToken]);
+
+  const loadMoreSessions = useCallback(async () => {
+    // Use refs so this callback stays stable and never goes stale
+    if (isLoadingMoreSessionsRef.current || !hasMoreSessionsRef.current) return;
+    const token = await getAccessToken();
+    if (!token) return;
+
+    isLoadingMoreSessionsRef.current = true;
+    setIsLoadingMoreSessions(true);
+    try {
+      const offset = apiSessionCountRef.current;
+      const resp = await pixisAiSessionsService.list(token, { limit: 50, offset });
+      const list = Array.isArray(resp?.sessions) ? resp.sessions : [];
+      if (list.length < 50) {
+        hasMoreSessionsRef.current = false;
+        setHasMoreSessions(false);
+      }
+      if (list.length === 0) return;
+      apiSessionCountRef.current += list.length;
+      setSessions((prev) => {
+        const existingIds = new Set(prev.map((s) => s.id));
+        const newEntries = list
+          .filter((api) => !existingIds.has(api.id))
+          .map((api) => ({ ...api } as SessionWithMessages));
+        return [...prev, ...newEntries];
+      });
+      const runningFromList = list.filter((s) => s.is_running).map((s) => s.id);
+      if (runningFromList.length > 0) {
+        setRunningSessionIds((prev) => new Set([...prev, ...runningFromList]));
+      }
+    } catch (err) {
+      console.error("Failed to load more sessions:", err);
+    } finally {
+      isLoadingMoreSessionsRef.current = false;
+      setIsLoadingMoreSessions(false);
     }
   }, [getAccessToken]);
 
@@ -308,9 +388,14 @@ export const AssistantProvider: React.FC<{
   }, [propAccountId, propChannelId]);
 
   const selectSession = useCallback(
-    async (sessionId: string, options?: { forceReload?: boolean }) => {
+    async (sessionId: string) => {
       const sel = sessionsRef.current.find((s) => s.id === sessionId);
+
       setCurrentSessionId(sessionId);
+      // Always clear pendingConversation so the clicked session's messages show.
+      setPendingConversation(null);
+      // Always show the loading spinner and fetch from API — simplest, most reliable.
+      setLoadingHistorySessionId(sessionId);
       if (sel) {
         setAssistantScopeState((prev) => {
           const storedProfiles = sel.profiles_json;
@@ -356,27 +441,39 @@ export const AssistantProvider: React.FC<{
           };
         });
       }
-      const existing = sessionsRef.current.find((s) => s.id === sessionId);
-      const needsHistory = !existing?.messages?.length || (options?.forceReload === true);
 
-      if (!needsHistory) {
-        const synced = extractCampaignStateFromMessages(
-          existing?.messages ?? [],
-          existing?.campaignState as CampaignDraftData | undefined
-        );
-        setCampaignState(synced);
-        return;
-      }
+      // Abort any previous in-flight history fetch — only the latest click wins
+      selectSessionAbortRef.current?.abort();
+      const abortCtrl = new AbortController();
+      selectSessionAbortRef.current = abortCtrl;
 
+      let wasAborted = false;
       setIsLoading(true);
+      // loadingHistorySessionId already set above alongside setCurrentSessionId
       try {
         const token = await getAccessToken();
-        if (!token) return;
+        if (!token || abortCtrl.signal.aborted) {
+          setIsLoading(false);
+          setLoadingHistorySessionId(null);
+          return;
+        }
 
-        const [{ history }, activeDraft] = await Promise.all([
+        const [historyResp, activeDraft] = await Promise.all([
           pixisAiSessionsService.getHistory(sessionId, token),
           getSessionActiveDraft(sessionId, token).catch(() => null),
         ]);
+
+        // Another selectSession fired while we were fetching — discard this result
+        if (abortCtrl.signal.aborted) {
+          wasAborted = true;
+          return;
+        }
+
+        const { history, is_running } = historyResp;
+
+        // Build messages for all completed turns (turns with a final_message).
+        // The in-progress turn (null final_message) is excluded here — its events
+        // will arrive via the reconnect stream below.
         const msgs: ChatMessage[] = [];
         for (const turn of history as PixisThreadHistory[]) {
           if (turn.user_query) {
@@ -412,6 +509,182 @@ export const AssistantProvider: React.FC<{
         const initialDraft = activeDraft ? draftToCampaignState(activeDraft) : undefined;
         const _campaignState = extractCampaignStateFromMessages(msgs, initialDraft);
         setCampaignState(_campaignState);
+
+        // Only reconnect if our local state also considers this session running.
+        // The backend is_running flag can lag (stale) after the agent finishes locally.
+        const trulyRunning = is_running && runningSessionIdsRef.current.has(sessionId);
+        if (trulyRunning) {
+          // Agent is still running in the background. Append an empty streaming AI
+          // message as a placeholder, then open a reconnect stream to /chat with
+          // session_db_id so the backend _replay_and_tail() sends buffered + live events.
+          const reconnectAiMsg: Extract<ChatMessage, { type: "ai" }> = {
+            type: "ai",
+            id: `a-reconnect-${sessionId}`,
+            content: "",
+            timeline: [],
+            isStreaming: true,
+          };
+          const msgsWithPlaceholder = [...msgs, reconnectAiMsg];
+
+          streamingSessionIdRef.current = sessionId;
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.id === sessionId
+                ? { ...s, messages: msgsWithPlaceholder, campaignState: _campaignState }
+                : s
+            )
+          );
+
+          const timelineRef = { current: [] as PixisTimelineItem[] };
+          const updateReconnectTimeline = (item: PixisTimelineItem) => {
+            if (item.type === "text") {
+              const arr = timelineRef.current;
+              const lastIdx = arr.length - 1;
+              if (arr[lastIdx]?.type === "text") {
+                arr[lastIdx] = item;
+              } else {
+                timelineRef.current = [...arr, item];
+              }
+            } else if (item.type === "tool_call" && item.call_id) {
+              const idx = timelineRef.current.findIndex(
+                (t) => t.type === "tool_call" && t.call_id === item.call_id
+              );
+              if (idx >= 0) timelineRef.current[idx] = item;
+              else timelineRef.current.push(item);
+            } else if (item.type === "todo_update") {
+              if (item.merge) {
+                const byId = new Map(todoListRef.current.map((t) => [t.id, t]));
+                for (const todo of item.todos) byId.set(todo.id, todo);
+                todoListRef.current = Array.from(byId.values());
+              } else {
+                todoListRef.current = [...item.todos];
+              }
+              setTodoList([...todoListRef.current]);
+              const existingIdx = timelineRef.current.findIndex((t) => t.type === "todo_update");
+              const updatedItem = { ...item, todos: [...todoListRef.current] };
+              if (existingIdx >= 0) timelineRef.current[existingIdx] = updatedItem;
+              else timelineRef.current.push(updatedItem);
+            } else {
+              timelineRef.current.push(item);
+            }
+            setSessions((prev) =>
+              prev.map((s) => {
+                const m = s.messages ?? [];
+                const last = m[m.length - 1];
+                if (s.id === sessionId && last?.type === "ai" && last.isStreaming) {
+                  return {
+                    ...s,
+                    messages: [
+                      ...m.slice(0, -1),
+                      { ...last, timeline: [...timelineRef.current] },
+                    ],
+                  };
+                }
+                return s;
+              })
+            );
+          };
+
+          // Find the session's stored scope to pass the right profile context
+          const sel = sessionsRef.current.find((s) => s.id === sessionId);
+          const reconnectProfiles = sel?.profiles_json
+            ? (sel.profiles_json as Array<{ platform: string; profile_id: string; channel_id: number; account_id: number }>)
+                .filter((p) => p.platform !== "google_sheets" && p.account_id != null && p.channel_id != null && p.profile_id != null)
+            : undefined;
+          const firstProfile = reconnectProfiles?.[0];
+
+          abortControllerRef.current = new AbortController();
+          setIsLoading(true);
+          setRunningSessionIds((prev) => new Set([...prev, sessionId]));
+
+          streamPixisChat(
+            {
+              query: "",
+              session_db_id: sessionId,
+              account_id: firstProfile?.account_id ?? (sel?.account_id ?? undefined),
+              channel_id: firstProfile?.channel_id ?? (sel?.channel_id ?? undefined),
+              profile_id: firstProfile?.profile_id ?? (sel?.profile_id != null ? String(sel.profile_id) : undefined),
+              workspace_id: user?.workspace?.id ?? undefined,
+              user_id: user?.id != null ? String(user.id) : undefined,
+              ...(reconnectProfiles && reconnectProfiles.length > 0 ? { platforms: reconnectProfiles } : {}),
+            },
+            token,
+            {
+              onInit: () => { /* session already exists */ },
+              onMessage: (text) => {
+                setSessions((prev) =>
+                  prev.map((s) => {
+                    const m = s.messages ?? [];
+                    const last = m[m.length - 1];
+                    if (s.id === sessionId && last?.type === "ai" && last.isStreaming) {
+                      return { ...s, messages: [...m.slice(0, -1), { ...last, content: text }] };
+                    }
+                    return s;
+                  })
+                );
+              },
+              onTimelineItem: updateReconnectTimeline,
+              onKeepalive: () => setWorkingOnRequest(true),
+              onCampaignDraft: (data) => {
+                campaignStateRef.current = data;
+                setCampaignState(data);
+              },
+              onResult: (ev) => {
+                setWorkingOnRequest(false);
+                const finalContent = ev.full_message ?? "";
+                const resultTs = typeof (ev as { timestamp_ms?: number }).timestamp_ms === "number"
+                  ? (ev as { timestamp_ms?: number }).timestamp_ms
+                  : Date.now();
+                setSessions((prev) =>
+                  prev.map((s) => {
+                    const m = s.messages ?? [];
+                    const last = m[m.length - 1];
+                    if (s.id === sessionId && last?.type === "ai" && last.isStreaming) {
+                      const timeline = [...(last.timeline ?? [])];
+                      if (finalContent) {
+                        const lastTl = timeline[timeline.length - 1];
+                        if (lastTl?.type === "text") {
+                          timeline[timeline.length - 1] = { type: "text", content: finalContent, timestamp_ms: resultTs };
+                        } else {
+                          timeline.push({ type: "text", content: finalContent, timestamp_ms: resultTs });
+                        }
+                      }
+                      return {
+                        ...s,
+                        messages: [...m.slice(0, -1), { ...last, content: finalContent, timeline, isStreaming: false }],
+                      };
+                    }
+                    return s;
+                  })
+                );
+                streamingSessionIdRef.current = null;
+                setRunningSessionIds((prev) => { const n = new Set(prev); n.delete(sessionId); return n; });
+              },
+              onError: () => {
+                setSessions((prev) =>
+                  prev.map((s) => {
+                    const m = s.messages ?? [];
+                    const last = m[m.length - 1];
+                    if (s.id === sessionId && last?.type === "ai" && last.isStreaming) {
+                      return { ...s, messages: [...m.slice(0, -1), { ...last, isStreaming: false }] };
+                    }
+                    return s;
+                  })
+                );
+                streamingSessionIdRef.current = null;
+                setRunningSessionIds((prev) => { const n = new Set(prev); n.delete(sessionId); return n; });
+              },
+            },
+            { signal: abortControllerRef.current.signal }
+          ).finally(() => {
+            setIsLoading(false);
+            setLoadingHistorySessionId(null);
+          });
+
+          // selectSession itself returns here; the stream runs asynchronously above
+          return;
+        }
+
         setSessions((prev) =>
           prev.map((s) =>
             s.id === sessionId
@@ -420,13 +693,43 @@ export const AssistantProvider: React.FC<{
           )
         );
       } catch (err) {
-        console.error("Failed to select session:", err);
+        console.error("[selectSession] Failed to load history for", sessionId, err);
+        // Clear messages so the error is visible rather than a stuck spinner
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === sessionId
+              ? { ...s, messages: [] }
+              : s
+          )
+        );
       } finally {
         setIsLoading(false);
+        // Only clear the loading indicator if THIS fetch wasn't superseded by a newer one.
+        // If aborted, the newer selectSession call owns loadingHistorySessionId.
+        if (!wasAborted) {
+          setLoadingHistorySessionId(null);
+        }
       }
     },
     [getAccessToken]
   );
+
+  // Auto-select on /chat page load: prefer first running session, else first in list.
+  // Uses a ref to ensure it fires at most once per page visit.
+  const autoSelectedRef = useRef(false);
+  useEffect(() => {
+    // Reset the flag whenever the user navigates away from /chat
+    if (!isChatPage) {
+      autoSelectedRef.current = false;
+      return;
+    }
+    if (autoSelectedRef.current || currentSessionId || isLoadingSessions || sessions.length === 0) return;
+    autoSelectedRef.current = true;
+    const firstRunning = sessions.find((s) => runningSessionIds.has(s.id));
+    const target = firstRunning ?? sessions[0];
+    if (target) selectSession(target.id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isChatPage, currentSessionId, isLoadingSessions, sessions, runningSessionIds]);
 
   const startNewSession = useCallback(() => {
     setCurrentSessionId(null);
@@ -554,6 +857,7 @@ export const AssistantProvider: React.FC<{
 
       if (currentSessionId) {
         streamingSessionIdRef.current = currentSessionId;
+        setRunningSessionIds((prev) => new Set([...prev, currentSessionId]));
         const session = sessions.find((s) => s.id === currentSessionId);
         const msgs = [...(session?.messages ?? []), humanMsg, { ...aiMsg }];
         appendToCurrent({ messages: msgs });
@@ -668,6 +972,7 @@ export const AssistantProvider: React.FC<{
             session_id: (sessions.find((s) => s.id === currentSessionId) as
               | (PixisSession & { cursor_session_id?: string })
               | undefined)?.cursor_session_id ?? currentSessionId ?? undefined,
+            session_db_id: currentSessionId ?? undefined,
             account_id: accountIdNum,
             channel_id: channelIdNum,
             profile_id: profileIdForReq,
@@ -715,6 +1020,11 @@ export const AssistantProvider: React.FC<{
                 sendingNewSessionRef.current = false;
                 // Expose session_db_id immediately so the share button can appear during streaming
                 setStreamingNewSessionId(id);
+                // Mark new session as running so the sidebar can show the indicator
+                setRunningSessionIds((prev) => new Set([...prev, id]));
+                // Refresh sidebar immediately when session ID arrives so the new
+                // session appears in the list without waiting for onResult
+                getAccessToken().then((token) => { if (token) loadSessions(); });
               }
             },
             onMessage: (text) => {
@@ -815,6 +1125,10 @@ export const AssistantProvider: React.FC<{
                 : Date.now();
 
               if (isNewSessionFlowRef.current) {
+                // Set streamingSessionIdRef to realId NOW (synchronously), before the
+                // setPendingConversation state updater runs asynchronously, so the
+                // finally block can find it and remove it from runningSessionIds.
+                if (realId) streamingSessionIdRef.current = realId;
                 setPendingConversation((p) => {
                   if (!p) return p;
                   const msgs = p.messages;
@@ -846,7 +1160,7 @@ export const AssistantProvider: React.FC<{
                     created_at: new Date().toISOString(),
                     last_activity_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
-                    title: (msgs[0]?.type === "human" ? msgs[0].content : "New chat").slice(0, 50),
+                    title: (msgs[0]?.type === "human" ? msgs[0].content : "New chat"),
                     messages: finalizedMessages,
                     campaignState: campaignStateRef.current,
                   };
@@ -859,6 +1173,11 @@ export const AssistantProvider: React.FC<{
                   sendingNewSessionRef.current = false;
                   isNewSessionFlowRef.current = false;
                   pendingNewSessionRef.current = null;
+                  // Refresh session list so the new session appears with correct
+                  // server-side metadata (title, timestamps) in the sidebar.
+                  getAccessToken().then((token) => {
+                    if (token) loadSessions();
+                  });
                   return null;
                 });
               } else {
@@ -986,6 +1305,14 @@ export const AssistantProvider: React.FC<{
         setWorkingOnRequest(false);
         setIsLoading(false);
         abortControllerRef.current = null;
+        const finishedId = streamingSessionIdRef.current ?? pendingNewSessionRef.current?.id;
+        if (finishedId) {
+          setRunningSessionIds((prev) => {
+            const next = new Set(prev);
+            next.delete(finishedId);
+            return next;
+          });
+        }
         sendingNewSessionRef.current = false;
         streamingSessionIdRef.current = null;
       }
@@ -1003,6 +1330,7 @@ export const AssistantProvider: React.FC<{
       currentSessionId,
       sessions,
       getAccessToken,
+      loadSessions,
     ]
   );
 
@@ -1044,7 +1372,7 @@ export const AssistantProvider: React.FC<{
             created_at: new Date().toISOString(),
             last_activity_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            title: (msgs[0]?.type === "human" ? msgs[0].content : "New chat").slice(0, 50),
+            title: (msgs[0]?.type === "human" ? msgs[0].content : "New chat"),
             messages: finalizedMessages,
             campaignState: campaignStateRef.current,
           };
@@ -1180,18 +1508,23 @@ export const AssistantProvider: React.FC<{
         inputValue,
         setInputValue,
         isLoading,
+        loadingHistorySessionId,
         isLoadingSessions,
         deletingSessionId,
         suggestedPrompts: CHAT_SUGGESTED_PROMPTS,
         messages,
         isStreaming,
         workingOnRequest,
+        runningSessionIds,
         assistantScope,
         setAssistantScope,
         campaignState,
         todoList,
         runTestSse: import.meta.env.DEV ? runTestSse : undefined,
         loadSessions,
+        loadMoreSessions,
+        hasMoreSessions,
+        isLoadingMoreSessions,
         googleSheetsIntegrations,
       }}
     >

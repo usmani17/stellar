@@ -63,6 +63,7 @@ export const AssistantActivityBlock: React.FC<AssistantActivityBlockProps> = ({
                     status={item.status}
                     steps={item.steps}
                     durationMs={item.durationMs}
+                    startedAtMs={item.timestamp_ms}
                   />
                 );
               }

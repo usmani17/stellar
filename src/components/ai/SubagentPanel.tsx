@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ChevronDown, Check, Loader2 } from "lucide-react";
 import type { SubagentStep } from "../../services/ai/pixisChat";
 import { ToolCallRow } from "./ToolCallRow";
@@ -11,6 +11,7 @@ interface SubagentPanelProps {
   status: "running" | "completed";
   steps?: SubagentStep[];
   durationMs?: number;
+  startedAtMs?: number;
   defaultExpanded?: boolean;
 }
 
@@ -23,22 +24,44 @@ function formatDuration(ms: number): string {
   return rem > 0 ? `${m}m ${rem}s` : `${m}m`;
 }
 
+function useElapsedTimer(running: boolean, startedAtMs?: number): string {
+  const [elapsed, setElapsed] = useState("");
+  const mountTimeRef = useRef(Date.now());
+
+  useEffect(() => {
+    if (!running) { setElapsed(""); return; }
+    const origin = startedAtMs ?? mountTimeRef.current;
+
+    const tick = () => {
+      const ms = Date.now() - origin;
+      setElapsed(formatDuration(Math.max(0, ms)));
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [running, startedAtMs]);
+
+  return elapsed;
+}
+
 export const SubagentPanel: React.FC<SubagentPanelProps> = ({
   description,
   subagentType,
   status,
   steps,
   durationMs,
+  startedAtMs,
   defaultExpanded = false,
 }) => {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const elapsed = useElapsedTimer(status === "running", startedAtMs);
 
   const lastAssistantIdx = steps
     ? steps.reduce((acc, s, i) => (s.assistantMessage ? i : acc), -1)
     : -1;
 
   return (
-    <div className="activity-card subagent-panel">
+    <div className={`activity-card subagent-panel ${status === "running" ? "is-running" : ""}`}>
       <button
         type="button"
         className="subagent-panel-header"
@@ -46,14 +69,17 @@ export const SubagentPanel: React.FC<SubagentPanelProps> = ({
         aria-expanded={expanded}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          {subagentType && (
-            <span className="subagent-type-badge">{subagentType}</span>
-          )}
+          <span className="subagent-type-badge">
+            {subagentType ? `Subagent · ${subagentType}` : "Subagent"}
+          </span>
           <span className="subagent-description">{description}</span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {status === "running" ? (
-            <Loader2 className="w-3 h-3 animate-spin text-forest-f40" />
+            <>
+              <Loader2 className="w-3 h-3 animate-spin text-forest-f40" />
+              {elapsed && <span className="subagent-elapsed">{elapsed}</span>}
+            </>
           ) : (
             <>
               <Check className="w-3 h-3 text-forest-f40" />
