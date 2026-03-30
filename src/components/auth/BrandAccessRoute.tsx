@@ -78,7 +78,11 @@ export const BrandAccessRoute: React.FC<BrandAccessRouteProps> = ({
   }
 
   if (status === "loading") {
-    return <>{children}</>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-sandstorm-s0">
+        <div className="text-forest-f60 text-h900">Loading...</div>
+      </div>
+    );
   }
 
   if (status === "denied") {
