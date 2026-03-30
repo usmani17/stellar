@@ -317,7 +317,8 @@ export type ActionType =
   | "update_targeting"
   | "set_ad_schedule"
   | "adjust_device_bid"
-  | "adjust_demographic_bid";
+  | "adjust_demographic_bid"
+  | "add_age_targeting";
 
 export type GoogleEntityType =
   | "campaign" | "adgroup" | "keyword" | "ad" | "asset_group" | "product_group";
@@ -339,7 +340,7 @@ export const PLATFORM_ACTION_SUPPORT: Record<ActionPlatform, ActionType[]> = {
     "change_state", "adjust_budget", "adjust_bid", "add_negative_keyword",
     "change_bid_strategy", "adjust_target", "add_keyword",
     "exclude_placement", "update_targeting", "set_ad_schedule",
-    "adjust_device_bid", "adjust_demographic_bid",
+    "adjust_device_bid", "adjust_demographic_bid", "add_age_targeting",
   ],
   meta: [
     "change_state", "adjust_budget", "adjust_bid",

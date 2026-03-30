@@ -14,6 +14,7 @@ export const ACTION_TYPE_LABELS: Record<string, string> = {
   set_ad_schedule: "Set ad schedule",
   adjust_device_bid: "Device bid modifier",
   adjust_demographic_bid: "Demographic bid modifier",
+  add_age_targeting: "Add age targeting",
 };
 
 export const ACTION_TYPE_COLORS: Record<
@@ -33,4 +34,5 @@ export const ACTION_TYPE_COLORS: Record<
   set_ad_schedule: { bg: "bg-sky-50", text: "text-sky-700", darkBg: "bg-sky-900/30", darkText: "text-sky-300" },
   adjust_device_bid: { bg: "bg-violet-50", text: "text-violet-700", darkBg: "bg-violet-900/30", darkText: "text-violet-300" },
   adjust_demographic_bid: { bg: "bg-lime-50", text: "text-lime-700", darkBg: "bg-lime-900/30", darkText: "text-lime-300" },
+  add_age_targeting: { bg: "bg-pink-50", text: "text-pink-700", darkBg: "bg-pink-900/30", darkText: "text-pink-300" },
 };
