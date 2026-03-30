@@ -1,4 +1,5 @@
 import api from "./api";
+import { getCurrentWorkspaceId } from "../lib/workspace";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -237,6 +238,7 @@ export const workflowsService = {
       throw new Error("Payload accountId must match accountId");
     }
     const token = localStorage.getItem("accessToken");
+    const workspaceId = getCurrentWorkspaceId();
     const apiBase = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api").replace(/\/$/, "");
     // Run: backend proxies agent stream and records workflow run history
     const url =
@@ -248,6 +250,7 @@ export const workflowsService = {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(workspaceId != null ? { "X-Workspace-Id": String(workspaceId) } : {}),
     };
     if (mode === "preview") headers.Accept = "text/event-stream";
     const res = await fetch(url, {
