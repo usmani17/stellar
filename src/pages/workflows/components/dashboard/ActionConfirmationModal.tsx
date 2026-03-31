@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "../../../../lib/cn";
 import type { ActionProposal, ActionEntityDiff, ActionRule, DashboardComponent } from "../../types/dashboard";
+import { ACTION_TYPE_LABELS } from "./actionTypeDisplay";
 import {
   KeywordAnalysisResultView,
   parseKeywordAnalysisPayload,
@@ -26,15 +27,6 @@ import {
   type ExecuteActionsResponse,
 } from "../../../../services/dashboardActions";
 import { getKeywordAnalysisDateRangeFromComponent } from "../../utils/keywordAnalysisDateRange";
-
-const ACTION_TYPE_LABELS: Record<string, string> = {
-  change_state: "Change status",
-  adjust_budget: "Adjust budget",
-  adjust_bid: "Adjust bid",
-  add_keyword: "Add keywords",
-  add_negative_keyword: "Add negative keywords",
-  update_device_bid_modifier: "Adjust device bid",
-};
 
 function isKeywordAnalysisActionType(
   t: string
