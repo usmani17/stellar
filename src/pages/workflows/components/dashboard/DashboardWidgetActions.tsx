@@ -10,6 +10,8 @@ import {
   Pencil,
   Check,
   X,
+  Clock,
+  Calendar,
 } from "lucide-react";
 import { cn } from "../../../../lib/cn";
 import type {
@@ -18,10 +20,17 @@ import type {
   ActionExecution,
   ActionCondition,
   CompoundActionCondition,
+  ActionSchedule,
 } from "../../types/dashboard";
 import { previewActions, getActionHistory } from "../../../../services/dashboardActions";
 import { formatMetricLabel } from "../../utils/formatDashboardValue";
 import { ACTION_TYPE_COLORS, ACTION_TYPE_LABELS } from "./actionTypeDisplay";
+import {
+  SCHEDULE_FREQUENCY_OPTIONS,
+  TIME_OPTIONS,
+  DAY_OPTIONS,
+} from "./dashboardConstants";
+import { Dropdown } from "../../../../components/ui";
 
 // ── Inline editor for a single numeric field ───────────────────────────────
 
@@ -138,6 +147,29 @@ const InlineConfirm: React.FC<InlineConfirmProps> = ({ message, onConfirm, onCan
   </div>
 );
 
+const DEFAULT_ACTION_SCHEDULE: ActionSchedule = {
+  frequency: "daily",
+  time: "09:00",
+  timezone: "UTC",
+  auto_execute: true,
+};
+
+function getScheduleLabel(schedule?: ActionSchedule): string {
+  const normalized = schedule ?? DEFAULT_ACTION_SCHEDULE;
+  const timezone = normalized.timezone || "UTC";
+
+  if (normalized.frequency === "hourly") {
+    return `Execution Schedule: Hourly (${timezone})`;
+  }
+
+  if (normalized.frequency === "weekly") {
+    const day = DAY_OPTIONS.find((d) => d.value === (normalized.day_of_week ?? 1))?.label || "Monday";
+    return `Execution Schedule: Weekly ${day} ${normalized.time || "09:00"} (${timezone})`;
+  }
+
+  return `Execution Schedule: Daily ${normalized.time || "09:00"} (${timezone})`;
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 interface DashboardWidgetActionsProps {
@@ -169,6 +201,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const [confirmingPause, setConfirmingPause] = useState<string | null>(null);
+  const [editingSchedule, setEditingSchedule] = useState<string | null>(null);
 
   const visibleActions = actions.filter((a) => a.status !== "deleted");
   const activeActions = visibleActions.filter((a) => a.status === "active");
@@ -198,6 +231,17 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
       }
       const updated = actions.map((a) =>
         a.id === id ? { ...a, status: "active" as const } : a
+      );
+      onActionsChange(updated);
+    },
+    [actions, onActionsChange]
+  );
+
+  const updateSchedule = useCallback(
+    (id: string, schedule: ActionRule["schedule"]) => {
+      if (!onActionsChange) return;
+      const updated = actions.map((a) =>
+        a.id === id ? { ...a, schedule } : a
       );
       onActionsChange(updated);
     },
@@ -523,6 +567,25 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                           ))}
                         </span>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!rule.schedule) {
+                            updateSchedule(rule.id, { ...DEFAULT_ACTION_SCHEDULE });
+                          }
+                          setEditingSchedule(rule.id);
+                        }}
+                        className={cn(
+                          "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border transition-colors",
+                          isDark
+                            ? "border-neutral-600 hover:bg-neutral-700/40 text-neutral-300"
+                            : "border-sandstorm-s40 hover:bg-sandstorm-s10 text-forest-f40"
+                        )}
+                        title="Edit execution schedule"
+                      >
+                        <Clock className={cn("w-3 h-3", isDark ? "text-neutral-400" : "text-forest-f30")} />
+                        <span className="opacity-80">{getScheduleLabel(rule.schedule)}</span>
+                      </button>
                       {(rule.type === "adjust_budget" || rule.type === "adjust_bid") && (
                         <span className="flex items-center gap-1">
                           <span className="opacity-60">{rule.params.change_type as string}:</span>
@@ -697,6 +760,137 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                   />
                 )}
 
+                {/* Schedule editor */}
+                {editingSchedule === rule.id && (
+                  <div
+                    className={cn(
+                      "mt-2 p-2 rounded-lg border",
+                      isDark ? "bg-neutral-900/40 border-neutral-600" : "bg-sandstorm-s5 border-sandstorm-s40"
+                    )}
+                  >
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Calendar className={cn("w-3 h-3", isDark ? "text-neutral-400" : "text-forest-f30")} />
+                      <span className={cn("text-xs opacity-70", isDark ? "text-neutral-400" : "text-forest-f30")}>
+                        Execution Schedule
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="min-w-[86px]">
+                        <Dropdown
+                          options={SCHEDULE_FREQUENCY_OPTIONS}
+                          value={rule.schedule?.frequency || "daily"}
+                          onChange={(value) => {
+                            const frequency = value as ActionSchedule["frequency"];
+                            updateSchedule(rule.id, {
+                              ...rule.schedule,
+                              frequency,
+                              timezone: "UTC",
+                              auto_execute: true,
+                            });
+                          }}
+                          buttonClassName={cn(
+                            "h-6 min-h-6 px-2 py-0 text-[11px] rounded",
+                            isDark
+                              ? "bg-neutral-700 border border-neutral-600 text-neutral-200"
+                              : "bg-white border border-sandstorm-s40 text-forest-f60"
+                          )}
+                          menuClassName={cn(
+                            "text-[11px]",
+                            isDark ? "bg-neutral-800 border-neutral-700" : "bg-white border-sandstorm-s40"
+                          )}
+                          optionClassName={cn(
+                            "text-[11px] py-1",
+                            isDark ? "text-neutral-200 hover:bg-neutral-700" : "text-forest-f60 hover:bg-sandstorm-s10"
+                          )}
+                          align="left"
+                        />
+                      </div>
+
+                      {rule.schedule?.frequency !== "hourly" && (
+                        <div className="min-w-[90px]">
+                          <Dropdown
+                            options={TIME_OPTIONS}
+                            value={rule.schedule?.time || "09:00"}
+                            onChange={(time) => {
+                              updateSchedule(rule.id, {
+                                ...rule.schedule,
+                                frequency: rule.schedule?.frequency || "daily",
+                                time,
+                                timezone: "UTC",
+                                auto_execute: true,
+                              });
+                            }}
+                            buttonClassName={cn(
+                              "h-6 min-h-6 px-2 py-0 text-[11px] rounded",
+                              isDark
+                                ? "bg-neutral-700 border border-neutral-600 text-neutral-200"
+                                : "bg-white border border-sandstorm-s40 text-forest-f60"
+                            )}
+                            menuClassName={cn(
+                              "text-[11px]",
+                              isDark ? "bg-neutral-800 border-neutral-700" : "bg-white border-sandstorm-s40"
+                            )}
+                            optionClassName={cn(
+                              "text-[11px] py-1",
+                              isDark ? "text-neutral-200 hover:bg-neutral-700" : "text-forest-f60 hover:bg-sandstorm-s10"
+                            )}
+                            align="left"
+                          />
+                        </div>
+                      )}
+
+                      {rule.schedule?.frequency === "weekly" && (
+                        <div className="min-w-[100px]">
+                          <Dropdown
+                            options={DAY_OPTIONS}
+                            value={rule.schedule?.day_of_week || 1}
+                            onChange={(day_of_week) => {
+                              updateSchedule(rule.id, {
+                                ...rule.schedule,
+                                frequency: rule.schedule?.frequency || "weekly",
+                                day_of_week: Number(day_of_week),
+                                timezone: "UTC",
+                                auto_execute: true,
+                              });
+                            }}
+                            buttonClassName={cn(
+                              "h-6 min-h-6 px-2 py-0 text-[11px] rounded",
+                              isDark
+                                ? "bg-neutral-700 border border-neutral-600 text-neutral-200"
+                                : "bg-white border border-sandstorm-s40 text-forest-f60"
+                            )}
+                            menuClassName={cn(
+                              "text-[11px]",
+                              isDark ? "bg-neutral-800 border-neutral-700" : "bg-white border-sandstorm-s40"
+                            )}
+                            optionClassName={cn(
+                              "text-[11px] py-1",
+                              isDark ? "text-neutral-200 hover:bg-neutral-700" : "text-forest-f60 hover:bg-sandstorm-s10"
+                            )}
+                            align="left"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between mt-2">
+                      <p className={cn("text-[10px] opacity-80", isDark ? "text-neutral-400" : "text-forest-f30")}>
+                        UTC timezone • auto-execution enabled
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setEditingSchedule(null)}
+                        className={cn(
+                          "px-2 py-1 rounded text-[10px] font-medium",
+                          isDark ? "bg-neutral-600 hover:bg-neutral-500 text-neutral-100" : "bg-sandstorm-s20 hover:bg-sandstorm-s30 text-forest-f60"
+                        )}
+                      >
+                        Done
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {/* Pause confirmation */}
                 {confirmingPause === rule.id && (
                   <InlineConfirm
