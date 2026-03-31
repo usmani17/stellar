@@ -53,8 +53,8 @@ export interface AssistantScope {
     totalBudget?: number;
     targetType?: string;
     targetValue?: number;
-    startDate?: string;
-    endDate?: string;
+    startDate: string;
+    endDate: string;
     campaignCount?: number;
   } | null;
   /** Multi-select: one or more profiles for cross-platform analysis. When set, overrides single profileId. */

@@ -306,6 +306,10 @@ export const CreatePortfolioWizard: React.FC<Props> = ({
 
   const handleSubmit = async () => {
     setError("");
+    if (!startDate || !endDate) {
+      setError("Start Date and End Date are required.");
+      return;
+    }
     const campaignsPayload = campaigns.map((c) => ({
       campaign_id: c.campaignId,
       campaign_name: c.campaignName,
@@ -559,21 +563,23 @@ export const CreatePortfolioWizard: React.FC<Props> = ({
               {/* Start Date + End Date */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="form-label">Start Date</label>
+                  <label className="form-label">Start Date *</label>
                   <input
                     type="date"
                     className="campaign-input w-full"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
+                    required
                   />
                 </div>
                 <div>
-                  <label className="form-label">End Date</label>
+                  <label className="form-label">End Date *</label>
                   <input
                     type="date"
                     className="campaign-input w-full"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
+                    required
                   />
                 </div>
               </div>

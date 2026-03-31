@@ -523,7 +523,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             }
         });
         range.insertNode(span);
-        range.setStartAfter(span);
+        const spacer = document.createTextNode("\u00A0");
+        span.after(spacer);
+        range.setStartAfter(spacer);
         range.collapse(true);
         sel.removeAllRanges();
         sel.addRange(range);
@@ -1742,12 +1744,10 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                             <p className="text-[13px] font-medium text-forest-f60">${d.targetValue?.toLocaleString() ?? "—"}</p>
                                                         </div>
                                                     )}
-                                                    {d.startDate && (
-                                                        <div>
-                                                            <p className="text-[10px] uppercase tracking-wide text-forest-f30/70 mb-0.5">Flight</p>
-                                                            <p className="text-[13px] font-medium text-forest-f60">{fmtDate(d.startDate)} – {fmtDate(d.endDate) ?? "Ongoing"}</p>
-                                                        </div>
-                                                    )}
+                                                    <div>
+                                                        <p className="text-[10px] uppercase tracking-wide text-forest-f30/70 mb-0.5">Flight</p>
+                                                        <p className="text-[13px] font-medium text-forest-f60">{fmtDate(d.startDate)} – {fmtDate(d.endDate)}</p>
+                                                    </div>
                                                     {d.campaignCount != null && (
                                                         <div>
                                                             <p className="text-[10px] uppercase tracking-wide text-forest-f30/70 mb-0.5">Campaigns</p>

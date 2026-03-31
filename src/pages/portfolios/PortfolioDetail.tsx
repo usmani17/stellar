@@ -103,8 +103,8 @@ export const PortfolioDetail: React.FC = () => {
           totalBudget: portfolio.totalBudget ?? undefined,
           targetType: portfolio.targetType ?? undefined,
           targetValue: portfolio.targetValue ?? undefined,
-          startDate: portfolio.startDate ?? undefined,
-          endDate: portfolio.endDate ?? undefined,
+          startDate: portfolio.startDate!,
+          endDate: portfolio.endDate!,
           campaignCount: portfolio.campaigns?.length ?? 0,
         },
       });
