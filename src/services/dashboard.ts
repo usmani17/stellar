@@ -39,6 +39,20 @@ export async function getDashboards(accountId: number): Promise<DashboardRespons
 }
 
 /**
+ * Fetch dashboards linked to a specific portfolio.
+ */
+export async function getDashboardsByPortfolio(
+  accountId: number,
+  portfolioId: number,
+): Promise<DashboardResponse[]> {
+  const { data } = await api.get<DashboardResponse[]>(
+    `${API_BASE}/${accountId}/dashboards/`,
+    { params: { portfolio_id: portfolioId } },
+  );
+  return data;
+}
+
+/**
  * Fetch dashboard detail by ID.
  */
 export async function getDashboardDetail(

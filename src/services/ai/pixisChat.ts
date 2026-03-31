@@ -47,6 +47,8 @@ export interface PixisChatParams {
     channel_id: number;
     account_id: number;
   }>;
+  /** Portfolio ID when assistant is opened from a portfolio detail page */
+  portfolio_id?: number;
   /** "stream-json" | "stream-json-partial" | "json" — for testing output formats */
   output_format?: string;
   /** Selected Google Sheets integrations with full details for agent context */

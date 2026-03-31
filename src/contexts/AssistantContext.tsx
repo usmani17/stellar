@@ -42,6 +42,21 @@ export interface AssistantScope {
   profileId: number | null;
   profileName?: string | null;
   marketplace?: string | null;
+  /** Portfolio ID when on a portfolio detail page */
+  portfolioId?: number | null;
+  /** Portfolio name for display in suggested prompts */
+  portfolioName?: string | null;
+  /** Portfolio metadata for display in assistant panel context card */
+  portfolioDetail?: {
+    status?: string;
+    platform?: string;
+    totalBudget?: number;
+    targetType?: string;
+    targetValue?: number;
+    startDate?: string;
+    endDate?: string;
+    campaignCount?: number;
+  } | null;
   /** Multi-select: one or more profiles for cross-platform analysis. When set, overrides single profileId. */
   selectedProfiles?: Array<{
     accountId: string;
@@ -110,6 +125,8 @@ interface AssistantContextType {
 
   assistantScope: AssistantScope;
   setAssistantScope: (updates: Partial<AssistantScope>) => void;
+  setPortfolioScope: (portfolioId: number, portfolioName: string, opts?: { accountId?: number; channelId?: number; profileId?: number; profileName?: string; platform?: string; portfolioDetail?: AssistantScope["portfolioDetail"] }) => void;
+  clearPortfolioScope: () => void;
 
   /** Campaign state from last AI response (e.g. from campaign-setup block) */
   campaignState: CampaignDraftData | undefined;
@@ -141,6 +158,14 @@ const CHAT_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   { id: "3", text: "Analyze ACOS trends" },
   { id: "4", text: "Compare campaign efficiency" },
   { id: "5", text: "Create campaign" },
+];
+
+const PORTFOLIO_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
+  { id: "p1", text: "Summarize this portfolio" },
+  { id: "p2", text: "How is pacing for this portfolio?" },
+  { id: "p3", text: "Create a custom dashboard for this portfolio" },
+  { id: "p4", text: "Show guardrails and targets" },
+  { id: "p5", text: "Which campaigns need attention?" },
 ];
 
 /** Set to "stream-json" | "stream-json-partial" | "json" to override; undefined = use backend default (stream-json-partial). */
@@ -197,6 +222,39 @@ export const AssistantProvider: React.FC<{
 
   const setAssistantScope = useCallback((updates: Partial<AssistantScope>) => {
     setAssistantScopeState((prev) => ({ ...prev, ...updates }));
+  }, []);
+
+  const setPortfolioScope = useCallback(
+    (
+      portfolioId: number,
+      portfolioName: string,
+      opts?: { accountId?: number; channelId?: number; profileId?: number; profileName?: string; platform?: string; portfolioDetail?: AssistantScope["portfolioDetail"] },
+    ) => {
+      setAssistantScopeState((prev) => {
+        const next: AssistantScope = { ...prev, portfolioId, portfolioName, portfolioDetail: opts?.portfolioDetail ?? null };
+        if (opts?.accountId) next.accountId = String(opts.accountId);
+        if (opts?.channelId) next.channelId = String(opts.channelId);
+        if (opts?.profileId) {
+          next.profileId = opts.profileId;
+          next.profileName = opts.profileName ?? null;
+          next.selectedProfiles = [
+            {
+              accountId: String(opts.accountId ?? prev.accountId ?? ""),
+              channelId: String(opts.channelId ?? prev.channelId ?? ""),
+              profileId: opts.profileId,
+              profileName: opts.profileName ?? null,
+              marketplace: opts.platform ?? null,
+            },
+          ];
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
+  const clearPortfolioScope = useCallback(() => {
+    setAssistantScopeState((prev) => ({ ...prev, portfolioId: null, portfolioName: null, portfolioDetail: null }));
   }, []);
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -980,6 +1038,7 @@ export const AssistantProvider: React.FC<{
             user_id: user?.id != null ? String(user.id) : undefined,
             platform: platformForReq as PixisChatParams["platform"],
             ...(platformsForReq && platformsForReq.length > 0 ? { platforms: platformsForReq } : {}),
+            ...(assistantScope.portfolioId ? { portfolio_id: assistantScope.portfolioId } : {}),
             ...(OUTPUT_FORMAT_FOR_TESTING ? { output_format: OUTPUT_FORMAT_FOR_TESTING } : {}),
             ...(assistantScope.selectedGoogleSheetsIntegrations?.length
               ? {
@@ -1417,8 +1476,25 @@ export const AssistantProvider: React.FC<{
     setIsLoading(false);
   }, [getAccessToken]);
 
-  const toggleAssistant = useCallback(() => setIsOpen((prev) => !prev), []);
-  const openAssistant = useCallback(() => setIsOpen(true), []);
+  const toggleAssistant = useCallback(() => {
+    setIsOpen((prev) => {
+      const opening = !prev;
+      if (opening && assistantScope.portfolioId) {
+        setCurrentSessionId(null);
+        setStreamingNewSessionId(null);
+        setPendingConversation(null);
+      }
+      return opening;
+    });
+  }, [assistantScope.portfolioId]);
+  const openAssistant = useCallback(() => {
+    if (assistantScope.portfolioId) {
+      setCurrentSessionId(null);
+      setStreamingNewSessionId(null);
+      setPendingConversation(null);
+    }
+    setIsOpen(true);
+  }, [assistantScope.portfolioId]);
   const closeAssistant = useCallback(() => setIsOpen(false), []);
 
   const runTestSse = useCallback(async () => {
@@ -1520,13 +1596,15 @@ export const AssistantProvider: React.FC<{
         loadingHistorySessionId,
         isLoadingSessions,
         deletingSessionId,
-        suggestedPrompts: CHAT_SUGGESTED_PROMPTS,
+        suggestedPrompts: assistantScope.portfolioId ? PORTFOLIO_SUGGESTED_PROMPTS : CHAT_SUGGESTED_PROMPTS,
         messages,
         isStreaming,
         workingOnRequest,
         runningSessionIds,
         assistantScope,
         setAssistantScope,
+        setPortfolioScope,
+        clearPortfolioScope,
         campaignState,
         todoList,
         runTestSse: import.meta.env.DEV ? runTestSse : undefined,

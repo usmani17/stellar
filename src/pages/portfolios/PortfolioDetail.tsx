@@ -5,12 +5,14 @@ import {
   Play,
   Settings,
   LayoutDashboard,
+  Bot,
   Clock,
   AlertTriangle,
   Pencil,
   TrendingUp,
   TrendingDown,
   Target,
+  RefreshCw,
 } from "lucide-react";
 import {
   AreaChart,
@@ -26,6 +28,7 @@ import {
 } from "recharts";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { useSidebar } from "../../contexts/SidebarContext";
+import { useAssistant } from "../../contexts/AssistantContext";
 import { usePortfolio, usePortfolioTracking } from "../../hooks/queries/usePortfolios";
 import {
   useRunPortfolio,
@@ -33,11 +36,12 @@ import {
 } from "../../hooks/mutations/usePortfolioMutations";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { AccountsHeader } from "../../components/layout/AccountsHeader";
+import { Assistant } from "../../components/layout/Assistant";
 import { Banner, Button, ConfirmationModal, KPICard, Loader } from "../../components/ui";
 import { cn } from "../../lib/cn";
 import { CreatePortfolioWizard } from "./components/CreatePortfolioWizard";
 
-type Tab = "dashboard" | "campaigns" | "tracking" | "settings";
+type Tab = "dashboard" | "campaigns" | "tracking" | "dashboards" | "settings";
 
 function fmt(val: number | null | undefined, prefix = ""): string {
   if (val == null) return "—";
@@ -63,6 +67,7 @@ export const PortfolioDetail: React.FC = () => {
   const accountId = Number(accountIdStr);
   const portfolioId = Number(portfolioIdStr);
   const { sidebarWidth } = useSidebar();
+  const { setPortfolioScope, clearPortfolioScope } = useAssistant();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
@@ -86,9 +91,29 @@ export const PortfolioDetail: React.FC = () => {
   useEffect(() => {
     if (portfolio) {
       setPageTitle(portfolio.name);
+      setPortfolioScope(portfolio.id, portfolio.name, {
+        accountId: portfolio.accountId,
+        channelId: portfolio.channelId ?? undefined,
+        profileId: portfolio.profileId ?? undefined,
+        profileName: portfolio.profileName ?? undefined,
+        platform: portfolio.platform ?? undefined,
+        portfolioDetail: {
+          status: portfolio.status,
+          platform: portfolio.platform,
+          totalBudget: portfolio.totalBudget ?? undefined,
+          targetType: portfolio.targetType ?? undefined,
+          targetValue: portfolio.targetValue ?? undefined,
+          startDate: portfolio.startDate ?? undefined,
+          endDate: portfolio.endDate ?? undefined,
+          campaignCount: portfolio.campaigns?.length ?? 0,
+        },
+      });
     }
-    return () => resetPageTitle();
-  }, [portfolio]);
+    return () => {
+      resetPageTitle();
+      clearPortfolioScope();
+    };
+  }, [portfolio, setPortfolioScope, clearPortfolioScope]);
 
   const handleRun = async () => {
     try {
@@ -167,6 +192,7 @@ export const PortfolioDetail: React.FC = () => {
     { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: "campaigns", label: "Campaigns", icon: <Settings className="w-4 h-4" /> },
     { id: "tracking", label: "Tracking History", icon: <Clock className="w-4 h-4" /> },
+    { id: "dashboards", label: "Agents", icon: <Bot className="w-4 h-4" /> },
   ];
 
   return (
@@ -178,7 +204,7 @@ export const PortfolioDetail: React.FC = () => {
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
         <AccountsHeader />
-
+        <Assistant>
         <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white min-h-[calc(100vh-64px)]">
           <div className="space-y-6">
             {successMsg && (
@@ -335,8 +361,12 @@ export const PortfolioDetail: React.FC = () => {
                 onPageChange={setTrackingPage}
               />
             )}
+            {activeTab === "dashboards" && (
+              <PortfolioDashboardsTab accountId={accountId} portfolioId={portfolioId} />
+            )}
           </div>
         </div>
+        </Assistant>
       </div>
 
       <ConfirmationModal
@@ -589,6 +619,97 @@ const DashboardTab: React.FC<{ portfolio: any; trackingData: any; trackingLoadin
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// ── Portfolio Dashboards Tab ──────────────────────────────────────────────
+
+const PortfolioDashboardsTab: React.FC<{ accountId: number; portfolioId: number }> = ({ accountId, portfolioId }) => {
+  const [dashboards, setDashboards] = useState<Array<{ id: number; name: string; updatedAt: string | null }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchDashboards = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+    try {
+      const { getDashboardsByPortfolio } = await import("../../services/dashboard");
+      const data = await getDashboardsByPortfolio(accountId, portfolioId);
+      setDashboards(data.map((d) => ({ id: d.id, name: d.name, updatedAt: d.updatedAt })));
+    } catch {
+      if (!isRefresh) setDashboards([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchDashboards().then(() => { if (cancelled) return; });
+    return () => { cancelled = true; };
+  }, [accountId, portfolioId]);
+
+  return (
+    <div className="space-y-3">
+      {/* Always-visible header with refresh */}
+      <div className="flex items-center justify-between">
+        <p className="text-[13px] text-forest-f30">
+          {loading ? "" : `${dashboards.length} dashboard${dashboards.length !== 1 ? "s" : ""}`}
+        </p>
+        <button
+          onClick={() => fetchDashboards(true)}
+          disabled={refreshing || loading}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-forest-f40 border border-sandstorm-s40 rounded-lg hover:bg-sandstorm-s5 transition-colors disabled:opacity-50"
+          aria-label="Refresh dashboards"
+        >
+          <RefreshCw className={cn("w-3.5 h-3.5", (refreshing || loading) && "animate-spin")} />
+          {refreshing ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+
+      {/* Loading state */}
+      {(loading || refreshing) && (
+        <div className="flex items-center justify-center py-12">
+          <Loader size="md" message={loading ? "Loading dashboards..." : "Refreshing..."} />
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && !refreshing && dashboards.length === 0 && (
+        <div className="text-center py-12">
+          <LayoutDashboard className="w-10 h-10 mx-auto mb-3 text-forest-f20" />
+          <p className="text-[14px] text-forest-f30 mb-1">No custom dashboards yet</p>
+          <p className="text-[12px] text-forest-f20">
+            Use the Assistant to create a custom dashboard for this portfolio.
+          </p>
+        </div>
+      )}
+
+      {/* Dashboard list */}
+      {!loading && dashboards.length > 0 && dashboards.map((d) => (
+        <div
+          key={d.id}
+          onClick={() => window.open(`/brands/${accountId}/dashboards/${d.id}`, "_blank")}
+          className={cn(
+            "flex items-center justify-between p-4 border border-sandstorm-s40 rounded-lg hover:bg-sandstorm-s5 cursor-pointer transition-colors",
+            refreshing && "opacity-50 pointer-events-none",
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <LayoutDashboard className="w-5 h-5 text-forest-f40" />
+            <div>
+              <p className="text-[14px] font-medium text-forest-f60">{d.name}</p>
+              {d.updatedAt && (
+                <p className="text-[12px] text-forest-f20">
+                  Updated {new Date(d.updatedAt).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 };
