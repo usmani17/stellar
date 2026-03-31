@@ -34,11 +34,12 @@ import ProfilesIcon from "../../assets/images/profiles.svg";
 import ProfilesActiveIcon from "../../assets/images/profiles-active.svg";
 import UsersIcon from "../../assets/images/users.svg";
 import UsersActiveIcon from "../../assets/images/users-active.svg";
-import StrategiesIcon from "../../assets/images/strategies.svg";
-import StrategiesActiveIcon from "../../assets/images/strategies-active.svg";
+// import StrategiesIcon from "../../assets/images/strategies.svg";
+// import StrategiesActiveIcon from "../../assets/images/strategies-active.svg";
 import WorkspaceIcon from "../../assets/workspace.svg";
 import {
   BookOpen,
+  Briefcase,
   CalendarClock,
   ChevronDown,
   FileSpreadsheet,
@@ -382,9 +383,12 @@ export const Sidebar: React.FC = () => {
         !location.pathname.includes("/tiktok/log-history")
       );
     }
-    if (path === "/strategies") {
-      return location.pathname === "/strategies" || location.pathname === "/strategies/new" || /^\/strategies\/\d+(\/run-history)?$/.test(location.pathname);
+    if (path === "/portfolios") {
+      return location.pathname === "/portfolios" || /^\/brands\/\d+\/portfolios(\/|$)/.test(location.pathname);
     }
+    // if (path === "/strategies") {
+    //   return location.pathname === "/strategies" || location.pathname === "/strategies/new" || /^\/strategies\/\d+(\/run-history)?$/.test(location.pathname);
+    // }
     return location.pathname === path;
   };
 
@@ -803,6 +807,24 @@ export const Sidebar: React.FC = () => {
                       </span>
                     </Link>
                   )}
+                  <Link
+                    to="/portfolios"
+                    className={`flex items-center p-2 rounded-xl gap-2 ${
+                      isActive("/portfolios")
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                    }`}
+                    title="Portfolios"
+                  >
+                    <Briefcase
+                      className={`w-5 h-5 shrink-0 ${
+                        isActive("/portfolios") ? "text-white" : "text-forest-f30"
+                      }`}
+                    />
+                    <span className="text-[12.32px] font-normal leading-[16px]">
+                      Portfolios
+                    </span>
+                  </Link>
                   <Link
                     to={
                       accountId
@@ -1887,7 +1909,7 @@ export const Sidebar: React.FC = () => {
         )}
 
         {/* Strategies - bottom of sidebar */}
-        <Link
+        {/* <Link
           to="/strategies"
           className={`flex items-center p-2 rounded-xl gap-2 mt-4 ${
             isCollapsed ? "justify-center" : ""
@@ -1908,7 +1930,7 @@ export const Sidebar: React.FC = () => {
               Strategies
             </span>
           )}
-        </Link>
+        </Link> */}
       </div>
 
       {channelRequiredModal !== null &&

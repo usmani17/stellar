@@ -1337,20 +1337,30 @@ export const AssistantProvider: React.FC<{
   const cancelRun = useCallback(async () => {
     setWorkingOnRequest(false);
     console.log("cancelRun called, aborting current request");
-    // Capture refs BEFORE abort — the finally block in sendMessage will clear them
     const streamId = streamingSessionIdRef.current;
     const wasNewSession = isNewSessionFlowRef.current;
     const pendingSession = pendingNewSessionRef.current;
 
     abortControllerRef.current?.abort();
 
-    // Eagerly reset streaming state. We can't rely on onResult/catch because:
-    // 1. pixisChat.ts catches AbortError internally and calls onResult (doesn't rethrow)
-    // 2. streamPixisChat resolves normally → sendMessage's finally block clears streamingSessionIdRef
-    // 3. React processes onResult's setSessions callback AFTER the ref is already null
-    // 4. setSessions callback reads streamingSessionIdRef.current (now null) → no target found
+    // Tell the backend to kill the agent subprocess for this session.
+    const sessionIdToStop = streamId ?? pendingSession?.id;
+    if (sessionIdToStop) {
+      getAccessToken().then((token) => {
+        if (token) {
+          pixisAiSessionsService.stop(sessionIdToStop, token).catch((err) =>
+            console.warn("Failed to stop session on backend:", err)
+          );
+        }
+      });
+      setRunningSessionIds((prev) => {
+        const next = new Set(prev);
+        next.delete(sessionIdToStop);
+        return next;
+      });
+    }
+
     if (wasNewSession) {
-      // Promote pending conversation to a real session so context is preserved
       setPendingConversation((p) => {
         if (!p) return p;
         const msgs = p.messages;
@@ -1359,7 +1369,6 @@ export const AssistantProvider: React.FC<{
           ? [...msgs.slice(0, -1), { ...last, isStreaming: false }]
           : msgs;
 
-        // If onInit already provided IDs, create a real session
         if (pendingSession?.id) {
           const newSession: SessionWithMessages = {
             id: pendingSession.id,
@@ -1383,7 +1392,7 @@ export const AssistantProvider: React.FC<{
           setCurrentSessionId(pendingSession.id);
           setStreamingNewSessionId(null);
         }
-        return null; // clear pending
+        return null;
       });
       isNewSessionFlowRef.current = false;
       sendingNewSessionRef.current = false;
@@ -1406,7 +1415,7 @@ export const AssistantProvider: React.FC<{
       );
     }
     setIsLoading(false);
-  }, []);
+  }, [getAccessToken]);
 
   const toggleAssistant = useCallback(() => setIsOpen((prev) => !prev), []);
   const openAssistant = useCallback(() => setIsOpen(true), []);

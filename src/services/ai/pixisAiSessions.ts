@@ -157,4 +157,24 @@ export const pixisAiSessionsService = {
     }
     return res.json();
   },
+
+  stop: async (
+    sessionDbId: string,
+    accessToken: string
+  ): Promise<{ ok: boolean; stopped: boolean }> => {
+    const baseUrl = getBaseUrl();
+    const res = await fetch(`${baseUrl}/chat/stop`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ session_db_id: sessionDbId }),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Pixis AI session stop failed: ${res.status} ${err}`);
+    }
+    return res.json();
+  },
 };

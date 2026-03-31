@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import api from "../../services/api";
+import { Sidebar } from "../layout/Sidebar";
+import { AccountsHeader } from "../layout/AccountsHeader";
+import { useSidebar } from "../../contexts/SidebarContext";
+import { Loader } from "../ui";
 
 interface BrandAccessRouteProps {
   children: React.ReactNode;
@@ -14,6 +18,21 @@ interface BrandAccessRouteProps {
  * - Manager: only if assigned to account (AccountManager)
  * - Team: only if assigned to channel (ChannelTeamMember) for channel-scoped routes
  */
+const BrandAccessLoading: React.FC = () => {
+  const { sidebarWidth } = useSidebar();
+  return (
+    <div className="min-h-screen bg-white flex">
+      <Sidebar />
+      <div className="flex-1 w-full" style={{ marginLeft: `${sidebarWidth}px` }}>
+        <AccountsHeader />
+        <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white min-h-[calc(100vh-64px)] flex items-center justify-center">
+          <Loader size="lg" message="Loading..." />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const BrandAccessRoute: React.FC<BrandAccessRouteProps> = ({
   children,
 }) => {
@@ -22,7 +41,6 @@ export const BrandAccessRoute: React.FC<BrandAccessRouteProps> = ({
     channelId?: string;
   }>();
   const [status, setStatus] = useState<"loading" | "allowed" | "denied">("loading");
-  const [errorMessage, setErrorMessage] = useState<string>("");
 
   const accountId =
     accountIdParam != null ? parseInt(accountIdParam, 10) : null;
@@ -33,12 +51,14 @@ export const BrandAccessRoute: React.FC<BrandAccessRouteProps> = ({
     channelId != null && !isNaN(channelId) && hasValidAccount;
 
   useEffect(() => {
-    if (!hasValidAccount) {
-      setStatus("allowed");
-      return;
-    }
-
     let cancelled = false;
+
+    if (!hasValidAccount) {
+      queueMicrotask(() => {
+        if (!cancelled) setStatus("allowed");
+      });
+      return () => { cancelled = true; };
+    }
 
     const check = async () => {
       try {
@@ -53,12 +73,6 @@ export const BrandAccessRoute: React.FC<BrandAccessRouteProps> = ({
       } catch (err: any) {
         if (cancelled) return;
         const statusCode = err.response?.status;
-        const data = err.response?.data;
-        const message =
-          typeof data?.error === "string"
-            ? data.error
-            : "You do not have access to this brand or integration.";
-        setErrorMessage(message);
         if (statusCode === 403 || statusCode === 404) {
           setStatus("denied");
         } else {
@@ -78,11 +92,7 @@ export const BrandAccessRoute: React.FC<BrandAccessRouteProps> = ({
   }
 
   if (status === "loading") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-sandstorm-s0">
-        <div className="text-forest-f60 text-h900">Loading...</div>
-      </div>
-    );
+    return <BrandAccessLoading />;
   }
 
   if (status === "denied") {

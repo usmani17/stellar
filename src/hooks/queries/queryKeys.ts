@@ -140,4 +140,22 @@ export const queryKeys = {
     lists: (strategyId: number) =>
       [...queryKeys.automations.all, "list", strategyId] as const,
   },
+  portfolios: {
+    all: ["portfolios"] as const,
+    lists: (page: number, pageSize: number, search?: string, accountId?: number) =>
+      [
+        ...queryKeys.portfolios.all,
+        "list",
+        page,
+        pageSize,
+        search ?? "",
+        accountId ?? "all",
+      ] as const,
+    summary: (accountId?: number) =>
+      [...queryKeys.portfolios.all, "summary", accountId ?? "all"] as const,
+    detail: (portfolioId: number) =>
+      [...queryKeys.portfolios.all, "detail", portfolioId] as const,
+    tracking: (portfolioId: number, page?: number) =>
+      [...queryKeys.portfolios.all, "tracking", portfolioId, page ?? 1] as const,
+  },
 };

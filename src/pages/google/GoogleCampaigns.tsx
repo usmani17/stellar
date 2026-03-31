@@ -48,6 +48,7 @@ import {
   type BulkUpdateStatusDetails,
 } from "./components/BulkUpdateConfirmationModal";
 import { BulkBiddingStrategyPanel } from "./components/BulkBiddingStrategyPanel";
+import { CreatePortfolioWizard } from "../portfolios/components/CreatePortfolioWizard";
 import { BulkConversionActionsPanel } from "./components/BulkConversionActionsPanel";
 // import { CustomizeColumns } from "../../components/ui/CustomizeColumns";
 import type { IGoogleCampaign, IGoogleCampaignsSummary } from "../../types/google/campaign";
@@ -191,6 +192,7 @@ export const GoogleCampaigns: React.FC = () => {
     Set<string | number>
   >(new Set());
   const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showCreatePortfolio, setShowCreatePortfolio] = useState(false);
   const [showBudgetPanel, setShowBudgetPanel] = useState(false);
   const [budgetAction, setBudgetAction] = useState<
     "increase" | "decrease" | "set"
@@ -3531,11 +3533,10 @@ export const GoogleCampaigns: React.FC = () => {
                         });
                         setCurrentPage(1);
                       }}
-                      className={`relative inline-flex items-center h-6 w-16 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-[#072929] focus:ring-offset-2 overflow-hidden ${
+                      className={`relative inline-flex items-center h-6 w-20 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-[#072929] focus:ring-offset-2 overflow-hidden ${
                         showDraftsOnly ? "bg-forest-f40" : "bg-gray-200"
                       }`}
                     >
-                      {/* "Draft" label: rightmost when off (thumb left), leftmost when on (thumb right) */}
                       <span
                         className={`absolute top-1/2 -translate-y-1/2 pointer-events-none text-[10.64px] font-medium whitespace-nowrap transition-all duration-200 ${
                           showDraftsOnly
@@ -3545,10 +3546,9 @@ export const GoogleCampaigns: React.FC = () => {
                       >
                         Draft
                       </span>
-                      {/* Thumb - vertically centered, slides left/right */}
                       <span
                         className={`absolute top-1/2 -translate-y-1/2 left-0.5 w-5 h-5 rounded-full bg-white shadow ring-0 transition-transform duration-200 ${
-                          showDraftsOnly ? "translate-x-10" : "translate-x-0"
+                          showDraftsOnly ? "translate-x-[54px]" : "translate-x-0"
                         }`}
                       />
                     </button>
@@ -3634,9 +3634,8 @@ export const GoogleCampaigns: React.FC = () => {
                           {[
                             { value: "ENABLED", label: "Enable" },
                             { value: "PAUSED", label: "Pause" },
-                            // REMOVED cannot be set via status update - it's read-only
-                            // To remove campaigns, use delete operation instead
                             { value: "edit_budget", label: "Edit Budget" },
+                            { value: "create_portfolio", label: "Create Portfolio" },
                           ].map((opt) => (
                             <button
                               key={opt.value}
@@ -3646,6 +3645,11 @@ export const GoogleCampaigns: React.FC = () => {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (selectedCampaigns.size === 0) return;
+                                if (opt.value === "create_portfolio") {
+                                  setShowCreatePortfolio(true);
+                                  setShowBulkActions(false);
+                                  return;
+                                }
                                 if (opt.value === "edit_budget") {
                                   setShowBudgetPanel(true);
                                 } else {
@@ -4484,6 +4488,33 @@ export const GoogleCampaigns: React.FC = () => {
             </div>
           </div>
         )}
+
+      {showCreatePortfolio && (
+        <CreatePortfolioWizard
+          isOpen
+          onClose={() => setShowCreatePortfolio(false)}
+          accountId={accountId ? parseInt(accountId, 10) : 0}
+          channelId={channelIdNum ?? 0}
+          profileId={(() => {
+            const profiles = profilesData?.profiles || [];
+            const selected = profiles.find((p) => p.is_selected);
+            return selected?.id ?? null;
+          })()}
+          platform="google"
+          preSelectedCampaigns={Array.from(selectedCampaigns)
+            .map((id) => {
+              const c = campaigns.find((camp) => String(camp.campaign_id) === String(id));
+              if (!c) return null;
+              return {
+                campaignId: String(c.campaign_id),
+                campaignName: c.campaign_name || "",
+                campaignType: c.advertising_channel_type || "",
+                campaignStatus: c.status || "",
+              };
+            })
+            .filter(Boolean) as Array<{ campaignId: string; campaignName: string; campaignType: string; campaignStatus: string }>}
+        />
+      )}
     </div>
   );
 };

@@ -26,6 +26,8 @@ import { GoogleSheetsIntegrationsPage } from "../features/brands/google-sheets/G
 import { GoogleSheetsIntegrationPage } from "../features/brands/google-sheets/GoogleSheetsIntegrationPage";
 import { GoogleSheetsIntegrationEditPage } from "../features/brands/google-sheets/GoogleSheetsIntegrationEditPage";
 import { GoogleSheetsIntegrationCreatePage } from "../features/brands/google-sheets/GoogleSheetsIntegrationCreatePage";
+import { PortfolioList } from "../pages/portfolios/PortfolioList";
+import { PortfolioDetail } from "../pages/portfolios/PortfolioDetail";
 
 function ChannelsToIntegrationsRedirect() {
     const { accountId } = useParams<{ accountId: string }>();
@@ -115,6 +117,34 @@ function AccountRoutes() {
                             <Layout>
                                 <StrategyDetail />
                             </Layout>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/portfolios"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
+                                <PortfolioList />
+                            </Layout>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/brands/:accountId/portfolios/:portfolioId"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <PortfolioDetail />
+                                    </Layout>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
