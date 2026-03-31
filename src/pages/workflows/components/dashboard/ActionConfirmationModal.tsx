@@ -92,6 +92,8 @@ function shouldShowKeywordAnalysisSection(proposal: ActionProposal, rule: Action
 /** After execute: distinguish immediate apply vs staggered keyword queue. */
 function executeSuccessFooterMessage(response: ExecuteActionsResponse | null): string {
   const results = response?.results ?? [];
+  const mock = results.filter((r) => r.mock === true);
+  if (mock.length > 0) return "Actions applied successfully (mocked)";
   if (results.length === 0) return "Actions applied successfully";
   const ok = results.filter((r) => r.status !== "failed");
   if (ok.length === 0) return "Actions applied successfully";
