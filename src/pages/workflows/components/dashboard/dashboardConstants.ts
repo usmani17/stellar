@@ -10,10 +10,13 @@ export function snapTimeToHour(timeStr: string | undefined): string {
 }
 
 export const SCHEDULE_FREQUENCY_OPTIONS = [
+	{ value: "once", label: "Run Once" },
 	{ value: "daily", label: "Daily" },
 	{ value: "weekly", label: "Weekly" },
 	{ value: "monthly", label: "Monthly" },
 ];
+
+export const SCHEDULE_FREQUENCY_RUN_ONCE = "once" as const;
 
 const _hourLabel = (h24: number): string => {
 	const hour12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
