@@ -244,6 +244,50 @@ function effectiveScheduleFrequency(schedule?: ActionSchedule): ActionSchedule["
   return schedule.frequency ?? (hasTiming ? "daily" : undefined);
 }
 
+function startOfLocalDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+/** Format Date to YYYY-MM-DD in local time (avoids UTC date shifts). */
+function toLocalYmd(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function parseLocalYmdOrToday(raw?: string): Date {
+  if (raw) {
+    const [y, m, d] = raw.split("-").map((part) => Number(part));
+    if (
+      Number.isFinite(y) &&
+      Number.isFinite(m) &&
+      Number.isFinite(d) &&
+      y > 0 &&
+      m >= 1 &&
+      m <= 12 &&
+      d >= 1 &&
+      d <= 31
+    ) {
+      const parsed = new Date(y, m - 1, d);
+      if (
+        !Number.isNaN(parsed.getTime()) &&
+        parsed.getFullYear() === y &&
+        parsed.getMonth() === m - 1 &&
+        parsed.getDate() === d
+      ) {
+        return startOfLocalDay(parsed);
+      }
+    }
+  }
+  return startOfLocalDay(new Date());
+}
+
+function clampDayToMonth(year: number, monthIndex: number, day: number): number {
+  const maxDay = new Date(year, monthIndex + 1, 0).getDate();
+  return Math.min(Math.max(day, 1), maxDay);
+}
+
 function getScheduleLabel(schedule?: ActionSchedule): string {
   const frequency = effectiveScheduleFrequency(schedule);
   if (!frequency || !schedule) {
@@ -272,6 +316,11 @@ function getScheduleLabel(schedule?: ActionSchedule): string {
     const md = toMonthDaysArray(normalized.monthDays);
     const daysPart = md.length > 0 ? md.sort((a, b) => a - b).join(", ") : "1";
     return `Execution Schedule: Monthly ${daysPart} @ ${t} (${timezone})`;
+  }
+
+  if (normalized.frequency === "once") {
+    const date = normalized.date || "No date set";
+    return `Execution Schedule: Once on ${date} ${t} (${timezone})`;
   }
 
   return `Execution Schedule: Daily ${t} (${timezone})`;
@@ -658,7 +707,11 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                 }}
                 onChange={(e) => {
                   e.stopPropagation();
-                  allSelectableSelected ? deselectAll() : selectAllActive();
+                  if (allSelectableSelected) {
+                    deselectAll();
+                  } else {
+                    selectAllActive();
+                  }
                 }}
                 className={cn(
                   "w-3.5 h-3.5 rounded border cursor-pointer",
@@ -727,6 +780,12 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
             const isSelected = selectedIds.has(rule.id) && !isPaused;
             const isScheduleSet = Boolean(effectiveScheduleFrequency(rule.schedule));
             const schedEditing: ActionSchedule = { ...DEFAULT_ACTION_SCHEDULE, ...rule.schedule };
+            const onceSelectedDate = parseLocalYmdOrToday(schedEditing.date);
+            const onceMonthStart = new Date(onceSelectedDate.getFullYear(), onceSelectedDate.getMonth(), 1);
+            const onceDaysInMonth = new Date(onceSelectedDate.getFullYear(), onceSelectedDate.getMonth() + 1, 0).getDate();
+            const todayLocal = startOfLocalDay(new Date());
+            const currentMonthStart = new Date(todayLocal.getFullYear(), todayLocal.getMonth(), 1);
+            const canMoveToPreviousOnceMonth = onceMonthStart > currentMonthStart;
             const formattedGuardrails = getFormattedGuardrails(rule.guardrails);
 
             return (
@@ -1080,15 +1139,25 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                                       next.weekdays = w.length > 0 ? w : [0];
                                       delete next.day_of_week;
                                       delete next.monthDays;
+                                      delete next.date;
                                     } else if (frequency === "monthly") {
                                       const m = toMonthDaysArray(next.monthDays);
                                       next.monthDays = m.length > 0 ? m : [1];
                                       delete next.weekdays;
                                       delete next.day_of_week;
+                                      delete next.date;
+                                    } else if (frequency === "once") {
+                                      if (!next.date) {
+                                        next.date = toLocalYmd(new Date());
+                                      }
+                                      delete next.weekdays;
+                                      delete next.monthDays;
+                                      delete next.day_of_week;
                                     } else {
                                       delete next.weekdays;
                                       delete next.monthDays;
                                       delete next.day_of_week;
+                                      delete next.date;
                                     }
                                     updateSchedule(rule.id, next);
                                   }}
@@ -1139,6 +1208,131 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                                     )}
                                     align="left"
                                   />
+                                </div>
+                              )}
+
+                              {schedEditing.frequency === "once" && (
+                                <div>
+                                  <span className={cn("text-[10px] block mb-1", isDark ? "text-neutral-400" : "text-forest-f30")}>
+                                    Date
+                                  </span>
+                                  <div className="flex items-center justify-between mb-1 max-w-[220px]">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (!canMoveToPreviousOnceMonth) return;
+                                        const targetMonth = new Date(
+                                          onceSelectedDate.getFullYear(),
+                                          onceSelectedDate.getMonth() - 1,
+                                          1
+                                        );
+                                        const day = clampDayToMonth(
+                                          targetMonth.getFullYear(),
+                                          targetMonth.getMonth(),
+                                          onceSelectedDate.getDate()
+                                        );
+                                        const targetDate = startOfLocalDay(
+                                          new Date(targetMonth.getFullYear(), targetMonth.getMonth(), day)
+                                        );
+                                        const boundedDate = targetDate < todayLocal ? todayLocal : targetDate;
+                                        updateSchedule(rule.id, {
+                                          ...schedEditing,
+                                          date: toLocalYmd(boundedDate),
+                                          timezone: "UTC",
+                                          auto_execute: true,
+                                        });
+                                      }}
+                                      disabled={!canMoveToPreviousOnceMonth}
+                                      className={cn(
+                                        "w-6 h-6 rounded border text-[11px] font-semibold transition-colors",
+                                        !canMoveToPreviousOnceMonth
+                                          ? isDark
+                                            ? "border-neutral-700 text-neutral-600 cursor-not-allowed"
+                                            : "border-sandstorm-s30 text-sandstorm-s50 cursor-not-allowed"
+                                          : isDark
+                                            ? "border-neutral-600 text-neutral-300 hover:bg-neutral-700"
+                                            : "border-sandstorm-s40 text-forest-f60 hover:bg-sandstorm-s10"
+                                      )}
+                                      aria-label="Previous month"
+                                    >
+                                      {"<"}
+                                    </button>
+                                    <span className={cn("text-[10px] font-medium", isDark ? "text-neutral-300" : "text-forest-f60")}>
+                                      {onceSelectedDate.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const targetMonth = new Date(
+                                          onceSelectedDate.getFullYear(),
+                                          onceSelectedDate.getMonth() + 1,
+                                          1
+                                        );
+                                        const day = clampDayToMonth(
+                                          targetMonth.getFullYear(),
+                                          targetMonth.getMonth(),
+                                          onceSelectedDate.getDate()
+                                        );
+                                        updateSchedule(rule.id, {
+                                          ...schedEditing,
+                                          date: toLocalYmd(new Date(targetMonth.getFullYear(), targetMonth.getMonth(), day)),
+                                          timezone: "UTC",
+                                          auto_execute: true,
+                                        });
+                                      }}
+                                      className={cn(
+                                        "w-6 h-6 rounded border text-[11px] font-semibold transition-colors",
+                                        isDark
+                                          ? "border-neutral-600 text-neutral-300 hover:bg-neutral-700"
+                                          : "border-sandstorm-s40 text-forest-f60 hover:bg-sandstorm-s10"
+                                      )}
+                                      aria-label="Next month"
+                                    >
+                                      {">"}
+                                    </button>
+                                  </div>
+
+                                  <div className="grid grid-cols-7 gap-1 max-w-[220px]">
+                                    {Array.from({ length: onceDaysInMonth }, (_, i) => i + 1).map((day) => {
+                                      const candidateDate = startOfLocalDay(
+                                        new Date(onceSelectedDate.getFullYear(), onceSelectedDate.getMonth(), day)
+                                      );
+                                      const isPast = candidateDate < todayLocal;
+                                      const sel = day === onceSelectedDate.getDate();
+                                      return (
+                                        <button
+                                          key={day}
+                                          type="button"
+                                          disabled={isPast}
+                                          onClick={() => {
+                                            updateSchedule(rule.id, {
+                                              ...schedEditing,
+                                              frequency: "once",
+                                              date: toLocalYmd(candidateDate),
+                                              timezone: "UTC",
+                                              auto_execute: true,
+                                            });
+                                          }}
+                                          className={cn(
+                                            "h-7 rounded text-[10px] font-medium border transition-colors",
+                                            isPast
+                                              ? isDark
+                                                ? "border-neutral-700 text-neutral-600 cursor-not-allowed"
+                                                : "border-sandstorm-s30 text-sandstorm-s50 cursor-not-allowed"
+                                              : sel
+                                                ? isDark
+                                                  ? "bg-[#2DD4BF]/25 border-[#2DD4BF]/50 text-[#2DD4BF]"
+                                                  : "bg-forest-f40 text-white border-forest-f40"
+                                                : isDark
+                                                  ? "border-neutral-600 text-neutral-300 hover:bg-neutral-700"
+                                                  : "border-sandstorm-s40 text-forest-f60 hover:bg-sandstorm-s10"
+                                          )}
+                                        >
+                                          {day}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
                               )}
 

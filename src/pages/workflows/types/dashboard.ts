@@ -368,8 +368,10 @@ export const PLATFORM_ENTITY_TYPES: Record<ActionPlatform, ActionEntityType[]> =
 };
 
 export interface ActionSchedule {
-  frequency: "hourly" | "daily" | "weekly" | "monthly";
+  frequency: "once" | "hourly" | "daily" | "weekly" | "monthly";
   time?: string;
+  /** YYYY-MM-DD for "once" frequency */
+  date?: string;
   /** @deprecated Sun=0..Sat=6 — prefer `weekdays` (Mon=0..Sun=6) */
   day_of_week?: number;
   /** Mon=0 .. Sun=6 (workflow convention) */
