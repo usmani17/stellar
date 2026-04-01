@@ -18,6 +18,7 @@ import {
   setCurrentWorkspaceId,
   syncWorkspaceSelectionFromUser,
 } from "../lib/workspace";
+import { clearAccountsQueryCache } from "../lib/queryClient";
 
 interface AuthContextType {
   user: User | null;
@@ -43,9 +44,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<number | null>(
-    () => getCurrentWorkspaceId()
-  );
+  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<
+    number | null
+  >(() => getCurrentWorkspaceId());
   const initRef = useRef(false); // Prevent duplicate calls in StrictMode
 
   const setActiveWorkspaceId = (id: number) => {
@@ -82,7 +83,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
             applyUserAndWorkspace(backendUser);
             localStorage.setItem("user", JSON.stringify(backendUser));
           } catch (error: unknown) {
-            const status = (error as { response?: { status?: number } })?.response?.status;
+            const status = (error as { response?: { status?: number } })
+              ?.response?.status;
             // Only clear auth on 401 (expired/invalid token). Keep session on network errors or server restart.
             if (status === 401) {
               console.warn("Token invalid or expired, clearing auth state");
@@ -94,7 +96,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
               setActiveWorkspaceIdState(null);
             } else {
               // Server unreachable, network error, etc. – keep user from localStorage so session persists
-              console.warn("Could not reach server to verify token, keeping existing session");
+              console.warn(
+                "Could not reach server to verify token, keeping existing session",
+              );
               applyUserAndWorkspace(userData);
             }
           }
@@ -117,6 +121,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const login = async (credentials: LoginCredentials) => {
     try {
       const response = await authService.login(credentials);
+      clearAccountsQueryCache();
       localStorage.setItem("accessToken", response.tokens.access);
       localStorage.setItem("refreshToken", response.tokens.refresh);
       localStorage.setItem("user", JSON.stringify(response.user));
@@ -159,6 +164,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   const register = async (data: RegisterData) => {
     const response = await authService.register(data);
+    clearAccountsQueryCache();
     localStorage.setItem("accessToken", response.tokens.access);
     localStorage.setItem("refreshToken", response.tokens.refresh);
     localStorage.setItem("user", JSON.stringify(response.user));
@@ -209,6 +215,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           localStorage.removeItem("user");
           localStorage.removeItem("currentWorkspaceId");
           clearAccountIdFromStorage();
+          clearAccountsQueryCache();
           setUser(null);
           setActiveWorkspaceIdState(null);
           // Redirect to Auth0 logout
@@ -229,6 +236,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     localStorage.removeItem("user");
     localStorage.removeItem("currentWorkspaceId");
     clearAccountIdFromStorage();
+    clearAccountsQueryCache();
     setUser(null);
     setActiveWorkspaceIdState(null);
     window.location.href = "/login";

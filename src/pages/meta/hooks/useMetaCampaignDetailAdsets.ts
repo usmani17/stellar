@@ -12,6 +12,8 @@ export interface MetaAdsetRow {
   start_time?: string;
   end_time?: string;
   daily_budget?: string;
+  lifetime_budget?: string;
+  bid_amount?: string;
   impressions?: number;
   clicks?: number;
   spends?: number;

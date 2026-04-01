@@ -43,7 +43,8 @@ export const MetaCreatives: React.FC = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState<string>("id");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  // Default: newest creatives first.
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [selectedCreatives, setSelectedCreatives] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<FilterValues>([]);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -89,7 +90,8 @@ export const MetaCreatives: React.FC = () => {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
       setSortBy(key);
-      setSortOrder("asc");
+      // Default sort for a new column: newest-first.
+      setSortOrder("desc");
     }
     setCurrentPage(1);
   };

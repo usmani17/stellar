@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { formatCurrency, formatPercentage, formatNumber } from "../../utils/formatters";
 import { useDateRange } from "../../contexts/DateRangeContext";
@@ -59,7 +59,8 @@ export const MetaAds: React.FC = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState<string>("id");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  // Default: newest ads first.
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [selectedAds, setSelectedAds] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<FilterValues>([]);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -114,7 +115,8 @@ export const MetaAds: React.FC = () => {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
       setSortBy(key);
-      setSortOrder("asc");
+      // Default sort for a new column: newest-first.
+      setSortOrder("desc");
     }
     setCurrentPage(1);
   };
@@ -436,12 +438,9 @@ export const MetaAds: React.FC = () => {
                                 />
                               </td>
                               <td className="table-cell table-sticky-first-column min-w-[300px] max-w-[400px] group-hover:bg-[#f9f9f6] py-3 px-4 text-left">
-                                <Link
-                                  to={`/brands/${accountId}/${channelId}/meta/ads/${row.ad_id}`}
-                                  className="table-edit-link table-text leading-[1.26] text-[#072929]"
-                                >
+                                <span className="table-text leading-[1.26] text-[#072929] block w-full truncate whitespace-nowrap">
                                   {row.ad_name || "—"}
-                                </Link>
+                                </span>
                               </td>
                               <td className="table-cell py-3 px-4 text-left">
                                 <span className="table-text leading-[1.26] text-[#556179]">

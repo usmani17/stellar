@@ -8,12 +8,13 @@ import { formatCurrency } from "./formatters";
 /** Format old/new value with currency when field is Budget or Bid. */
 export function formatMoneyForEditSummary(
   value: string | number | undefined | null,
-  currency?: string
+  currency?: string,
 ): string {
   if (value == null || value === "" || value === "—") return "—";
-  const num = typeof value === "number"
-    ? value
-    : parseFloat(String(value).replace(/[^0-9.-]/g, ""));
+  const num =
+    typeof value === "number"
+      ? value
+      : parseFloat(String(value).replace(/[^0-9.-]/g, ""));
   if (isNaN(num)) return String(value);
   return formatCurrency(num, currency ?? "USD");
 }
@@ -25,6 +26,7 @@ export function isMoneyField(field: string | undefined): boolean {
 }
 
 export type EntityType =
+  | "ad"
   | "campaign"
   | "adGroup"
   | "adSet"
@@ -40,6 +42,7 @@ export type EntityType =
 export type EditAction = "updated" | "created" | "deleted" | "archived";
 
 const ENTITY_LABELS: Record<EntityType, string> = {
+  ad: "Ad",
   campaign: "Campaign",
   adGroup: "Ad group",
   adSet: "Ad set",
@@ -54,6 +57,7 @@ const ENTITY_LABELS: Record<EntityType, string> = {
 };
 
 const ENTITY_LABELS_PLURAL: Record<EntityType, string> = {
+  ad: "Ads",
   campaign: "Campaigns",
   adGroup: "Ad groups",
   adSet: "Ad sets",
@@ -79,7 +83,10 @@ function fieldLabel(field: string): string {
     endDate: "End date",
     state: "Status",
   };
-  return map[field] ?? field.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase());
+  return (
+    map[field] ??
+    field.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())
+  );
 }
 
 /**
@@ -142,7 +149,34 @@ export function buildEditSummary(opts: EditSummaryOptions): EditSummaryResult {
 
   if (mode === "inline") {
     const entityLabel = opts.entityName ?? singular;
-    const base = `${singular} ${action} successfully.`;
+    const hasFailure = failedCount > 0;
+    const allFailed = hasFailure && succeededCount === 0;
+
+    let title: string;
+    let variant: "success" | "partial" | "error";
+    let base: string;
+
+    if (allFailed) {
+      title = "Update failed";
+      variant = "error";
+      const verb =
+        {
+          updated: "update",
+          created: "create",
+          deleted: "delete",
+          archived: "archive",
+        }[action] ?? "update";
+      base = `${singular} failed to ${verb}.`;
+    } else if (hasFailure) {
+      title = "Partial success";
+      variant = "partial";
+      base = `${singular} ${action} with some issues.`;
+    } else {
+      title = "Update complete";
+      variant = "success";
+      base = `${singular} ${action} successfully.`;
+    }
+
     if (opts.field && (opts.oldValue != null || opts.newValue != null)) {
       const field = fieldLabel(opts.field);
       details.unshift({
@@ -152,15 +186,34 @@ export function buildEditSummary(opts: EditSummaryOptions): EditSummaryResult {
         newValue: opts.newValue ?? "—",
       });
     }
+
+    // Inline errors / extra info (e.g. backend error message)
+    if (opts.details?.length) {
+      for (const d of opts.details) {
+        details.push({
+          label: d.label,
+          field: d.field ?? "Error",
+          oldValue: d.oldValue ?? "—",
+          newValue: d.value ?? d.newValue ?? "—",
+        });
+      }
+    }
+
     const summary =
       details.length > 0
-        ? `${base} ${details.map((d) => `${d.field}: ${d.oldValue ?? ""} → ${d.newValue ?? ""}`).join(".")}`
+        ? `${base} ${details
+            .filter(
+              (d) => d.field && (d.oldValue != null || d.newValue != null),
+            )
+            .map((d) => `${d.field}: ${d.oldValue ?? ""} → ${d.newValue ?? ""}`)
+            .join(".")}`
         : base;
+
     return {
-      title: "Update complete",
+      title,
       summary,
       details,
-      variant: "success",
+      variant,
     };
   }
 
@@ -176,7 +229,13 @@ export function buildEditSummary(opts: EditSummaryOptions): EditSummaryResult {
     if (succeededCount > 0) {
       summary = `${succeededCount} ${plural} ${action} successfully. ${failedCount} failed.`;
     } else {
-      const verb = { updated: "update", created: "create", deleted: "delete", archived: "archive" }[action] ?? action;
+      const verb =
+        {
+          updated: "update",
+          created: "create",
+          deleted: "delete",
+          archived: "archive",
+        }[action] ?? action;
       summary = `All ${failedCount > 1 ? failedCount + " " : ""}${failedCount === 1 ? singular : plural} failed to ${verb}.`;
     }
   }

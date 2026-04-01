@@ -1,4 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../hooks/queries/queryKeys";
 
 /**
  * QueryClient configuration with default options
@@ -20,3 +21,11 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+/**
+ * Drop cached account lists so a new login/session never reuses another user's data.
+ * (Global staleTime + refetchOnMount: false would otherwise keep the prior list "fresh".)
+ */
+export function clearAccountsQueryCache(): void {
+  queryClient.removeQueries({ queryKey: queryKeys.accounts.all });
+}
