@@ -202,9 +202,9 @@ function WorkflowDashboardContent({
     updateConfigMutation.mutate(newConfig);
   };
 
-  const handleComponentChange = (payload: import("../../services/dashboard").DashboardComponentUpdatePayload) => {
+  const handleComponentChange = async (payload: import("../../services/dashboard").DashboardComponentUpdatePayload) => {
     if (!accountIdNum || !dashboardId) return;
-    updateComponentMutation.mutate(payload);
+    await updateComponentMutation.mutateAsync(payload);
   };
 
   return (

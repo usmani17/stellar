@@ -381,7 +381,7 @@ interface DashboardWidgetActionsProps {
   dashboardId: number;
   componentId: string;
   isDark: boolean;
-  onActionsChange?: (actions: ActionRule[]) => void;
+  onActionsChange?: (actions: ActionRule[]) => void | Promise<void>;
   onReviewChanges?: (proposals: ActionProposal[]) => void;
   onShowHistory?: (executions: ActionExecution[]) => void;
 }
@@ -397,6 +397,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
   onShowHistory,
 }) => {
   const [isOpen, setIsOpen] = useState(true);
+  const [draftActions, setDraftActions] = useState<ActionRule[]>(actions);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
     () => new Set(actions.filter((a) => a.status === "active").map((a) => a.id))
   );
@@ -415,11 +416,15 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
     width: number;
   } | null>(null);
 
-  const visibleActions = actions.filter((a) => a.status !== "deleted");
+  useEffect(() => {
+    setDraftActions(actions);
+  }, [actions]);
+
+  const visibleActions = draftActions.filter((a) => a.status !== "deleted");
   const activeActions = visibleActions.filter((a) => a.status === "active");
   const totalActive = activeActions.length;
   const selectedCount = [...selectedIds].filter((id) =>
-    actions.find((a) => a.id === id && a.status === "active")
+    draftActions.find((a) => a.id === id && a.status === "active")
   ).length;
 
   const toggleSelect = useCallback((id: string) => {
@@ -433,26 +438,25 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
 
   const togglePause = useCallback(
     (id: string) => {
-      if (!onActionsChange) return;
-      const rule = actions.find((a) => a.id === id);
+      const rule = draftActions.find((a) => a.id === id);
       if (!rule) return;
 
       if (rule.status === "active") {
         setConfirmingPause(id);
         return;
       }
-      const updated = actions.map((a) =>
+      const updated = draftActions.map((a) =>
         a.id === id ? { ...a, status: "active" as const } : a
       );
-      onActionsChange(updated);
+      setDraftActions(updated);
+      void onActionsChange?.(updated);
     },
-    [actions, onActionsChange]
+    [draftActions, onActionsChange]
   );
 
   const updateSchedule = useCallback(
     (id: string, schedule: ActionRule["schedule"]) => {
-      if (!onActionsChange) return;
-      const updated = actions.map((a) => {
+      setDraftActions((prev) => prev.map((a) => {
         if (a.id !== id) return a;
         if (schedule === undefined) {
           const next = { ...a };
@@ -460,21 +464,16 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
           return next;
         }
         return { ...a, schedule };
-      });
-      onActionsChange(updated);
+      }));
     },
-    [actions, onActionsChange]
+    []
   );
 
   const discardScheduleEdit = useCallback(
     (ruleId: string) => {
       const baseline = scheduleEditorBaselineRef.current.get(ruleId);
       scheduleEditorBaselineRef.current.delete(ruleId);
-      if (!onActionsChange) {
-        setEditingSchedule(null);
-        return;
-      }
-      const updated = actions.map((a) => {
+      setDraftActions((prev) => prev.map((a) => {
         if (a.id !== ruleId) return a;
         if (baseline === undefined) {
           const next = { ...a };
@@ -485,17 +484,25 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
           ...a,
           schedule: JSON.parse(JSON.stringify(baseline)) as ActionSchedule,
         };
-      });
-      onActionsChange(updated);
+      }));
       setEditingSchedule(null);
     },
-    [actions, onActionsChange]
+    []
   );
 
-  const commitScheduleEditClose = useCallback((ruleId: string) => {
-    scheduleEditorBaselineRef.current.delete(ruleId);
-    setEditingSchedule(null);
-  }, []);
+  const commitScheduleEditClose = useCallback(
+    async (ruleId: string) => {
+      const baseline = scheduleEditorBaselineRef.current.get(ruleId);
+      scheduleEditorBaselineRef.current.delete(ruleId);
+      setEditingSchedule(null);
+      if (!onActionsChange) return;
+      const current = draftActions.find((a) => a.id === ruleId)?.schedule;
+      const changed = JSON.stringify(baseline ?? null) !== JSON.stringify(current ?? null);
+      if (!changed) return;
+      await onActionsChange(draftActions);
+    },
+    [draftActions, onActionsChange]
+  );
 
   useLayoutEffect(() => {
     if (!editingSchedule) {
@@ -551,23 +558,23 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
 
   const confirmPause = useCallback(
     (id: string) => {
-      if (!onActionsChange) return;
-      const updated = actions.map((a) =>
+      const updated = draftActions.map((a) =>
         a.id === id ? { ...a, status: "paused" as const } : a
       );
-      onActionsChange(updated);
+      setDraftActions(updated);
+      void onActionsChange?.(updated);
       setConfirmingPause(null);
     },
-    [actions, onActionsChange]
+    [draftActions, onActionsChange]
   );
 
   const softDeleteRule = useCallback(
     (id: string) => {
-      if (!onActionsChange) return;
-      const updated = actions.map((a) =>
+      const updated = draftActions.map((a) =>
         a.id === id ? { ...a, status: "deleted" as const } : a
       );
-      onActionsChange(updated);
+      setDraftActions(updated);
+      void onActionsChange?.(updated);
       setSelectedIds((prev) => {
         const next = new Set(prev);
         next.delete(id);
@@ -575,7 +582,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
       });
       setConfirmingDelete(null);
     },
-    [actions, onActionsChange]
+    [draftActions, onActionsChange]
   );
 
   const isCompound = (c: ActionCondition | CompoundActionCondition): c is CompoundActionCondition =>
@@ -583,8 +590,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
 
   const updateConditionValue = useCallback(
     (ruleId: string, newVal: string, subIndex?: number) => {
-      if (!onActionsChange) return;
-      const updated = actions.map((a) => {
+      const updated = draftActions.map((a) => {
         if (a.id !== ruleId || !a.condition) return a;
         const parsed = isNaN(Number(newVal)) ? newVal : Number(newVal);
 
@@ -597,38 +603,40 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
 
         return { ...a, condition: { ...a.condition, value: parsed as ActionCondition["value"] } };
       });
-      onActionsChange(updated);
+      setDraftActions(updated);
+      void onActionsChange?.(updated);
     },
-    [actions, onActionsChange]
+    [draftActions, onActionsChange]
   );
 
   const updateParamValue = useCallback(
     (ruleId: string, key: string, newVal: string) => {
-      if (!onActionsChange) return;
-      const updated = actions.map((a) => {
+      const updated = draftActions.map((a) => {
         if (a.id !== ruleId) return a;
         const parsed = isNaN(Number(newVal)) ? newVal : Number(newVal);
         return { ...a, params: { ...a.params, [key]: parsed } };
       });
-      onActionsChange(updated);
+      setDraftActions(updated);
+      void onActionsChange?.(updated);
     },
-    [actions, onActionsChange]
+    [draftActions, onActionsChange]
   );
 
   const updateDescription = useCallback(
     (ruleId: string, newDesc: string) => {
-      if (!onActionsChange || !newDesc.trim()) return;
-      const updated = actions.map((a) =>
+      if (!newDesc.trim()) return;
+      const updated = draftActions.map((a) =>
         a.id === ruleId ? { ...a, description: newDesc.trim() } : a
       );
-      onActionsChange(updated);
+      setDraftActions(updated);
+      void onActionsChange?.(updated);
     },
-    [actions, onActionsChange]
+    [draftActions, onActionsChange]
   );
 
   const handleReviewChanges = useCallback(async () => {
     const selectedRuleIds = [...selectedIds].filter((id) =>
-      actions.find((a) => a.id === id && a.status === "active")
+      draftActions.find((a) => a.id === id && a.status === "active")
     );
     if (selectedRuleIds.length === 0) return;
 
@@ -644,7 +652,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
     } finally {
       setIsReviewLoading(false);
     }
-  }, [selectedIds, actions, accountId, dashboardId, componentId, onReviewChanges]);
+  }, [selectedIds, draftActions, accountId, dashboardId, componentId, onReviewChanges]);
 
   const handleShowHistory = useCallback(async () => {
     setIsHistoryLoading(true);

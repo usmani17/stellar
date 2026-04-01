@@ -52,7 +52,7 @@ interface DashboardGridProps {
   editable?: boolean;
   onConfigChange?: (config: DashboardConfig) => void;
   /** When set, single-component updates (title, viz, expand) send only this component; backend keeps others as-is */
-  onComponentChange?: (payload: DashboardComponentUpdatePayload) => void;
+  onComponentChange?: (payload: DashboardComponentUpdatePayload) => void | Promise<void>;
   /** When > 0, triggers hard refresh (bypasses backend cache) for all widgets */
   hardRefreshTrigger?: number;
 }
@@ -100,7 +100,7 @@ function SortableWidgetWrapper({
     columnOrder?: string[]
   ) => void;
   onWidgetDelete?: (componentId: string) => void;
-  onActionsChange?: (componentId: string, actions: ActionRule[]) => void;
+  onActionsChange?: (componentId: string, actions: ActionRule[]) => void | Promise<void>;
   hardRefreshTrigger?: number;
 }) {
   const {
@@ -408,12 +408,12 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
   );
 
   const handleActionsChange = useCallback(
-    (componentId: string, actions: ActionRule[]) => {
+    (componentId: string, actions: ActionRule[]): void | Promise<void> => {
       if (!config) return;
       const comp = config.components.find((c) => String(c.id) === componentId);
       if (!comp) return;
       if (onComponentChange && accountId && dashboardId) {
-        onComponentChange({
+        return onComponentChange({
           layout: config.layout,
           component: { ...componentForPayload(comp), actions },
         });
