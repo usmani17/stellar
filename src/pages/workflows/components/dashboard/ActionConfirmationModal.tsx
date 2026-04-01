@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "../../../../lib/cn";
 import type { ActionProposal, ActionEntityDiff, ActionRule, DashboardComponent } from "../../types/dashboard";
+import { ACTION_TYPE_LABELS } from "./actionTypeDisplay";
 import {
   KeywordAnalysisResultView,
   parseKeywordAnalysisPayload,
@@ -26,17 +27,6 @@ import {
   type ExecuteActionsResponse,
 } from "../../../../services/dashboardActions";
 import { getKeywordAnalysisDateRangeFromComponent } from "../../utils/keywordAnalysisDateRange";
-
-const ACTION_TYPE_LABELS: Record<string, string> = {
-  change_state: "Change status",
-  change_bid_strategy: "Change bid strategy",
-  adjust_target: "Adjust target",
-  adjust_budget: "Adjust budget",
-  adjust_bid: "Adjust bid",
-  add_keyword: "Add keywords",
-  add_negative_keyword: "Add negative keywords",
-  update_device_bid_modifier: "Adjust device bid",
-};
 
 function isKeywordAnalysisActionType(
   t: string
@@ -94,6 +84,8 @@ function shouldShowKeywordAnalysisSection(proposal: ActionProposal, rule: Action
 /** After execute: distinguish immediate apply vs staggered keyword queue. */
 function executeSuccessFooterMessage(response: ExecuteActionsResponse | null): string {
   const results = response?.results ?? [];
+  const mock = results.filter((r) => r.mock === true);
+  if (mock.length > 0) return "Actions applied successfully (mocked)";
   if (results.length === 0) return "Actions applied successfully";
   const ok = results.filter((r) => r.status !== "failed");
   if (ok.length === 0) return "Actions applied successfully";
