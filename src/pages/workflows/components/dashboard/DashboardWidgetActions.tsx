@@ -277,6 +277,53 @@ function getScheduleLabel(schedule?: ActionSchedule): string {
   return `Execution Schedule: Daily ${t} (${timezone})`;
 }
 
+const GUARDRAIL_LABELS: Record<string, string> = {
+  limit: "Limit",
+  max_entities_per_action: "Max entities",
+  warn_threshold: "Warn threshold",
+  max_decrease_percent: "Max decrease",
+  max_increase_percent: "Max increase",
+  min_budget_amount: "Min budget",
+  min_bid_amount: "Min bid",
+  min_cpa: "Min CPA",
+  min_roas: "Min ROAS",
+  min_modifier_percent: "Min modifier",
+  max_modifier_percent: "Max modifier",
+  max_keywords_per_action: "Max keywords",
+  max_placements_per_action: "Max placements",
+  max_targets_per_action: "Max targets",
+  max_values_per_action: "Max values",
+};
+
+function formatGuardrailValue(key: string, value: unknown): string {
+  if (typeof value === "number") {
+    if (key.includes("percent") || key.includes("modifier")) {
+      return `${value}%`;
+    }
+    if (key.startsWith("min_") && (key.includes("budget") || key.includes("bid") || key === "min_cpa")) {
+      return `$${value}`;
+    }
+    return String(value);
+  }
+  if (typeof value === "string" || typeof value === "boolean") {
+    return String(value);
+  }
+  return JSON.stringify(value);
+}
+
+function getFormattedGuardrails(guardrails?: Record<string, unknown>): Array<{ label: string; value: string }> {
+  if (!guardrails || typeof guardrails !== "object") {
+    return [];
+  }
+  return Object.entries(guardrails)
+    .filter(([, value]) => value !== null && value !== undefined)
+    .map(([key, value]) => ({
+      label: GUARDRAIL_LABELS[key] || formatMetricLabel(key),
+      value: formatGuardrailValue(key, value),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 interface DashboardWidgetActionsProps {
@@ -678,7 +725,9 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
             const colors = ACTION_TYPE_COLORS[rule.type] || ACTION_TYPE_COLORS.change_state;
             const isPaused = rule.status === "paused";
             const isSelected = selectedIds.has(rule.id) && !isPaused;
+            const isScheduleSet = Boolean(effectiveScheduleFrequency(rule.schedule));
             const schedEditing: ActionSchedule = { ...DEFAULT_ACTION_SCHEDULE, ...rule.schedule };
+            const formattedGuardrails = getFormattedGuardrails(rule.guardrails);
 
             return (
               <div
@@ -959,9 +1008,13 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                           }}
                           className={cn(
                             "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border transition-colors",
-                            isDark
-                              ? "border-neutral-600 hover:bg-neutral-700/40 text-neutral-300"
-                              : "border-sandstorm-s40 hover:bg-sandstorm-s10 text-forest-f40"
+                            isScheduleSet
+                              ? isDark
+                                ? "border-neutral-600 hover:bg-neutral-700/40 text-neutral-300"
+                                : "border-sandstorm-s40 hover:bg-sandstorm-s10 text-forest-f40"
+                              : isDark
+                                ? "border-yellow-y10/40 text-yellow-y10 hover:bg-yellow-y10/10"
+                                : "border-yellow-y10/40 text-yellow-y10 hover:bg-yellow-y10/10"
                           )}
                           title="Edit execution schedule"
                           aria-expanded={editingSchedule === rule.id}
@@ -1211,6 +1264,26 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                         : null}
                       </span>
                     </div>
+
+                    {formattedGuardrails.length > 0 && (
+                      <div className={cn("flex items-center gap-2 text-[10px] flex-wrap", isDark ? "text-neutral-400" : "text-forest-f30")}>
+                        <span className="opacity-60">Guardrails:</span>
+                        {formattedGuardrails.map((item) => (
+                          <span
+                            key={`${rule.id}-${item.label}`}
+                            className={cn(
+                              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border",
+                              isDark
+                                ? "border-neutral-600 bg-neutral-700/40 text-neutral-300"
+                                : "border-sandstorm-s40 bg-sandstorm-s5 text-forest-f50"
+                            )}
+                          >
+                            <span className="opacity-70">{item.label}:</span>
+                            <span className="font-medium">{item.value}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Control buttons */}
