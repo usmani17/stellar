@@ -14,7 +14,7 @@ import { usePortfolios, usePortfolioSummary } from "../../hooks/queries/usePortf
 import { useDeletePortfolio } from "../../hooks/mutations/usePortfolioMutations";
 import { useDebouncedSearch } from "../../hooks/useDebouncedSearch";
 import { Sidebar } from "../../components/layout/Sidebar";
-import { AccountsHeader } from "../../components/layout/AccountsHeader";
+import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import {
   Banner,
   Button,
@@ -116,16 +116,16 @@ export const PortfolioList: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex">
+    <div className="min-h-screen bg-sandstorm-s0 flex">
       <Sidebar />
 
       <div
         className="flex-1 w-full"
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
-        <AccountsHeader />
+        <DashboardHeader />
 
-        <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white min-h-[calc(100vh-64px)]">
+        <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8">
           <div className="space-y-6">
             {deleteBannerMsg && (
               <Banner
