@@ -23,6 +23,10 @@ export interface PortfolioLatestTracking {
   totalSpend: number | null;
   totalBudget: number | null;
   pacingPercentage: number | null;
+  targetSpendFtd: number | null;
+  l7dKpiValue: number | null;
+  health: string | null;
+  achievementPercentage: number | null;
   clicks: number | null;
   impressions: number | null;
   conversions: number | null;
@@ -44,6 +48,7 @@ export interface Portfolio {
   totalBudget: number;
   startDate: string | null;
   endDate: string | null;
+  budgetFrequency?: string | null;
   metricType: "default" | "conversion";
   targetType: string | null;
   targetValue: number | null;
@@ -72,6 +77,11 @@ export interface Portfolio {
 
 export interface PortfolioListItem extends Portfolio {
   campaignCount: number;
+  dashboardCount?: number;
+  /** Most recently updated dashboard linked to this portfolio, if any. */
+  latestDashboardId?: number | null;
+  /** First conversion metric name from portfolio setup (for KPI subtitle in list). */
+  primaryConversionMetricName?: string | null;
   latestTracking: PortfolioLatestTracking | null;
 }
 
@@ -111,6 +121,10 @@ export interface TrackingSnapshot {
   ctr: number | null;
   targetKpiValue: number | null;
   targetKpiName: string | null;
+  targetSpendFtd?: number | null;
+  l7dKpiValue?: number | null;
+  health?: string | null;
+  achievementPercentage?: number | null;
   campaignSnapshots: Record<string, unknown>[] | null;
   createdAt: string;
 }
@@ -135,6 +149,8 @@ export interface CreatePortfolioPayload {
   targetType?: string | null;
   targetValue?: number | null;
   tags?: string[];
+  guardrails?: Record<string, unknown> | null;
+  budgetFrequency?: string | null;
   campaigns?: Array<{
     campaign_id: string;
     campaign_name: string;
@@ -159,6 +175,7 @@ export interface UpdatePortfolioPayload {
   targetValue?: number | null;
   tags?: string[];
   guardrails?: Record<string, unknown> | null;
+  budgetFrequency?: string | null;
   campaigns?: Array<{
     campaign_id: string;
     campaign_name: string;

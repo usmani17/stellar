@@ -23,6 +23,12 @@ import { previewActions, getActionHistory } from "../../../../services/dashboard
 import { formatMetricLabel } from "../../utils/formatDashboardValue";
 import { ACTION_TYPE_COLORS, ACTION_TYPE_LABELS } from "./actionTypeDisplay";
 
+/**
+ * When false, condition values in the "If …" row are read-only (no pencil / inline save).
+ * Params like budget %, tCPA, and description can still be edited unless we narrow that later.
+ */
+export const DASHBOARD_ACTION_CONDITION_INLINE_EDIT = false;
+
 // ── Inline editor for a single numeric field ───────────────────────────────
 
 interface InlineEditProps {
@@ -30,11 +36,31 @@ interface InlineEditProps {
   onSave: (val: string) => void;
   isDark: boolean;
   wide?: boolean;
+  /** When true, show value only (used for conditions while inline condition edit is disabled). */
+  readOnly?: boolean;
 }
 
-const InlineEdit: React.FC<InlineEditProps> = ({ value, onSave, isDark, wide }) => {
+const InlineEdit: React.FC<InlineEditProps> = ({ value, onSave, isDark, wide, readOnly }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ? String(value) : "");
+
+  if (readOnly) {
+    const display =
+      value !== undefined && value !== null && value !== ""
+        ? String(value)
+        : "—";
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center px-1.5 py-0.5 rounded text-xs",
+          wide ? "" : "font-mono",
+          isDark ? "text-neutral-200" : "text-forest-f60"
+        )}
+      >
+        {display}
+      </span>
+    );
+  }
 
   if (!editing) {
     return (
@@ -103,6 +129,57 @@ interface InlineConfirmProps {
   onCancel: () => void;
   isDark: boolean;
   variant?: "danger" | "warning";
+}
+
+/** Explains what change_state will do (enable vs pause) so it is not confused with the "If" filters. */
+function ChangeStateOutcomeBanner({ status, isDark }: { status: unknown; isDark: boolean }) {
+  const raw = status != null && status !== "" ? String(status).trim() : "";
+  const normalized = raw.toUpperCase();
+
+  let title: string;
+  let subtitle: string;
+
+  if (normalized === "ENABLED") {
+    title = "Turns the campaign on";
+    subtitle = "Applies Enabled status when the conditions below match.";
+  } else if (normalized === "PAUSED") {
+    title = "Pauses the campaign";
+    subtitle = "Applies Paused status when the conditions below match.";
+  } else if (raw) {
+    title = `Sets status to ${raw}`;
+    subtitle = "Verify params.status in the rule configuration.";
+  } else {
+    title = "Target status missing";
+    subtitle = "This action should include params.status (ENABLED or PAUSED).";
+  }
+
+  const tone =
+    normalized === "ENABLED"
+      ? isDark
+        ? "border-emerald-800/45 bg-emerald-950/30 text-emerald-100"
+        : "border-emerald-600/35 bg-emerald-50 text-emerald-950"
+      : normalized === "PAUSED"
+        ? isDark
+          ? "border-amber-800/45 bg-amber-950/25 text-amber-100"
+          : "border-amber-500/40 bg-amber-50 text-amber-950"
+        : isDark
+          ? "border-neutral-600 bg-neutral-800/60 text-neutral-200"
+          : "border-sandstorm-s40 bg-sandstorm-s10 text-forest-f60";
+
+  return (
+    <div className={cn("rounded-md border px-2.5 py-1.5", tone)} role="status">
+      <p className="font-semibold text-[11px] m-0">{title}</p>
+      <p className={cn("text-[10px] m-0 mt-0.5 opacity-90", isDark ? "text-neutral-300" : "text-forest-f30")}>
+        {subtitle}
+        {raw ? (
+          <>
+            {" "}
+            <span className="font-mono">({raw})</span>
+          </>
+        ) : null}
+      </p>
+    </div>
+  );
 }
 
 const InlineConfirm: React.FC<InlineConfirmProps> = ({ message, onConfirm, onCancel, isDark, variant = "danger" }) => (
@@ -410,6 +487,20 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
       {/* Body */}
       {isOpen && (
         <div className="px-4 pb-3 space-y-2">
+          {!DASHBOARD_ACTION_CONDITION_INLINE_EDIT ? (
+            <p
+              className={cn(
+                "text-[10px] m-0 px-3 py-2 rounded-lg border border-dashed leading-relaxed",
+                isDark
+                  ? "border-neutral-600 text-neutral-400 bg-neutral-800/40"
+                  : "border-sandstorm-s40 text-forest-f30 bg-sandstorm-s5/80"
+              )}
+            >
+              <span className="font-semibold text-current">If conditions are view-only.</span> They show when
+              this action runs; use workflow configuration or re-enable editing in code when you need to change
+              thresholds here.
+            </p>
+          ) : null}
           {/* Rule list */}
           {visibleActions.map((rule) => {
             const colors = ACTION_TYPE_COLORS[rule.type] || ACTION_TYPE_COLORS.change_state;
@@ -469,6 +560,10 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                       )}
                     </div>
 
+                    {rule.type === "change_state" ? (
+                      <ChangeStateOutcomeBanner status={rule.params?.status} isDark={isDark} />
+                    ) : null}
+
                     <div className={cn("text-xs leading-relaxed", isDark ? "text-neutral-300" : "text-forest-f50")}>
                       <InlineEdit
                         value={rule.description}
@@ -494,6 +589,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                             }
                             onSave={(v) => updateConditionValue(rule.id, v)}
                             isDark={isDark}
+                            readOnly={!DASHBOARD_ACTION_CONDITION_INLINE_EDIT}
                           />
                         </span>
                       )}
@@ -518,6 +614,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                                 value={Array.isArray(sc.value) ? sc.value.join(", ") : sc.value}
                                 onSave={(v) => updateConditionValue(rule.id, v, idx)}
                                 isDark={isDark}
+                                readOnly={!DASHBOARD_ACTION_CONDITION_INLINE_EDIT}
                               />
                             </React.Fragment>
                           ))}

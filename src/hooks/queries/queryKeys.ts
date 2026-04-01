@@ -155,6 +155,8 @@ export const queryKeys = {
       [...queryKeys.portfolios.all, "summary", accountId ?? "all"] as const,
     detail: (portfolioId: number) =>
       [...queryKeys.portfolios.all, "detail", portfolioId] as const,
+    expandRow: (accountId: number, portfolioId: number) =>
+      [...queryKeys.portfolios.all, "expand", accountId, portfolioId] as const,
     tracking: (portfolioId: number, page?: number) =>
       [...queryKeys.portfolios.all, "tracking", portfolioId, page ?? 1] as const,
   },

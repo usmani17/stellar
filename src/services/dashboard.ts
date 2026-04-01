@@ -15,6 +15,8 @@ export interface DashboardResponse {
   name: string;
   platform: string;
   description?: string;
+  /** Agent / workflow narrative summary (strategic context). */
+  summary?: string | null;
   accountId: number;
   channelId?: number;
   profileId?: number;
