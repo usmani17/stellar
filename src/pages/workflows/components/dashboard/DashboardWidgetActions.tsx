@@ -13,6 +13,9 @@ import {
   X,
   Clock,
   Calendar,
+  ShieldCheck,
+  ShieldX,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "../../../../lib/cn";
 import type {
@@ -23,7 +26,7 @@ import type {
   CompoundActionCondition,
   ActionSchedule,
 } from "../../types/dashboard";
-import { previewActions, getActionHistory } from "../../../../services/dashboardActions";
+import { previewActions, getActionHistory, updateActionStatus } from "../../../../services/dashboardActions";
 import { formatMetricLabel } from "../../utils/formatDashboardValue";
 import { ACTION_TYPE_COLORS, ACTION_TYPE_LABELS } from "./actionTypeDisplay";
 import {
@@ -244,6 +247,50 @@ function effectiveScheduleFrequency(schedule?: ActionSchedule): ActionSchedule["
   return schedule.frequency ?? (hasTiming ? "daily" : undefined);
 }
 
+function startOfLocalDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+/** Format Date to YYYY-MM-DD in local time (avoids UTC date shifts). */
+function toLocalYmd(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function parseLocalYmdOrToday(raw?: string): Date {
+  if (raw) {
+    const [y, m, d] = raw.split("-").map((part) => Number(part));
+    if (
+      Number.isFinite(y) &&
+      Number.isFinite(m) &&
+      Number.isFinite(d) &&
+      y > 0 &&
+      m >= 1 &&
+      m <= 12 &&
+      d >= 1 &&
+      d <= 31
+    ) {
+      const parsed = new Date(y, m - 1, d);
+      if (
+        !Number.isNaN(parsed.getTime()) &&
+        parsed.getFullYear() === y &&
+        parsed.getMonth() === m - 1 &&
+        parsed.getDate() === d
+      ) {
+        return startOfLocalDay(parsed);
+      }
+    }
+  }
+  return startOfLocalDay(new Date());
+}
+
+function clampDayToMonth(year: number, monthIndex: number, day: number): number {
+  const maxDay = new Date(year, monthIndex + 1, 0).getDate();
+  return Math.min(Math.max(day, 1), maxDay);
+}
+
 function getScheduleLabel(schedule?: ActionSchedule): string {
   const frequency = effectiveScheduleFrequency(schedule);
   if (!frequency || !schedule) {
@@ -274,7 +321,59 @@ function getScheduleLabel(schedule?: ActionSchedule): string {
     return `Execution Schedule: Monthly ${daysPart} @ ${t} (${timezone})`;
   }
 
+  if (normalized.frequency === "once") {
+    const date = normalized.date || "No date set";
+    return `Execution Schedule: Once on ${date} ${t} (${timezone})`;
+  }
+
   return `Execution Schedule: Daily ${t} (${timezone})`;
+}
+
+const GUARDRAIL_LABELS: Record<string, string> = {
+  limit: "Limit",
+  max_entities_per_action: "Max entities",
+  warn_threshold: "Warn threshold",
+  max_decrease_percent: "Max decrease",
+  max_increase_percent: "Max increase",
+  min_budget_amount: "Min budget",
+  min_bid_amount: "Min bid",
+  min_cpa: "Min CPA",
+  min_roas: "Min ROAS",
+  min_modifier_percent: "Min modifier",
+  max_modifier_percent: "Max modifier",
+  max_keywords_per_action: "Max keywords",
+  max_placements_per_action: "Max placements",
+  max_targets_per_action: "Max targets",
+  max_values_per_action: "Max values",
+};
+
+function formatGuardrailValue(key: string, value: unknown): string {
+  if (typeof value === "number") {
+    if (key.includes("percent") || key.includes("modifier")) {
+      return `${value}%`;
+    }
+    if (key.startsWith("min_") && (key.includes("budget") || key.includes("bid") || key === "min_cpa")) {
+      return `$${value}`;
+    }
+    return String(value);
+  }
+  if (typeof value === "string" || typeof value === "boolean") {
+    return String(value);
+  }
+  return JSON.stringify(value);
+}
+
+function getFormattedGuardrails(guardrails?: Record<string, unknown>): Array<{ label: string; value: string }> {
+  if (!guardrails || typeof guardrails !== "object") {
+    return [];
+  }
+  return Object.entries(guardrails)
+    .filter(([, value]) => value !== null && value !== undefined)
+    .map(([key, value]) => ({
+      label: GUARDRAIL_LABELS[key] || formatMetricLabel(key),
+      value: formatGuardrailValue(key, value),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
@@ -285,7 +384,7 @@ interface DashboardWidgetActionsProps {
   dashboardId: number;
   componentId: string;
   isDark: boolean;
-  onActionsChange?: (actions: ActionRule[]) => void;
+  onActionsChange?: (actions: ActionRule[]) => void | Promise<void>;
   onReviewChanges?: (proposals: ActionProposal[]) => void;
   onShowHistory?: (executions: ActionExecution[]) => void;
 }
@@ -301,6 +400,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
   onShowHistory,
 }) => {
   const [isOpen, setIsOpen] = useState(true);
+  const [draftActions, setDraftActions] = useState<ActionRule[]>(actions);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
     () => new Set(actions.filter((a) => a.status === "active").map((a) => a.id))
   );
@@ -308,6 +408,9 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const [confirmingPause, setConfirmingPause] = useState<string | null>(null);
+  const [confirmingApprove, setConfirmingApprove] = useState<string | null>(null);
+  const [confirmingDecline, setConfirmingDecline] = useState<string | null>(null);
+  const [statusUpdating, setStatusUpdating] = useState<Set<string>>(new Set());
   const [editingSchedule, setEditingSchedule] = useState<string | null>(null);
   /** Snapshot of `rule.schedule` when the editor opened; used to revert on Cancel / Escape / click-outside. */
   const scheduleEditorBaselineRef = useRef<Map<string, ActionSchedule | undefined>>(new Map());
@@ -319,11 +422,17 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
     width: number;
   } | null>(null);
 
-  const visibleActions = actions.filter((a) => a.status !== "deleted");
+  useEffect(() => {
+    setDraftActions(actions);
+  }, [actions]);
+
+  const visibleActions = draftActions.filter((a) => a.status !== "deleted" && a.status !== "disabled");
   const activeActions = visibleActions.filter((a) => a.status === "active");
+  const pendingReviewActions = visibleActions.filter((a) => a.status === "pending_review");
   const totalActive = activeActions.length;
+  const totalPendingReview = pendingReviewActions.length;
   const selectedCount = [...selectedIds].filter((id) =>
-    actions.find((a) => a.id === id && a.status === "active")
+    draftActions.find((a) => a.id === id && a.status === "active")
   ).length;
 
   const toggleSelect = useCallback((id: string) => {
@@ -335,28 +444,134 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
     });
   }, []);
 
+  const handleApproveAction = useCallback(
+    async (ruleId: string) => {
+      const rule = draftActions.find((a) => a.id === ruleId);
+      if (!rule?.action_id) return;
+      setStatusUpdating((prev) => new Set([...prev, ruleId]));
+      try {
+        await updateActionStatus(accountId, dashboardId, {
+          action_ids: [rule.action_id],
+          status: "active",
+        });
+        setDraftActions((prev) => prev.map((a) =>
+          a.id === ruleId ? { ...a, status: "active" as const } : a
+        ));
+        setSelectedIds((prev) => new Set([...prev, ruleId]));
+      } catch (err) {
+        console.error("Failed to approve action:", err);
+      } finally {
+        setStatusUpdating((prev) => { const n = new Set(prev); n.delete(ruleId); return n; });
+        setConfirmingApprove(null);
+      }
+    },
+    [draftActions, accountId, dashboardId]
+  );
+
+  const handleDeclineAction = useCallback(
+    async (ruleId: string) => {
+      const rule = draftActions.find((a) => a.id === ruleId);
+      if (!rule?.action_id) return;
+      setStatusUpdating((prev) => new Set([...prev, ruleId]));
+      try {
+        await updateActionStatus(accountId, dashboardId, {
+          action_ids: [rule.action_id],
+          status: "disabled",
+        });
+        setDraftActions((prev) => prev.map((a) =>
+          a.id === ruleId ? { ...a, status: "disabled" as const } : a
+        ));
+      } catch (err) {
+        console.error("Failed to decline action:", err);
+      } finally {
+        setStatusUpdating((prev) => { const n = new Set(prev); n.delete(ruleId); return n; });
+        setConfirmingDecline(null);
+      }
+    },
+    [draftActions, accountId, dashboardId]
+  );
+
+  const handleApproveAll = useCallback(
+    async () => {
+      const pending = draftActions.filter((a) => a.status === "pending_review" && a.action_id);
+      if (pending.length === 0) return;
+      const ids = pending.map((a) => a.action_id!);
+      setStatusUpdating((prev) => new Set([...prev, ...pending.map((a) => a.id)]));
+      try {
+        await updateActionStatus(accountId, dashboardId, {
+          action_ids: ids,
+          status: "active",
+        });
+        const pendingIds = new Set(pending.map((a) => a.id));
+        setDraftActions((prev) => prev.map((a) =>
+          pendingIds.has(a.id) ? { ...a, status: "active" as const } : a
+        ));
+        setSelectedIds((prev) => new Set([...prev, ...pending.map((a) => a.id)]));
+      } catch (err) {
+        console.error("Failed to approve all actions:", err);
+      } finally {
+        setStatusUpdating(new Set());
+      }
+    },
+    [draftActions, accountId, dashboardId]
+  );
+
+  const handleDeclineAll = useCallback(
+    async () => {
+      const pending = draftActions.filter((a) => a.status === "pending_review" && a.action_id);
+      if (pending.length === 0) return;
+      const ids = pending.map((a) => a.action_id!);
+      setStatusUpdating((prev) => new Set([...prev, ...pending.map((a) => a.id)]));
+      try {
+        await updateActionStatus(accountId, dashboardId, {
+          action_ids: ids,
+          status: "disabled",
+        });
+        const pendingIds = new Set(pending.map((a) => a.id));
+        setDraftActions((prev) => prev.map((a) =>
+          pendingIds.has(a.id) ? { ...a, status: "disabled" as const } : a
+        ));
+      } catch (err) {
+        console.error("Failed to decline all actions:", err);
+      } finally {
+        setStatusUpdating(new Set());
+      }
+    },
+    [draftActions, accountId, dashboardId]
+  );
+
   const togglePause = useCallback(
-    (id: string) => {
-      if (!onActionsChange) return;
-      const rule = actions.find((a) => a.id === id);
+    async (id: string) => {
+      const rule = draftActions.find((a) => a.id === id);
       if (!rule) return;
 
       if (rule.status === "active") {
         setConfirmingPause(id);
         return;
       }
-      const updated = actions.map((a) =>
-        a.id === id ? { ...a, status: "active" as const } : a
-      );
-      onActionsChange(updated);
+      if (!rule.action_id) return;
+      setStatusUpdating((prev) => new Set([...prev, id]));
+      try {
+        await updateActionStatus(accountId, dashboardId, {
+          action_ids: [rule.action_id],
+          status: "active",
+        });
+        setDraftActions((prev) => prev.map((a) =>
+          a.id === id ? { ...a, status: "active" as const } : a
+        ));
+        setSelectedIds((prev) => new Set([...prev, id]));
+      } catch (err) {
+        console.error("Failed to resume action:", err);
+      } finally {
+        setStatusUpdating((prev) => { const n = new Set(prev); n.delete(id); return n; });
+      }
     },
-    [actions, onActionsChange]
+    [draftActions, accountId, dashboardId]
   );
 
   const updateSchedule = useCallback(
     (id: string, schedule: ActionRule["schedule"]) => {
-      if (!onActionsChange) return;
-      const updated = actions.map((a) => {
+      setDraftActions((prev) => prev.map((a) => {
         if (a.id !== id) return a;
         if (schedule === undefined) {
           const next = { ...a };
@@ -364,21 +579,16 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
           return next;
         }
         return { ...a, schedule };
-      });
-      onActionsChange(updated);
+      }));
     },
-    [actions, onActionsChange]
+    []
   );
 
   const discardScheduleEdit = useCallback(
     (ruleId: string) => {
       const baseline = scheduleEditorBaselineRef.current.get(ruleId);
       scheduleEditorBaselineRef.current.delete(ruleId);
-      if (!onActionsChange) {
-        setEditingSchedule(null);
-        return;
-      }
-      const updated = actions.map((a) => {
+      setDraftActions((prev) => prev.map((a) => {
         if (a.id !== ruleId) return a;
         if (baseline === undefined) {
           const next = { ...a };
@@ -389,17 +599,25 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
           ...a,
           schedule: JSON.parse(JSON.stringify(baseline)) as ActionSchedule,
         };
-      });
-      onActionsChange(updated);
+      }));
       setEditingSchedule(null);
     },
-    [actions, onActionsChange]
+    []
   );
 
-  const commitScheduleEditClose = useCallback((ruleId: string) => {
-    scheduleEditorBaselineRef.current.delete(ruleId);
-    setEditingSchedule(null);
-  }, []);
+  const commitScheduleEditClose = useCallback(
+    async (ruleId: string) => {
+      const baseline = scheduleEditorBaselineRef.current.get(ruleId);
+      scheduleEditorBaselineRef.current.delete(ruleId);
+      setEditingSchedule(null);
+      if (!onActionsChange) return;
+      const current = draftActions.find((a) => a.id === ruleId)?.schedule;
+      const changed = JSON.stringify(baseline ?? null) !== JSON.stringify(current ?? null);
+      if (!changed) return;
+      await onActionsChange(draftActions);
+    },
+    [draftActions, onActionsChange]
+  );
 
   useLayoutEffect(() => {
     if (!editingSchedule) {
@@ -454,32 +672,60 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
   }, [editingSchedule, discardScheduleEdit]);
 
   const confirmPause = useCallback(
-    (id: string) => {
-      if (!onActionsChange) return;
-      const updated = actions.map((a) =>
-        a.id === id ? { ...a, status: "paused" as const } : a
-      );
-      onActionsChange(updated);
-      setConfirmingPause(null);
+    async (id: string) => {
+      const rule = draftActions.find((a) => a.id === id);
+      if (!rule?.action_id) {
+        setConfirmingPause(null);
+        return;
+      }
+      setStatusUpdating((prev) => new Set([...prev, id]));
+      try {
+        await updateActionStatus(accountId, dashboardId, {
+          action_ids: [rule.action_id],
+          status: "paused",
+        });
+        setDraftActions((prev) => prev.map((a) =>
+          a.id === id ? { ...a, status: "paused" as const } : a
+        ));
+      } catch (err) {
+        console.error("Failed to pause action:", err);
+      } finally {
+        setStatusUpdating((prev) => { const n = new Set(prev); n.delete(id); return n; });
+        setConfirmingPause(null);
+      }
     },
-    [actions, onActionsChange]
+    [draftActions, accountId, dashboardId]
   );
 
   const softDeleteRule = useCallback(
-    (id: string) => {
-      if (!onActionsChange) return;
-      const updated = actions.map((a) =>
-        a.id === id ? { ...a, status: "deleted" as const } : a
-      );
-      onActionsChange(updated);
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      setConfirmingDelete(null);
+    async (id: string) => {
+      const rule = draftActions.find((a) => a.id === id);
+      if (!rule?.action_id) {
+        setConfirmingDelete(null);
+        return;
+      }
+      setStatusUpdating((prev) => new Set([...prev, id]));
+      try {
+        await updateActionStatus(accountId, dashboardId, {
+          action_ids: [rule.action_id],
+          status: "disabled",
+        });
+        setDraftActions((prev) => prev.map((a) =>
+          a.id === id ? { ...a, status: "disabled" as const } : a
+        ));
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      } catch (err) {
+        console.error("Failed to delete action:", err);
+      } finally {
+        setStatusUpdating((prev) => { const n = new Set(prev); n.delete(id); return n; });
+        setConfirmingDelete(null);
+      }
     },
-    [actions, onActionsChange]
+    [draftActions, accountId, dashboardId]
   );
 
   const isCompound = (c: ActionCondition | CompoundActionCondition): c is CompoundActionCondition =>
@@ -487,8 +733,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
 
   const updateConditionValue = useCallback(
     (ruleId: string, newVal: string, subIndex?: number) => {
-      if (!onActionsChange) return;
-      const updated = actions.map((a) => {
+      const updated = draftActions.map((a) => {
         if (a.id !== ruleId || !a.condition) return a;
         const parsed = isNaN(Number(newVal)) ? newVal : Number(newVal);
 
@@ -501,38 +746,40 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
 
         return { ...a, condition: { ...a.condition, value: parsed as ActionCondition["value"] } };
       });
-      onActionsChange(updated);
+      setDraftActions(updated);
+      void onActionsChange?.(updated);
     },
-    [actions, onActionsChange]
+    [draftActions, onActionsChange]
   );
 
   const updateParamValue = useCallback(
     (ruleId: string, key: string, newVal: string) => {
-      if (!onActionsChange) return;
-      const updated = actions.map((a) => {
+      const updated = draftActions.map((a) => {
         if (a.id !== ruleId) return a;
         const parsed = isNaN(Number(newVal)) ? newVal : Number(newVal);
         return { ...a, params: { ...a.params, [key]: parsed } };
       });
-      onActionsChange(updated);
+      setDraftActions(updated);
+      void onActionsChange?.(updated);
     },
-    [actions, onActionsChange]
+    [draftActions, onActionsChange]
   );
 
   const updateDescription = useCallback(
     (ruleId: string, newDesc: string) => {
-      if (!onActionsChange || !newDesc.trim()) return;
-      const updated = actions.map((a) =>
+      if (!newDesc.trim()) return;
+      const updated = draftActions.map((a) =>
         a.id === ruleId ? { ...a, description: newDesc.trim() } : a
       );
-      onActionsChange(updated);
+      setDraftActions(updated);
+      void onActionsChange?.(updated);
     },
-    [actions, onActionsChange]
+    [draftActions, onActionsChange]
   );
 
   const handleReviewChanges = useCallback(async () => {
     const selectedRuleIds = [...selectedIds].filter((id) =>
-      actions.find((a) => a.id === id && a.status === "active")
+      draftActions.find((a) => a.id === id && a.status === "active")
     );
     if (selectedRuleIds.length === 0) return;
 
@@ -548,7 +795,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
     } finally {
       setIsReviewLoading(false);
     }
-  }, [selectedIds, actions, accountId, dashboardId, componentId, onReviewChanges]);
+  }, [selectedIds, draftActions, accountId, dashboardId, componentId, onReviewChanges]);
 
   const handleShowHistory = useCallback(async () => {
     setIsHistoryLoading(true);
@@ -611,7 +858,11 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                 }}
                 onChange={(e) => {
                   e.stopPropagation();
-                  allSelectableSelected ? deselectAll() : selectAllActive();
+                  if (allSelectableSelected) {
+                    deselectAll();
+                  } else {
+                    selectAllActive();
+                  }
                 }}
                 className={cn(
                   "w-3.5 h-3.5 rounded border cursor-pointer",
@@ -628,14 +879,26 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
             <span className={cn("text-xs font-semibold", isDark ? "text-neutral-200" : "text-forest-f60")}>
               Actions
             </span>
-            <span
-              className={cn(
-                "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
-                isDark ? "bg-neutral-600 text-neutral-300" : "bg-sandstorm-s20 text-forest-f30"
-              )}
-            >
-              {totalActive} active
-            </span>
+            {totalActive > 0 && (
+              <span
+                className={cn(
+                  "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                  isDark ? "bg-neutral-600 text-neutral-300" : "bg-sandstorm-s20 text-forest-f30"
+                )}
+              >
+                {totalActive} active
+              </span>
+            )}
+            {totalPendingReview > 0 && (
+              <span
+                className={cn(
+                  "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                  isDark ? "bg-amber-900/40 text-amber-300" : "bg-amber-50 text-amber-700 border border-amber-200"
+                )}
+              >
+                {totalPendingReview} pending review
+              </span>
+            )}
           </div>
         </div>
 
@@ -659,26 +922,71 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
       {/* Body */}
       {isOpen && (
         <div className="px-4 pb-3 space-y-4">
-          {!DASHBOARD_ACTION_CONDITION_INLINE_EDIT ? (
-            <p
+          {/* Pending review banner */}
+          {totalPendingReview > 0 && (
+            <div
               className={cn(
-                "text-[10px] m-0 px-3 py-2 rounded-lg border border-dashed leading-relaxed",
+                "flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border",
                 isDark
-                  ? "border-neutral-600 text-neutral-400 bg-neutral-800/40"
-                  : "border-sandstorm-s40 text-forest-f30 bg-sandstorm-s5/80"
+                  ? "border-amber-800/50 bg-amber-950/25 text-amber-100"
+                  : "border-amber-300 bg-amber-50 text-amber-900"
               )}
             >
-              <span className="font-semibold text-current">If conditions are view-only.</span> They show when
-              this action runs; use workflow configuration or re-enable editing in code when you need to change
-              thresholds here.
-            </p>
-          ) : null}
+              <div className="flex items-center gap-2 min-w-0">
+                <ShieldAlert className={cn("w-4 h-4 shrink-0", isDark ? "text-amber-400" : "text-amber-600")} />
+                <span className="text-xs font-medium">
+                  {totalPendingReview} action{totalPendingReview !== 1 ? "s" : ""} pending review
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleApproveAll}
+                  disabled={statusUpdating.size > 0}
+                  className={cn(
+                    "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                    isDark
+                      ? "bg-emerald-900/40 text-emerald-300 hover:bg-emerald-900/60 border border-emerald-700/40"
+                      : "bg-emerald-600 text-white hover:bg-emerald-700"
+                  )}
+                >
+                  <ShieldCheck className="w-3 h-3" />
+                  Approve All
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeclineAll}
+                  disabled={statusUpdating.size > 0}
+                  className={cn(
+                    "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                    isDark
+                      ? "bg-red-900/40 text-red-300 hover:bg-red-900/60 border border-red-700/40"
+                      : "bg-white text-red-600 hover:bg-red-50 border border-red-200"
+                  )}
+                >
+                  <ShieldX className="w-3 h-3" />
+                  Decline All
+                </button>
+              </div>
+            </div>
+          )}
           {/* Rule list */}
           {visibleActions.map((rule) => {
             const colors = ACTION_TYPE_COLORS[rule.type] || ACTION_TYPE_COLORS.change_state;
             const isPaused = rule.status === "paused";
-            const isSelected = selectedIds.has(rule.id) && !isPaused;
+            const isPendingReview = rule.status === "pending_review";
+            const isSelected = selectedIds.has(rule.id) && !isPaused && !isPendingReview;
+            const isScheduleSet = Boolean(effectiveScheduleFrequency(rule.schedule));
             const schedEditing: ActionSchedule = { ...DEFAULT_ACTION_SCHEDULE, ...rule.schedule };
+            const onceSelectedDate = parseLocalYmdOrToday(schedEditing.date);
+            const onceMonthStart = new Date(onceSelectedDate.getFullYear(), onceSelectedDate.getMonth(), 1);
+            const onceDaysInMonth = new Date(onceSelectedDate.getFullYear(), onceSelectedDate.getMonth() + 1, 0).getDate();
+            const todayLocal = startOfLocalDay(new Date());
+            const currentMonthStart = new Date(todayLocal.getFullYear(), todayLocal.getMonth(), 1);
+            const canMoveToPreviousOnceMonth = onceMonthStart > currentMonthStart;
+            const formattedGuardrails = getFormattedGuardrails(rule.guardrails);
 
             return (
               <div
@@ -692,6 +1000,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                   className={cn(
                     "flex items-start gap-2.5 px-3 py-2.5 rounded-lg transition-all",
                     isPaused && "opacity-50",
+                    isPendingReview && (isDark ? "border-amber-700/40" : "border-amber-300"),
                     isDark
                       ? "bg-neutral-700/50 hover:bg-neutral-700 border border-neutral-600/40"
                       : "bg-white hover:bg-sandstorm-s5 border border-sandstorm-s40 shadow-sm"
@@ -702,7 +1011,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                     <input
                       type="checkbox"
                       checked={isSelected}
-                      disabled={isPaused}
+                      disabled={isPaused || isPendingReview}
                       onChange={() => toggleSelect(rule.id)}
                       className={cn(
                         "w-3.5 h-3.5 rounded border cursor-pointer",
@@ -735,6 +1044,14 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                       {isPaused && (
                         <span className="text-[10px] font-medium text-amber-500 flex items-center gap-0.5">
                           <Pause className="w-3 h-3" /> Paused
+                        </span>
+                      )}
+                      {isPendingReview && (
+                        <span className={cn(
+                          "text-[10px] font-medium flex items-center gap-0.5",
+                          isDark ? "text-amber-300" : "text-amber-600"
+                        )}>
+                          <ShieldAlert className="w-3 h-3" /> Pending Review
                         </span>
                       )}
                     </div>
@@ -959,9 +1276,13 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                           }}
                           className={cn(
                             "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border transition-colors",
-                            isDark
-                              ? "border-neutral-600 hover:bg-neutral-700/40 text-neutral-300"
-                              : "border-sandstorm-s40 hover:bg-sandstorm-s10 text-forest-f40"
+                            isScheduleSet
+                              ? isDark
+                                ? "border-neutral-600 hover:bg-neutral-700/40 text-neutral-300"
+                                : "border-sandstorm-s40 hover:bg-sandstorm-s10 text-forest-f40"
+                              : isDark
+                                ? "border-yellow-y10/40 text-yellow-y10 hover:bg-yellow-y10/10"
+                                : "border-yellow-y10/40 text-yellow-y10 hover:bg-yellow-y10/10"
                           )}
                           title="Edit execution schedule"
                           aria-expanded={editingSchedule === rule.id}
@@ -1027,15 +1348,25 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                                       next.weekdays = w.length > 0 ? w : [0];
                                       delete next.day_of_week;
                                       delete next.monthDays;
+                                      delete next.date;
                                     } else if (frequency === "monthly") {
                                       const m = toMonthDaysArray(next.monthDays);
                                       next.monthDays = m.length > 0 ? m : [1];
                                       delete next.weekdays;
                                       delete next.day_of_week;
+                                      delete next.date;
+                                    } else if (frequency === "once") {
+                                      if (!next.date) {
+                                        next.date = toLocalYmd(new Date());
+                                      }
+                                      delete next.weekdays;
+                                      delete next.monthDays;
+                                      delete next.day_of_week;
                                     } else {
                                       delete next.weekdays;
                                       delete next.monthDays;
                                       delete next.day_of_week;
+                                      delete next.date;
                                     }
                                     updateSchedule(rule.id, next);
                                   }}
@@ -1086,6 +1417,131 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                                     )}
                                     align="left"
                                   />
+                                </div>
+                              )}
+
+                              {schedEditing.frequency === "once" && (
+                                <div>
+                                  <span className={cn("text-[10px] block mb-1", isDark ? "text-neutral-400" : "text-forest-f30")}>
+                                    Date
+                                  </span>
+                                  <div className="flex items-center justify-between mb-1 max-w-[220px]">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (!canMoveToPreviousOnceMonth) return;
+                                        const targetMonth = new Date(
+                                          onceSelectedDate.getFullYear(),
+                                          onceSelectedDate.getMonth() - 1,
+                                          1
+                                        );
+                                        const day = clampDayToMonth(
+                                          targetMonth.getFullYear(),
+                                          targetMonth.getMonth(),
+                                          onceSelectedDate.getDate()
+                                        );
+                                        const targetDate = startOfLocalDay(
+                                          new Date(targetMonth.getFullYear(), targetMonth.getMonth(), day)
+                                        );
+                                        const boundedDate = targetDate < todayLocal ? todayLocal : targetDate;
+                                        updateSchedule(rule.id, {
+                                          ...schedEditing,
+                                          date: toLocalYmd(boundedDate),
+                                          timezone: "UTC",
+                                          auto_execute: true,
+                                        });
+                                      }}
+                                      disabled={!canMoveToPreviousOnceMonth}
+                                      className={cn(
+                                        "w-6 h-6 rounded border text-[11px] font-semibold transition-colors",
+                                        !canMoveToPreviousOnceMonth
+                                          ? isDark
+                                            ? "border-neutral-700 text-neutral-600 cursor-not-allowed"
+                                            : "border-sandstorm-s30 text-sandstorm-s50 cursor-not-allowed"
+                                          : isDark
+                                            ? "border-neutral-600 text-neutral-300 hover:bg-neutral-700"
+                                            : "border-sandstorm-s40 text-forest-f60 hover:bg-sandstorm-s10"
+                                      )}
+                                      aria-label="Previous month"
+                                    >
+                                      {"<"}
+                                    </button>
+                                    <span className={cn("text-[10px] font-medium", isDark ? "text-neutral-300" : "text-forest-f60")}>
+                                      {onceSelectedDate.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const targetMonth = new Date(
+                                          onceSelectedDate.getFullYear(),
+                                          onceSelectedDate.getMonth() + 1,
+                                          1
+                                        );
+                                        const day = clampDayToMonth(
+                                          targetMonth.getFullYear(),
+                                          targetMonth.getMonth(),
+                                          onceSelectedDate.getDate()
+                                        );
+                                        updateSchedule(rule.id, {
+                                          ...schedEditing,
+                                          date: toLocalYmd(new Date(targetMonth.getFullYear(), targetMonth.getMonth(), day)),
+                                          timezone: "UTC",
+                                          auto_execute: true,
+                                        });
+                                      }}
+                                      className={cn(
+                                        "w-6 h-6 rounded border text-[11px] font-semibold transition-colors",
+                                        isDark
+                                          ? "border-neutral-600 text-neutral-300 hover:bg-neutral-700"
+                                          : "border-sandstorm-s40 text-forest-f60 hover:bg-sandstorm-s10"
+                                      )}
+                                      aria-label="Next month"
+                                    >
+                                      {">"}
+                                    </button>
+                                  </div>
+
+                                  <div className="grid grid-cols-7 gap-1 max-w-[220px]">
+                                    {Array.from({ length: onceDaysInMonth }, (_, i) => i + 1).map((day) => {
+                                      const candidateDate = startOfLocalDay(
+                                        new Date(onceSelectedDate.getFullYear(), onceSelectedDate.getMonth(), day)
+                                      );
+                                      const isPast = candidateDate < todayLocal;
+                                      const sel = day === onceSelectedDate.getDate();
+                                      return (
+                                        <button
+                                          key={day}
+                                          type="button"
+                                          disabled={isPast}
+                                          onClick={() => {
+                                            updateSchedule(rule.id, {
+                                              ...schedEditing,
+                                              frequency: "once",
+                                              date: toLocalYmd(candidateDate),
+                                              timezone: "UTC",
+                                              auto_execute: true,
+                                            });
+                                          }}
+                                          className={cn(
+                                            "h-7 rounded text-[10px] font-medium border transition-colors",
+                                            isPast
+                                              ? isDark
+                                                ? "border-neutral-700 text-neutral-600 cursor-not-allowed"
+                                                : "border-sandstorm-s30 text-sandstorm-s50 cursor-not-allowed"
+                                              : sel
+                                                ? isDark
+                                                  ? "bg-[#2DD4BF]/25 border-[#2DD4BF]/50 text-[#2DD4BF]"
+                                                  : "bg-forest-f40 text-white border-forest-f40"
+                                                : isDark
+                                                  ? "border-neutral-600 text-neutral-300 hover:bg-neutral-700"
+                                                  : "border-sandstorm-s40 text-forest-f60 hover:bg-sandstorm-s10"
+                                          )}
+                                        >
+                                          {day}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
                               )}
 
@@ -1211,38 +1667,99 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                         : null}
                       </span>
                     </div>
+
+                    {formattedGuardrails.length > 0 && (
+                      <div className={cn("flex items-center gap-2 text-[10px] flex-wrap", isDark ? "text-neutral-400" : "text-forest-f30")}>
+                        <span className="opacity-60">Guardrails:</span>
+                        {formattedGuardrails.map((item) => (
+                          <span
+                            key={`${rule.id}-${item.label}`}
+                            className={cn(
+                              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border",
+                              isDark
+                                ? "border-neutral-600 bg-neutral-700/40 text-neutral-300"
+                                : "border-sandstorm-s40 bg-sandstorm-s5 text-forest-f50"
+                            )}
+                          >
+                            <span className="opacity-70">{item.label}:</span>
+                            <span className="font-medium">{item.value}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Control buttons */}
                   <div className="flex items-center gap-1 shrink-0 pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => togglePause(rule.id)}
-                      className={cn(
-                        "p-1 rounded transition-colors",
-                        isDark ? "hover:bg-neutral-600" : "hover:bg-sandstorm-s20"
-                      )}
-                      aria-label={isPaused ? "Resume action" : "Pause action"}
-                      title={isPaused ? "Resume" : "Pause"}
-                    >
-                      {isPaused ? (
-                        <Play className={cn("w-3.5 h-3.5", isDark ? "text-emerald-400" : "text-emerald-600")} />
-                      ) : (
-                        <Pause className={cn("w-3.5 h-3.5", isDark ? "text-amber-400" : "text-amber-600")} />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmingDelete(rule.id)}
-                      className={cn(
-                        "p-1 rounded transition-colors",
-                        isDark ? "hover:bg-red-900/30" : "hover:bg-red-50"
-                      )}
-                      aria-label="Delete action rule"
-                      title="Delete"
-                    >
-                      <Trash2 className={cn("w-3.5 h-3.5", isDark ? "text-red-400" : "text-red-500")} />
-                    </button>
+                    {isPendingReview ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingApprove(rule.id)}
+                          disabled={statusUpdating.has(rule.id)}
+                          className={cn(
+                            "inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-colors",
+                            "disabled:opacity-50 disabled:cursor-not-allowed",
+                            isDark
+                              ? "bg-emerald-900/40 text-emerald-300 hover:bg-emerald-900/60"
+                              : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                          )}
+                          aria-label="Approve action"
+                          title="Approve — makes action active"
+                        >
+                          <ShieldCheck className="w-3 h-3" />
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingDecline(rule.id)}
+                          disabled={statusUpdating.has(rule.id)}
+                          className={cn(
+                            "inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-colors",
+                            "disabled:opacity-50 disabled:cursor-not-allowed",
+                            isDark
+                              ? "bg-red-900/40 text-red-300 hover:bg-red-900/60"
+                              : "bg-white text-red-600 hover:bg-red-50 border border-red-200"
+                          )}
+                          aria-label="Decline action"
+                          title="Decline — disables action"
+                        >
+                          <ShieldX className="w-3 h-3" />
+                          Decline
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => togglePause(rule.id)}
+                          className={cn(
+                            "p-1 rounded transition-colors",
+                            isDark ? "hover:bg-neutral-600" : "hover:bg-sandstorm-s20"
+                          )}
+                          aria-label={isPaused ? "Resume action" : "Pause action"}
+                          title={isPaused ? "Resume" : "Pause"}
+                        >
+                          {isPaused ? (
+                            <Play className={cn("w-3.5 h-3.5", isDark ? "text-emerald-400" : "text-emerald-600")} />
+                          ) : (
+                            <Pause className={cn("w-3.5 h-3.5", isDark ? "text-amber-400" : "text-amber-600")} />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingDelete(rule.id)}
+                          className={cn(
+                            "p-1 rounded transition-colors",
+                            isDark ? "hover:bg-red-900/30" : "hover:bg-red-50"
+                          )}
+                          aria-label="Delete action rule"
+                          title="Delete"
+                        >
+                          <Trash2 className={cn("w-3.5 h-3.5", isDark ? "text-red-400" : "text-red-500")} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -1264,6 +1781,26 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                     onCancel={() => setConfirmingPause(null)}
                     isDark={isDark}
                     variant="warning"
+                  />
+                )}
+                {/* Approve confirmation */}
+                {confirmingApprove === rule.id && (
+                  <InlineConfirm
+                    message="Approve this action rule?"
+                    onConfirm={() => handleApproveAction(rule.id)}
+                    onCancel={() => setConfirmingApprove(null)}
+                    isDark={isDark}
+                    variant="warning"
+                  />
+                )}
+                {/* Decline confirmation */}
+                {confirmingDecline === rule.id && (
+                  <InlineConfirm
+                    message="Decline this action rule?"
+                    onConfirm={() => handleDeclineAction(rule.id)}
+                    onCancel={() => setConfirmingDecline(null)}
+                    isDark={isDark}
+                    variant="danger"
                   />
                 )}
               </div>

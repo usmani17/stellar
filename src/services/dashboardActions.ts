@@ -123,6 +123,34 @@ export async function getActionHistory(
   return data;
 }
 
+// ── Status Update (approve/decline) ────────────────────────────────────────
+
+export type ActionStatusValue = "active" | "disabled" | "paused" | "pending_review";
+
+export interface UpdateActionStatusRequest {
+  action_ids: number[];
+  status: ActionStatusValue;
+}
+
+export interface UpdateActionStatusResponse {
+  updated: number;
+}
+
+/**
+ * Update the status of one or more actions (approve → active, decline → disabled, etc.).
+ */
+export async function updateActionStatus(
+  accountId: number,
+  dashboardId: number,
+  payload: UpdateActionStatusRequest
+): Promise<UpdateActionStatusResponse> {
+  const { data } = await api.patch<UpdateActionStatusResponse>(
+    `${API_BASE}/${accountId}/dashboards/${dashboardId}/actions/status/`,
+    payload
+  );
+  return data;
+}
+
 export interface PatchKeywordAnalysisRequest {
   component_id: string;
   action_id: number;

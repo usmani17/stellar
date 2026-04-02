@@ -140,7 +140,7 @@ interface DashboardWidgetProps {
   /** Called when user deletes the widget (editable mode); parent persists via config update */
   onWidgetDelete?: (componentId: string) => void;
   /** Called when action rules are changed (pause, edit, delete) */
-  onActionsChange?: (componentId: string, actions: ActionRule[]) => void;
+  onActionsChange?: (componentId: string, actions: ActionRule[]) => void | Promise<void>;
 }
 
 type WidgetStatus =

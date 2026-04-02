@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
-  Play,
   Settings,
   LayoutDashboard,
   Bot,
@@ -258,14 +257,6 @@ export const PortfolioDetail: React.FC = () => {
                 >
                   <Pencil className="w-3.5 h-3.5" />
                   Edit
-                </button>
-                <button
-                  onClick={() => setShowRunConfirm(true)}
-                  disabled={runMutation.isPending}
-                  className="px-3 py-1.5 rounded-lg text-[12px] font-medium border border-forest-f40 bg-forest-f40 text-white hover:bg-forest-f50 hover:border-forest-f50 transition-colors whitespace-nowrap flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Play className="w-3.5 h-3.5 shrink-0" />
-                  {runMutation.isPending ? "Running..." : "Run Now"}
                 </button>
               </div>
             </div>
@@ -546,6 +537,7 @@ const DashboardTab: React.FC<{ portfolio: any; trackingData: any; trackingLoadin
 // ── Portfolio Dashboards Tab ──────────────────────────────────────────────
 
 const PortfolioDashboardsTab: React.FC<{ accountId: number; portfolioId: number }> = ({ accountId, portfolioId }) => {
+  const { openAssistant } = useAssistant();
   const [dashboards, setDashboards] = useState<Array<{ id: number; name: string; updatedAt: string | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -599,11 +591,19 @@ const PortfolioDashboardsTab: React.FC<{ accountId: number; portfolioId: number 
       {/* Empty state */}
       {!loading && !refreshing && dashboards.length === 0 && (
         <div className="text-center py-12">
-          <LayoutDashboard className="w-10 h-10 mx-auto mb-3 text-forest-f20" />
-          <p className="text-[14px] text-forest-f30 mb-1">No custom dashboards yet</p>
-          <p className="text-[12px] text-forest-f20">
-            Use the Assistant to create a custom dashboard for this portfolio.
+          <Bot className="w-10 h-10 mx-auto mb-3 text-forest-f20" />
+          <p className="text-[14px] text-forest-f30 mb-1">No actions yet</p>
+          <p className="text-[12px] text-forest-f20 mb-4">
+            Use the Assistant to create actions for this portfolio.
           </p>
+          <button
+            type="button"
+            onClick={openAssistant}
+            className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-semibold text-white bg-forest-f40 rounded-lg hover:bg-forest-f50 transition-colors shadow-sm"
+          >
+            <Bot className="w-4 h-4" />
+            Open Assistant
+          </button>
         </div>
       )}
 

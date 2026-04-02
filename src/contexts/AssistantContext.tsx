@@ -163,7 +163,7 @@ const CHAT_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
 const PORTFOLIO_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   { id: "p1", text: "Summarize this portfolio" },
   { id: "p2", text: "How is pacing for this portfolio?" },
-  { id: "p3", text: "Create a custom dashboard for this portfolio" },
+  { id: "p3", text: "Recommend a custom dashboard with actions for this portfolio" },
   { id: "p4", text: "Show guardrails and targets" },
   { id: "p5", text: "Which campaigns need attention?" },
 ];

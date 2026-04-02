@@ -368,8 +368,10 @@ export const PLATFORM_ENTITY_TYPES: Record<ActionPlatform, ActionEntityType[]> =
 };
 
 export interface ActionSchedule {
-  frequency: "hourly" | "daily" | "weekly" | "monthly";
+  frequency: "once" | "hourly" | "daily" | "weekly" | "monthly";
   time?: string;
+  /** YYYY-MM-DD for "once" frequency */
+  date?: string;
   /** @deprecated Sun=0..Sat=6 — prefer `weekdays` (Mon=0..Sun=6) */
   day_of_week?: number;
   /** Mon=0 .. Sun=6 (workflow convention) */
@@ -391,7 +393,7 @@ export interface ActionRule {
   entity_type: ActionEntityType;
   entity_id_column: string;
   entity_name_column?: string;
-  status: "active" | "paused" | "deleted";
+  status: "active" | "paused" | "deleted" | "pending_review" | "disabled";
   condition?: ActionCondition | CompoundActionCondition;
   params: ActionRuleParams;
   /** Sanitized caps merged into keyword-analysis agent prompt on Run AI analysis. */
