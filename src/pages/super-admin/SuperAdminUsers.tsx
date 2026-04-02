@@ -184,13 +184,16 @@ export const SuperAdminUsers: React.FC = () => {
                 <table className="w-full min-w-[750px]">
                   <thead>
                     <tr className="border-b border-sandstorm-s40">
-                      <th className="table-header" style={{ width: "30%" }}>
+                      <th className="table-header" style={{ width: "6%" }}>
+                        ID
+                      </th>
+                      <th className="table-header" style={{ width: "28%" }}>
                         User
                       </th>
-                      <th className="table-header" style={{ width: "15%" }}>
+                      <th className="table-header" style={{ width: "12%" }}>
                         Workspaces
                       </th>
-                      <th className="table-header" style={{ width: "55%" }}>
+                      <th className="table-header" style={{ width: "54%" }}>
                         Roles
                       </th>
                     </tr>
@@ -212,6 +215,11 @@ export const SuperAdminUsers: React.FC = () => {
                               : undefined
                           }
                         >
+                          <td className="table-cell">
+                            <span className="text-[12px] text-forest-f30 tabular-nums">
+                              {u.id}
+                            </span>
+                          </td>
                           <td className="table-cell">
                             <div className="flex items-center gap-3">
                               <div
