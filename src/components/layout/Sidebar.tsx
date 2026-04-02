@@ -44,6 +44,7 @@ import {
   ChevronDown,
   FileSpreadsheet,
   MessageSquare,
+  Shield,
   Users,
 } from "lucide-react";
 import { useChatHistorySidebarOptional } from "../../contexts/ChatHistorySidebarContext";
@@ -51,6 +52,7 @@ import { useChatHistorySidebarOptional } from "../../contexts/ChatHistorySidebar
 import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
 import { getActiveWorkspaceLabel } from "../../lib/workspace";
 import { getAvatarInitials, getInitialColor } from "../../lib/initials";
+import { SidebarUserMenu } from "./SidebarUserMenu";
 import type { WorkspaceMembershipSummary } from "../../services/auth";
 
 const WORKSPACE_SECTION_STORAGE_KEY = "workspace-section-collapsed";
@@ -474,10 +476,10 @@ export const Sidebar: React.FC = () => {
 
   return (
     <div
-      className="sidebar-nav z-40 border-r border-[rgba(0,0,0,0.1)] h-screen fixed left-0 top-0 overflow-y-auto bg-[#f9f9f6] transition-all duration-300"
+      className="sidebar-nav z-40 border-r border-[rgba(0,0,0,0.1)] h-screen fixed left-0 top-0 flex flex-col overflow-hidden bg-[#f9f9f6] transition-all duration-300"
       style={{ width: `${sidebarWidth}px` }}
     >
-      <div className="p-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4">
         {/* Logo and Toggle Button */}
         <div className="mb-2 flex items-center gap-3 justify-between">
           {!isCollapsed && (
@@ -996,6 +998,72 @@ export const Sidebar: React.FC = () => {
               >
                 <img src={WorkspaceIcon} alt="" className="w-5 h-5 shrink-0" />
               </Link>
+            )}
+          </div>
+        )}
+
+        {/* Super Admin section - visible only for global super admins */}
+        {user?.is_super_admin && (
+          <div className="mb-6">
+            {!isCollapsed ? (
+              <>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg">
+                  <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide truncate">
+                    Super Admin
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate("/super-admin/workspaces")}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg w-full text-left ${
+                    location.pathname === "/super-admin/workspaces"
+                      ? "bg-forest-f60 text-white"
+                      : "text-forest-f60 hover:bg-sandstorm-s10"
+                  }`}
+                >
+                  <Shield className="w-4 h-4 shrink-0" />
+                  <span className="text-[13px]">Workspaces</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/super-admin/users")}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg w-full text-left ${
+                    location.pathname === "/super-admin/users"
+                      ? "bg-forest-f60 text-white"
+                      : "text-forest-f60 hover:bg-sandstorm-s10"
+                  }`}
+                >
+                  <Users className="w-4 h-4 shrink-0" />
+                  <span className="text-[13px]">Users</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => navigate("/super-admin/workspaces")}
+                  className={`flex items-center justify-center p-2 rounded-xl w-full ${
+                    location.pathname === "/super-admin/workspaces"
+                      ? "bg-forest-f60 text-white"
+                      : "text-forest-f60 hover:bg-sandstorm-s10"
+                  }`}
+                  title="Super Admin – Workspaces"
+                >
+                  <Shield className="w-5 h-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/super-admin/users")}
+                  className={`flex items-center justify-center p-2 rounded-xl w-full ${
+                    location.pathname === "/super-admin/users"
+                      ? "bg-forest-f60 text-white"
+                      : "text-forest-f60 hover:bg-sandstorm-s10"
+                  }`}
+                  title="Super Admin – Users"
+                >
+                  <Users className="w-5 h-5" />
+                </button>
+              </>
             )}
           </div>
         )}
@@ -2230,6 +2298,10 @@ export const Sidebar: React.FC = () => {
             </span>
           )}
         </Link> */}
+      </div>
+
+      <div className="shrink-0 px-3 py-3 border-t border-[rgba(0,0,0,0.08)] bg-[#f9f9f6]">
+        <SidebarUserMenu isCollapsed={isCollapsed} />
       </div>
 
       {channelRequiredModal !== null &&

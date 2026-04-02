@@ -118,7 +118,7 @@ export function MetaCampaignDetail() {
     }
     let cancelled = false;
     accountsService
-      .fetchMetaProfiles(parseInt(channelId, 10))
+      .fetchMetaProfiles(parseInt(channelId, 10), { dbOnly: true })
       .then((res) => {
         if (cancelled) return;
         const list = (res.profiles || []) as Array<{ id?: number }>;

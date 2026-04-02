@@ -11,6 +11,7 @@ import { AssistantPage } from "../pages/AssistantPage";
 import AmazonRoutes from "./AmazonRoutes";
 import GoogleRoutes from "./GoogleRoutes";
 import MetaRoutes from "./MetaRoutes";
+import SuperAdminRoutes from "./SuperAdminRoutes";
 import TikTokRoutes from "./TikTokRoutes";
 import NotFoundRoutes from "./NotFoundRoutes";
 import { AssistantProvider } from "./../contexts/AssistantContext";
@@ -49,6 +50,7 @@ function AppRoutes() {
                 {GoogleRoutes()}
                 {MetaRoutes()}
                 {TikTokRoutes()}
+                {SuperAdminRoutes()}
                 {NotFoundRoutes()}
             </Route>
         </Routes>

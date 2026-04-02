@@ -26,6 +26,9 @@ interface AuthContextType {
   /** Resolved active workspace id for API (localStorage + profile sync). */
   activeWorkspaceId: number | null;
   setActiveWorkspaceId: (id: number) => void;
+  /** Optional workspace impersonation context for super admins. */
+  impersonatedWorkspace: { id: number; name: string } | null;
+  setImpersonatedWorkspace: (ws: { id: number; name: string } | null) => void;
   login: (credentials: LoginCredentials) => Promise<void>;
   loginWithAuth0: () => Promise<void>;
   loginWithGoogle: () => Promise<void>;
@@ -51,17 +54,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<
     number | null
   >(() => getCurrentWorkspaceId());
+  const [impersonatedWorkspace, setImpersonatedWorkspace] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
   const initRef = useRef(false); // Prevent duplicate calls in StrictMode
 
   const setActiveWorkspaceId = (id: number) => {
     setCurrentWorkspaceId(id);
     setActiveWorkspaceIdState(id);
+    // Changing workspace clears any previous impersonation context
+    setImpersonatedWorkspace(null);
   };
 
   const applyUserAndWorkspace = (u: User) => {
     syncWorkspaceSelectionFromUser(u);
     setActiveWorkspaceIdState(getCurrentWorkspaceId());
     setUser(u);
+    // Reset impersonation whenever we re-apply user from backend
+    setImpersonatedWorkspace(null);
   };
 
   // Initialize user from localStorage on mount
@@ -304,6 +315,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         loading,
         activeWorkspaceId,
         setActiveWorkspaceId,
+        impersonatedWorkspace,
+        setImpersonatedWorkspace,
         login,
         loginWithAuth0,
         loginWithGoogle,

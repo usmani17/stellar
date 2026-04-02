@@ -3,7 +3,6 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import "react-datepicker/dist/react-datepicker.css";
 import { useAccounts } from "../../contexts/AccountsContext";
 import { useChannels } from "../../hooks/queries/useChannels";
-import { useAuth } from "../../contexts/AuthContext";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { useSidebar } from "../../contexts/SidebarContext";
 import {
@@ -103,7 +102,6 @@ const AccountChannelsList: React.FC<{
 };
 
 export const DashboardHeader: React.FC = () => {
-  const { user, logout } = useAuth();
   const { accounts } = useAccounts();
   const { startDate, endDate, setDateRange, formatDateRange } = useDateRange();
   const { sidebarWidth } = useSidebar();
@@ -123,11 +121,9 @@ export const DashboardHeader: React.FC = () => {
   } | null>(null);
 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
   const accountDropdownRef = useRef<HTMLDivElement>(null);
   const datePickerRef = useRef<HTMLDivElement>(null);
-  const profileDropdownRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<number | null>(null);
 
   // Sync selected account based on accountId or channelId
@@ -225,12 +221,6 @@ export const DashboardHeader: React.FC = () => {
       }
       if (datePickerRef.current && !datePickerRef.current.contains(t)) {
         setIsDatePickerOpen(false);
-      }
-      if (
-        profileDropdownRef.current &&
-        !profileDropdownRef.current.contains(t)
-      ) {
-        setIsProfileDropdownOpen(false);
       }
     };
 
@@ -630,55 +620,6 @@ export const DashboardHeader: React.FC = () => {
           </>
         )}
         {params.accountId && (params.channelId || isWorkflowsPage || isDashboardsPage) && <AssistantTrigger />}
-      </div>
-
-      {/* User Settings - Bottom Left (Fixed Position) */}
-      <div className="fixed bottom-6 left-6 z-50" ref={profileDropdownRef}>
-        <button
-          onClick={() => setIsProfileDropdownOpen((p) => !p)}
-          className="profile-avatar-button"
-        >
-          {user?.first_name?.[0] || "U"}
-        </button>
-
-        {isProfileDropdownOpen && (
-          <div className="absolute bottom-full left-0 mb-2 w-48 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-50">
-            <div className="p-2">
-              <div className="px-3 py-2 text-[12.32px] text-[#313850] border-b border-gray-100">
-                <div className="font-medium">
-                  {user?.first_name} {user?.last_name}
-                </div>
-                <div className="text-[10.56px] text-[#556179] mt-1">
-                  {user?.email}
-                </div>
-                {user?.role && (
-                  <div className="text-[10.56px] text-[#556179] mt-0.5 capitalize">
-                    {user.role}
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={() => {
-                  setIsProfileDropdownOpen(false);
-                  navigate("/profile");
-                }}
-                className="w-full text-left px-3 py-2 rounded text-[12.32px] text-[#313850] hover:bg-gray-50 transition-colors"
-              >
-                Profile
-              </button>
-              <button
-                onClick={() => {
-                  logout();
-                  // Do not navigate: logout() does window.location.href to /login or Auth0.
-                  // Navigating to /login first would trigger PublicRoute to redirect to /brands.
-                }}
-                className="w-full text-left px-3 py-2 rounded text-[12.32px] text-[#313850] hover:bg-gray-50 transition-colors"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

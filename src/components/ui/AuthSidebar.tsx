@@ -50,7 +50,7 @@ export const AuthSidebar: React.FC<AuthSidebarProps> = ({
               {/* Platform badges with icons */}
               <div className="self-stretch inline-flex justify-start items-start gap-5 flex-wrap content-start">
                 <div className="flex-1 flex justify-start items-center gap-5 flex-wrap content-center">
-                  <PlatformChip icon={googleIcon} label="Goolge" />
+                  <PlatformChip icon={googleIcon} label="Google" />
                   <PlatformChip icon={walmartIcon} label="Walmart" />
                   <PlatformChip icon={instacartIcon} label="Instacart" />
                   <PlatformChip icon={criteoIcon} label="Criteo" />

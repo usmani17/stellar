@@ -566,11 +566,14 @@ export const accountsService = {
     return response.data;
   },
 
-  // Meta profiles
+  // Meta profiles — default: live Graph API + DB ``is_selected`` merge (profile picker page).
+  // Pass ``dbOnly: true`` for dropdowns that only need saved rows (no extra Meta API call).
   fetchMetaProfiles: async (
     channelId: number,
+    options?: { debugMeta?: boolean; dbOnly?: boolean },
   ): Promise<{
     profiles: any[];
+    source?: string;
     excluded_profiles?: Array<{
       profileId: string;
       account_id?: string;
@@ -582,8 +585,20 @@ export const accountsService = {
     total_fetched?: number;
     existing_count?: number;
     available_count?: number;
+    selected?: number;
+    /** Present when ``debug_meta=1`` */
+    meta_graph_api?: {
+      profiles: any[];
+      total_count: number;
+      raw_first_page?: Record<string, unknown>;
+    };
   }> => {
-    const response = await api.get(`/meta/channels/${channelId}/profiles/`);
+    const params: Record<string, string> = {};
+    if (options?.debugMeta) params.debug_meta = "1";
+    if (options?.dbOnly) params.db_only = "1";
+    const response = await api.get(`/meta/channels/${channelId}/profiles/`, {
+      params: Object.keys(params).length ? params : undefined,
+    });
     return response.data;
   },
 

@@ -767,7 +767,7 @@ export const CreateMetaCampaignPanel: React.FC<
     let cancelled = false;
     setProfilesLoading(true);
     accountsService
-      .fetchMetaProfiles(channelId)
+      .fetchMetaProfiles(channelId, { dbOnly: true })
       .then((res) => {
         if (cancelled) return;
         const list = (res.profiles || []) as Array<{

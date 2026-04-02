@@ -32,7 +32,7 @@ import { usePortfolios, usePortfolioSummary } from "../../hooks/queries/usePortf
 import { useDeletePortfolio } from "../../hooks/mutations/usePortfolioMutations";
 import { useDebouncedSearch } from "../../hooks/useDebouncedSearch";
 import { Sidebar } from "../../components/layout/Sidebar";
-import { AccountsHeader } from "../../components/layout/AccountsHeader";
+import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import {
   Banner,
   Button,
@@ -79,19 +79,19 @@ const PORTFOLIO_TRACKING_TIPS = {
     "From the latest tracking snapshot: each run loads linked campaigns, pulls metrics from your data warehouse (Google may call the Ads API if ETL has no rows), rolls up totals, and saves one row.",
   totalBudget: "Total portfolio budget for the configured period — planning figure, not necessarily live platform caps.",
   targetFtd:
-       "Target spend for ‘period to date’ if budget were spent evenly (linear pacing from period start through today).",
+    "Target spend for ‘period to date’ if budget were spent evenly (linear pacing from period start through today).",
   actualFtd:
-       "Actual sum of campaign spend from period start through the snapshot (rolled up from linked campaigns).",
+    "Actual sum of campaign spend from period start through the snapshot (rolled up from linked campaigns).",
   pacing: "Actual FTD spend ÷ target FTD spend × 100. Near 100% means close to an even daily burn.",
   ftdConv: "Conversions summed across linked campaigns for the portfolio period to date.",
   ftdRev: "Conversion value / revenue summed for the portfolio period to date.",
   targetKpi: "Goal you set (CPA, ROAS, CPC, or CPM).",
   ftdKpi:
-       "Portfolio KPI for period-to-date: same type as your target, computed from rolled-up spend, clicks, impressions, conversions, and revenue.",
+    "Portfolio KPI for period-to-date: same type as your target, computed from rolled-up spend, clicks, impressions, conversions, and revenue.",
   l7dKpi:
-       "Same KPI type, using only the last 7 calendar days (from today minus 6 through today).",
+    "Same KPI type, using only the last 7 calendar days (from today minus 6 through today).",
   achievement:
-       "How the FTD KPI compares to your target (backend formula depends on type, e.g. CPA uses target ÷ actual).",
+    "How the FTD KPI compares to your target (backend formula depends on type, e.g. CPA uses target ÷ actual).",
   health: "Combined pacing + achievement label from the latest successful snapshot.",
 } as const;
 
@@ -1220,14 +1220,14 @@ export const PortfolioList: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-white flex">
+    <div className="min-h-screen bg-sandstorm-s0 flex">
       <Sidebar />
 
       <div
         className="flex-1 w-full min-w-0 flex flex-col"
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
-        <AccountsHeader />
+        <DashboardHeader />
 
         <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white flex-1 pb-10">
           <div className="space-y-6">
