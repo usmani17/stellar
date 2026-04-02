@@ -13,6 +13,9 @@ import {
   X,
   Clock,
   Calendar,
+  ShieldCheck,
+  ShieldX,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "../../../../lib/cn";
 import type {
@@ -23,7 +26,7 @@ import type {
   CompoundActionCondition,
   ActionSchedule,
 } from "../../types/dashboard";
-import { previewActions, getActionHistory } from "../../../../services/dashboardActions";
+import { previewActions, getActionHistory, updateActionStatus } from "../../../../services/dashboardActions";
 import { formatMetricLabel } from "../../utils/formatDashboardValue";
 import { ACTION_TYPE_COLORS, ACTION_TYPE_LABELS } from "./actionTypeDisplay";
 import {
@@ -405,6 +408,9 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const [confirmingPause, setConfirmingPause] = useState<string | null>(null);
+  const [confirmingApprove, setConfirmingApprove] = useState<string | null>(null);
+  const [confirmingDecline, setConfirmingDecline] = useState<string | null>(null);
+  const [statusUpdating, setStatusUpdating] = useState<Set<string>>(new Set());
   const [editingSchedule, setEditingSchedule] = useState<string | null>(null);
   /** Snapshot of `rule.schedule` when the editor opened; used to revert on Cancel / Escape / click-outside. */
   const scheduleEditorBaselineRef = useRef<Map<string, ActionSchedule | undefined>>(new Map());
@@ -420,9 +426,11 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
     setDraftActions(actions);
   }, [actions]);
 
-  const visibleActions = draftActions.filter((a) => a.status !== "deleted");
+  const visibleActions = draftActions.filter((a) => a.status !== "deleted" && a.status !== "disabled");
   const activeActions = visibleActions.filter((a) => a.status === "active");
+  const pendingReviewActions = visibleActions.filter((a) => a.status === "pending_review");
   const totalActive = activeActions.length;
+  const totalPendingReview = pendingReviewActions.length;
   const selectedCount = [...selectedIds].filter((id) =>
     draftActions.find((a) => a.id === id && a.status === "active")
   ).length;
@@ -436,8 +444,104 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
     });
   }, []);
 
+  const handleApproveAction = useCallback(
+    async (ruleId: string) => {
+      const rule = draftActions.find((a) => a.id === ruleId);
+      if (!rule?.action_id) return;
+      setStatusUpdating((prev) => new Set([...prev, ruleId]));
+      try {
+        await updateActionStatus(accountId, dashboardId, {
+          action_ids: [rule.action_id],
+          status: "active",
+        });
+        setDraftActions((prev) => prev.map((a) =>
+          a.id === ruleId ? { ...a, status: "active" as const } : a
+        ));
+        setSelectedIds((prev) => new Set([...prev, ruleId]));
+      } catch (err) {
+        console.error("Failed to approve action:", err);
+      } finally {
+        setStatusUpdating((prev) => { const n = new Set(prev); n.delete(ruleId); return n; });
+        setConfirmingApprove(null);
+      }
+    },
+    [draftActions, accountId, dashboardId]
+  );
+
+  const handleDeclineAction = useCallback(
+    async (ruleId: string) => {
+      const rule = draftActions.find((a) => a.id === ruleId);
+      if (!rule?.action_id) return;
+      setStatusUpdating((prev) => new Set([...prev, ruleId]));
+      try {
+        await updateActionStatus(accountId, dashboardId, {
+          action_ids: [rule.action_id],
+          status: "disabled",
+        });
+        setDraftActions((prev) => prev.map((a) =>
+          a.id === ruleId ? { ...a, status: "disabled" as const } : a
+        ));
+      } catch (err) {
+        console.error("Failed to decline action:", err);
+      } finally {
+        setStatusUpdating((prev) => { const n = new Set(prev); n.delete(ruleId); return n; });
+        setConfirmingDecline(null);
+      }
+    },
+    [draftActions, accountId, dashboardId]
+  );
+
+  const handleApproveAll = useCallback(
+    async () => {
+      const pending = draftActions.filter((a) => a.status === "pending_review" && a.action_id);
+      if (pending.length === 0) return;
+      const ids = pending.map((a) => a.action_id!);
+      setStatusUpdating((prev) => new Set([...prev, ...pending.map((a) => a.id)]));
+      try {
+        await updateActionStatus(accountId, dashboardId, {
+          action_ids: ids,
+          status: "active",
+        });
+        const pendingIds = new Set(pending.map((a) => a.id));
+        setDraftActions((prev) => prev.map((a) =>
+          pendingIds.has(a.id) ? { ...a, status: "active" as const } : a
+        ));
+        setSelectedIds((prev) => new Set([...prev, ...pending.map((a) => a.id)]));
+      } catch (err) {
+        console.error("Failed to approve all actions:", err);
+      } finally {
+        setStatusUpdating(new Set());
+      }
+    },
+    [draftActions, accountId, dashboardId]
+  );
+
+  const handleDeclineAll = useCallback(
+    async () => {
+      const pending = draftActions.filter((a) => a.status === "pending_review" && a.action_id);
+      if (pending.length === 0) return;
+      const ids = pending.map((a) => a.action_id!);
+      setStatusUpdating((prev) => new Set([...prev, ...pending.map((a) => a.id)]));
+      try {
+        await updateActionStatus(accountId, dashboardId, {
+          action_ids: ids,
+          status: "disabled",
+        });
+        const pendingIds = new Set(pending.map((a) => a.id));
+        setDraftActions((prev) => prev.map((a) =>
+          pendingIds.has(a.id) ? { ...a, status: "disabled" as const } : a
+        ));
+      } catch (err) {
+        console.error("Failed to decline all actions:", err);
+      } finally {
+        setStatusUpdating(new Set());
+      }
+    },
+    [draftActions, accountId, dashboardId]
+  );
+
   const togglePause = useCallback(
-    (id: string) => {
+    async (id: string) => {
       const rule = draftActions.find((a) => a.id === id);
       if (!rule) return;
 
@@ -445,13 +549,24 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
         setConfirmingPause(id);
         return;
       }
-      const updated = draftActions.map((a) =>
-        a.id === id ? { ...a, status: "active" as const } : a
-      );
-      setDraftActions(updated);
-      void onActionsChange?.(updated);
+      if (!rule.action_id) return;
+      setStatusUpdating((prev) => new Set([...prev, id]));
+      try {
+        await updateActionStatus(accountId, dashboardId, {
+          action_ids: [rule.action_id],
+          status: "active",
+        });
+        setDraftActions((prev) => prev.map((a) =>
+          a.id === id ? { ...a, status: "active" as const } : a
+        ));
+        setSelectedIds((prev) => new Set([...prev, id]));
+      } catch (err) {
+        console.error("Failed to resume action:", err);
+      } finally {
+        setStatusUpdating((prev) => { const n = new Set(prev); n.delete(id); return n; });
+      }
     },
-    [draftActions, onActionsChange]
+    [draftActions, accountId, dashboardId]
   );
 
   const updateSchedule = useCallback(
@@ -557,32 +672,60 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
   }, [editingSchedule, discardScheduleEdit]);
 
   const confirmPause = useCallback(
-    (id: string) => {
-      const updated = draftActions.map((a) =>
-        a.id === id ? { ...a, status: "paused" as const } : a
-      );
-      setDraftActions(updated);
-      void onActionsChange?.(updated);
-      setConfirmingPause(null);
+    async (id: string) => {
+      const rule = draftActions.find((a) => a.id === id);
+      if (!rule?.action_id) {
+        setConfirmingPause(null);
+        return;
+      }
+      setStatusUpdating((prev) => new Set([...prev, id]));
+      try {
+        await updateActionStatus(accountId, dashboardId, {
+          action_ids: [rule.action_id],
+          status: "paused",
+        });
+        setDraftActions((prev) => prev.map((a) =>
+          a.id === id ? { ...a, status: "paused" as const } : a
+        ));
+      } catch (err) {
+        console.error("Failed to pause action:", err);
+      } finally {
+        setStatusUpdating((prev) => { const n = new Set(prev); n.delete(id); return n; });
+        setConfirmingPause(null);
+      }
     },
-    [draftActions, onActionsChange]
+    [draftActions, accountId, dashboardId]
   );
 
   const softDeleteRule = useCallback(
-    (id: string) => {
-      const updated = draftActions.map((a) =>
-        a.id === id ? { ...a, status: "deleted" as const } : a
-      );
-      setDraftActions(updated);
-      void onActionsChange?.(updated);
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      setConfirmingDelete(null);
+    async (id: string) => {
+      const rule = draftActions.find((a) => a.id === id);
+      if (!rule?.action_id) {
+        setConfirmingDelete(null);
+        return;
+      }
+      setStatusUpdating((prev) => new Set([...prev, id]));
+      try {
+        await updateActionStatus(accountId, dashboardId, {
+          action_ids: [rule.action_id],
+          status: "disabled",
+        });
+        setDraftActions((prev) => prev.map((a) =>
+          a.id === id ? { ...a, status: "disabled" as const } : a
+        ));
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      } catch (err) {
+        console.error("Failed to delete action:", err);
+      } finally {
+        setStatusUpdating((prev) => { const n = new Set(prev); n.delete(id); return n; });
+        setConfirmingDelete(null);
+      }
     },
-    [draftActions, onActionsChange]
+    [draftActions, accountId, dashboardId]
   );
 
   const isCompound = (c: ActionCondition | CompoundActionCondition): c is CompoundActionCondition =>
@@ -736,14 +879,26 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
             <span className={cn("text-xs font-semibold", isDark ? "text-neutral-200" : "text-forest-f60")}>
               Actions
             </span>
-            <span
-              className={cn(
-                "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
-                isDark ? "bg-neutral-600 text-neutral-300" : "bg-sandstorm-s20 text-forest-f30"
-              )}
-            >
-              {totalActive} active
-            </span>
+            {totalActive > 0 && (
+              <span
+                className={cn(
+                  "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                  isDark ? "bg-neutral-600 text-neutral-300" : "bg-sandstorm-s20 text-forest-f30"
+                )}
+              >
+                {totalActive} active
+              </span>
+            )}
+            {totalPendingReview > 0 && (
+              <span
+                className={cn(
+                  "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                  isDark ? "bg-amber-900/40 text-amber-300" : "bg-amber-50 text-amber-700 border border-amber-200"
+                )}
+              >
+                {totalPendingReview} pending review
+              </span>
+            )}
           </div>
         </div>
 
@@ -767,25 +922,62 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
       {/* Body */}
       {isOpen && (
         <div className="px-4 pb-3 space-y-4">
-          {!DASHBOARD_ACTION_CONDITION_INLINE_EDIT ? (
-            <p
+          {/* Pending review banner */}
+          {totalPendingReview > 0 && (
+            <div
               className={cn(
-                "text-[10px] m-0 px-3 py-2 rounded-lg border border-dashed leading-relaxed",
+                "flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border",
                 isDark
-                  ? "border-neutral-600 text-neutral-400 bg-neutral-800/40"
-                  : "border-sandstorm-s40 text-forest-f30 bg-sandstorm-s5/80"
+                  ? "border-amber-800/50 bg-amber-950/25 text-amber-100"
+                  : "border-amber-300 bg-amber-50 text-amber-900"
               )}
             >
-              <span className="font-semibold text-current">If conditions are view-only.</span> They show when
-              this action runs; use workflow configuration or re-enable editing in code when you need to change
-              thresholds here.
-            </p>
-          ) : null}
+              <div className="flex items-center gap-2 min-w-0">
+                <ShieldAlert className={cn("w-4 h-4 shrink-0", isDark ? "text-amber-400" : "text-amber-600")} />
+                <span className="text-xs font-medium">
+                  {totalPendingReview} action{totalPendingReview !== 1 ? "s" : ""} pending review
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleApproveAll}
+                  disabled={statusUpdating.size > 0}
+                  className={cn(
+                    "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                    isDark
+                      ? "bg-emerald-900/40 text-emerald-300 hover:bg-emerald-900/60 border border-emerald-700/40"
+                      : "bg-emerald-600 text-white hover:bg-emerald-700"
+                  )}
+                >
+                  <ShieldCheck className="w-3 h-3" />
+                  Approve All
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeclineAll}
+                  disabled={statusUpdating.size > 0}
+                  className={cn(
+                    "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                    isDark
+                      ? "bg-red-900/40 text-red-300 hover:bg-red-900/60 border border-red-700/40"
+                      : "bg-white text-red-600 hover:bg-red-50 border border-red-200"
+                  )}
+                >
+                  <ShieldX className="w-3 h-3" />
+                  Decline All
+                </button>
+              </div>
+            </div>
+          )}
           {/* Rule list */}
           {visibleActions.map((rule) => {
             const colors = ACTION_TYPE_COLORS[rule.type] || ACTION_TYPE_COLORS.change_state;
             const isPaused = rule.status === "paused";
-            const isSelected = selectedIds.has(rule.id) && !isPaused;
+            const isPendingReview = rule.status === "pending_review";
+            const isSelected = selectedIds.has(rule.id) && !isPaused && !isPendingReview;
             const isScheduleSet = Boolean(effectiveScheduleFrequency(rule.schedule));
             const schedEditing: ActionSchedule = { ...DEFAULT_ACTION_SCHEDULE, ...rule.schedule };
             const onceSelectedDate = parseLocalYmdOrToday(schedEditing.date);
@@ -808,6 +1000,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                   className={cn(
                     "flex items-start gap-2.5 px-3 py-2.5 rounded-lg transition-all",
                     isPaused && "opacity-50",
+                    isPendingReview && (isDark ? "border-amber-700/40" : "border-amber-300"),
                     isDark
                       ? "bg-neutral-700/50 hover:bg-neutral-700 border border-neutral-600/40"
                       : "bg-white hover:bg-sandstorm-s5 border border-sandstorm-s40 shadow-sm"
@@ -818,7 +1011,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                     <input
                       type="checkbox"
                       checked={isSelected}
-                      disabled={isPaused}
+                      disabled={isPaused || isPendingReview}
                       onChange={() => toggleSelect(rule.id)}
                       className={cn(
                         "w-3.5 h-3.5 rounded border cursor-pointer",
@@ -851,6 +1044,14 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                       {isPaused && (
                         <span className="text-[10px] font-medium text-amber-500 flex items-center gap-0.5">
                           <Pause className="w-3 h-3" /> Paused
+                        </span>
+                      )}
+                      {isPendingReview && (
+                        <span className={cn(
+                          "text-[10px] font-medium flex items-center gap-0.5",
+                          isDark ? "text-amber-300" : "text-amber-600"
+                        )}>
+                          <ShieldAlert className="w-3 h-3" /> Pending Review
                         </span>
                       )}
                     </div>
@@ -1490,34 +1691,75 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
 
                   {/* Control buttons */}
                   <div className="flex items-center gap-1 shrink-0 pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => togglePause(rule.id)}
-                      className={cn(
-                        "p-1 rounded transition-colors",
-                        isDark ? "hover:bg-neutral-600" : "hover:bg-sandstorm-s20"
-                      )}
-                      aria-label={isPaused ? "Resume action" : "Pause action"}
-                      title={isPaused ? "Resume" : "Pause"}
-                    >
-                      {isPaused ? (
-                        <Play className={cn("w-3.5 h-3.5", isDark ? "text-emerald-400" : "text-emerald-600")} />
-                      ) : (
-                        <Pause className={cn("w-3.5 h-3.5", isDark ? "text-amber-400" : "text-amber-600")} />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmingDelete(rule.id)}
-                      className={cn(
-                        "p-1 rounded transition-colors",
-                        isDark ? "hover:bg-red-900/30" : "hover:bg-red-50"
-                      )}
-                      aria-label="Delete action rule"
-                      title="Delete"
-                    >
-                      <Trash2 className={cn("w-3.5 h-3.5", isDark ? "text-red-400" : "text-red-500")} />
-                    </button>
+                    {isPendingReview ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingApprove(rule.id)}
+                          disabled={statusUpdating.has(rule.id)}
+                          className={cn(
+                            "inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-colors",
+                            "disabled:opacity-50 disabled:cursor-not-allowed",
+                            isDark
+                              ? "bg-emerald-900/40 text-emerald-300 hover:bg-emerald-900/60"
+                              : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                          )}
+                          aria-label="Approve action"
+                          title="Approve — makes action active"
+                        >
+                          <ShieldCheck className="w-3 h-3" />
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingDecline(rule.id)}
+                          disabled={statusUpdating.has(rule.id)}
+                          className={cn(
+                            "inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-colors",
+                            "disabled:opacity-50 disabled:cursor-not-allowed",
+                            isDark
+                              ? "bg-red-900/40 text-red-300 hover:bg-red-900/60"
+                              : "bg-white text-red-600 hover:bg-red-50 border border-red-200"
+                          )}
+                          aria-label="Decline action"
+                          title="Decline — disables action"
+                        >
+                          <ShieldX className="w-3 h-3" />
+                          Decline
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => togglePause(rule.id)}
+                          className={cn(
+                            "p-1 rounded transition-colors",
+                            isDark ? "hover:bg-neutral-600" : "hover:bg-sandstorm-s20"
+                          )}
+                          aria-label={isPaused ? "Resume action" : "Pause action"}
+                          title={isPaused ? "Resume" : "Pause"}
+                        >
+                          {isPaused ? (
+                            <Play className={cn("w-3.5 h-3.5", isDark ? "text-emerald-400" : "text-emerald-600")} />
+                          ) : (
+                            <Pause className={cn("w-3.5 h-3.5", isDark ? "text-amber-400" : "text-amber-600")} />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingDelete(rule.id)}
+                          className={cn(
+                            "p-1 rounded transition-colors",
+                            isDark ? "hover:bg-red-900/30" : "hover:bg-red-50"
+                          )}
+                          aria-label="Delete action rule"
+                          title="Delete"
+                        >
+                          <Trash2 className={cn("w-3.5 h-3.5", isDark ? "text-red-400" : "text-red-500")} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -1539,6 +1781,26 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                     onCancel={() => setConfirmingPause(null)}
                     isDark={isDark}
                     variant="warning"
+                  />
+                )}
+                {/* Approve confirmation */}
+                {confirmingApprove === rule.id && (
+                  <InlineConfirm
+                    message="Approve this action rule?"
+                    onConfirm={() => handleApproveAction(rule.id)}
+                    onCancel={() => setConfirmingApprove(null)}
+                    isDark={isDark}
+                    variant="warning"
+                  />
+                )}
+                {/* Decline confirmation */}
+                {confirmingDecline === rule.id && (
+                  <InlineConfirm
+                    message="Decline this action rule?"
+                    onConfirm={() => handleDeclineAction(rule.id)}
+                    onCancel={() => setConfirmingDecline(null)}
+                    isDark={isDark}
+                    variant="danger"
                   />
                 )}
               </div>

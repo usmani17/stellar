@@ -393,7 +393,7 @@ export interface ActionRule {
   entity_type: ActionEntityType;
   entity_id_column: string;
   entity_name_column?: string;
-  status: "active" | "paused" | "deleted";
+  status: "active" | "paused" | "deleted" | "pending_review" | "disabled";
   condition?: ActionCondition | CompoundActionCondition;
   params: ActionRuleParams;
   /** Sanitized caps merged into keyword-analysis agent prompt on Run AI analysis. */

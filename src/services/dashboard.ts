@@ -133,7 +133,7 @@ export async function updateDashboardConfig(
   config: DashboardConfig
 ): Promise<DashboardResponse> {
   const { data } = await api.patch<DashboardResponse>(
-    `${API_BASE}/${accountId}/dashboards/${dashboardId}/`,
+    `${API_BASE}/${accountId}/dashboards/${dashboardId}/config/`,
     { config }
   );
   return data;
@@ -154,7 +154,7 @@ export async function updateDashboardComponent(
   payload: DashboardComponentUpdatePayload
 ): Promise<DashboardResponse> {
   const { data } = await api.patch<DashboardResponse>(
-    `${API_BASE}/${accountId}/dashboards/${dashboardId}/`,
+    `${API_BASE}/${accountId}/dashboards/${dashboardId}/config/`,
     { config: { layout: payload.layout, component: payload.component } }
   );
   return data;
