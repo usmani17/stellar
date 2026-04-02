@@ -72,7 +72,7 @@ export const Sidebar: React.FC = () => {
   const hasUsersAccess = (activeMembershipRole ?? user?.role) !== "team"; // Owner and Manager can see Users tab
   const accountId = getCurrentAccountId(location.pathname);
   const { isCollapsed, toggleSidebar, sidebarWidth } = useSidebar();
-  const { accounts, getAccountById } = useAccounts();
+  const { getAccountById } = useAccounts();
   const accountIdNum = accountId !== null ? accountId : undefined;
   const currentAccount =
     accountIdNum != null ? getAccountById(accountIdNum) : null;
@@ -171,7 +171,7 @@ export const Sidebar: React.FC = () => {
       location.pathname === "/brands" ||
       /^\/brands\/\d+\/integrations$/.test(location.pathname) ||
       /^\/brands\/\d+\/profiles$/.test(location.pathname) ||
-      /^\/brands\/\d+\/users$/.test(location.pathname) ||
+      location.pathname === "/users" ||
       /^\/brands\/\d+\/workflows(\/|$)/.test(location.pathname) ||
       /^\/brands\/\d+\/knowledge(\/|$)/.test(location.pathname) ||
       /^\/brands\/\d+\/google-sheets(\/|$)/.test(location.pathname) ||
@@ -291,10 +291,10 @@ export const Sidebar: React.FC = () => {
       return /^\/brands\/\d+\/integrations$/.test(location.pathname);
     if (path === "/brands/profiles")
       return /^\/brands\/\d+\/profiles$/.test(location.pathname);
-    if (path === "/brands/users" || path === "/workspace/team")
+    if (path === "/users" || path === "/workspace/team")
       return (
         location.pathname === "/workspace/team" ||
-        /^\/brands\/\d+\/users$/.test(location.pathname)
+        location.pathname === "/users"
       );
     if (path === "/brands/workflows")
       return /^\/brands\/\d+\/workflows(\/|$)/.test(location.pathname);
@@ -840,16 +840,9 @@ export const Sidebar: React.FC = () => {
                     </Link>
                     {hasUsersAccess && (
                       <Link
-                        to={
-                          accountId
-                            ? buildAccountRoute(accountId, "users")
-                            : accounts.length > 0
-                              ? buildAccountRoute(accounts[0].id, "users")
-                              : "/workspace/team"
-                        }
+                        to="/users"
                         className={`flex items-center p-2 rounded-xl gap-2 ${
-                          isActive("/workspace/team") ||
-                          isActive("/brands/" + (accountId ?? "") + "/users")
+                          isActive("/users")
                             ? "w-full bg-forest-f60 !text-white hover:!text-white"
                             : "text-black hover:bg-transparent hover:text-[#136D6D]"
                         }`}
@@ -857,8 +850,7 @@ export const Sidebar: React.FC = () => {
                       >
                         <img
                           src={
-                            isActive("/workspace/team") ||
-                            isActive("/brands/" + (accountId ?? "") + "/users")
+                            isActive("/users")
                               ? UsersActiveIcon
                               : UsersIcon
                           }

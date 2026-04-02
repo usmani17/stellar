@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { X } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useAccounts } from "../contexts/AccountsContext";
@@ -322,26 +322,14 @@ function getCreateFormClientErrors(
 }
 
 export const AccountUsers: React.FC = () => {
-  const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
   const { user, activeWorkspaceId } = useAuth();
-  const { accounts } = useAccounts();
   const { sidebarWidth } = useSidebar();
-  const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
-  const account = accountIdNum
-    ? accounts.find((a) => a.id === accountIdNum)
-    : null;
 
   useEffect(() => {
     setPageTitle("Users");
     return () => resetPageTitle();
   }, []);
-
-  useEffect(() => {
-    if (!accountIdNum) {
-      navigate("/brands");
-    }
-  }, [accountIdNum, navigate]);
 
   const activeRole =
     user?.workspaces?.find((w) => w.id === activeWorkspaceId)?.role ??
@@ -374,8 +362,6 @@ export const AccountUsers: React.FC = () => {
         <AccountsHeader />
         <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white overflow-x-hidden min-w-0">
           <AccountUsersContent
-            accountIdNum={accountIdNum ?? 0}
-            account={account ?? null}
             workspaceId={activeWorkspaceId ?? user?.workspace?.id}
           />
         </div>
@@ -385,15 +371,11 @@ export const AccountUsers: React.FC = () => {
 };
 
 function AccountUsersContent({
-  accountIdNum,
-  account,
   workspaceId,
 }: {
-  accountIdNum: number;
-  account: { id: number; name: string; channels?: Channel[] } | null;
   workspaceId?: number;
 }): React.ReactElement {
-  const { user, activeWorkspaceId } = useAuth();
+  const { user, activeWorkspaceId, isSuperAdmin, impersonate } = useAuth();
   const { accounts } = useAccounts();
   const activeRole =
     user?.workspaces?.find((w) => w.id === activeWorkspaceId)?.role ??
@@ -507,17 +489,7 @@ function AccountUsersContent({
 
   // Pre-select current brand when opening create form for manager
   useEffect(() => {
-    if (
-      createPanelOpen &&
-      createRole === "manager" &&
-      accountIdNum &&
-      accounts.some((a) => a.id === accountIdNum)
-    ) {
-      setCreateAccountIds((prev) =>
-        prev.includes(accountIdNum) ? prev : [...prev, accountIdNum],
-      );
-    }
-  }, [createPanelOpen, createRole, accountIdNum, accounts]);
+  }, [createPanelOpen, createRole, accounts]);
 
   useEffect(() => {
     if (createPanelOpen) {
@@ -1416,9 +1388,19 @@ function AccountUsersContent({
                     {users.map((u) => (
                       <tr key={u.id} className="table-row group">
                         <td className="table-cell">
-                          <span className="table-text leading-[1.26]">
-                            {u.first_name} {u.last_name}
-                          </span>
+                          {isSuperAdmin && u.id !== user?.id ? (
+                            <button
+                              onClick={() => impersonate(u.id)}
+                              className="table-text leading-[1.26] text-left text-forest-f60 hover:underline cursor-pointer"
+                              title={`Impersonate ${u.first_name} ${u.last_name}`}
+                            >
+                              {u.first_name} {u.last_name}
+                            </button>
+                          ) : (
+                            <span className="table-text leading-[1.26]">
+                              {u.first_name} {u.last_name}
+                            </span>
+                          )}
                         </td>
                         <td className="table-cell">
                           <span className="table-text leading-[1.26]">

@@ -30,6 +30,7 @@ export interface User {
   role?: UserRole;
   created_at: string;
   has_unusable_password?: boolean;
+  is_super_admin?: boolean;
 }
 
 export interface AuthResponse {
@@ -151,6 +152,11 @@ export const authService = {
   /** For Auth0 (or similar) signups: user exists but has no workspace. Creates workspace and assigns user as owner. */
   completeSignup: async (data: { workspace_name: string; role?: string; team_size?: string }): Promise<{ user: User }> => {
     const response = await api.post<{ user: User }>("/users/complete-signup/", data);
+    return response.data;
+  },
+
+  impersonateUser: async (userId: number): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/users/impersonate/', { user_id: userId });
     return response.data;
   },
 };

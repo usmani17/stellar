@@ -24,6 +24,7 @@ import {
   ChevronRight,
   Shield,
   ExternalLink,
+  Sparkles,
 } from "lucide-react";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { useSidebar } from "../../contexts/SidebarContext";
@@ -691,13 +692,9 @@ function dashboardComponentsWithActions(components: DashboardComponent[]): Dashb
 function ExpandPanelDashboardSummaryCard({
   d,
   onOpen,
-  onOpenNewTab,
-  onManage,
 }: {
   d: DashboardResponse;
   onOpen: (id: number) => void;
-  onOpenNewTab: (id: number) => void;
-  onManage: () => void;
 }) {
   const meta = dashboardMetaLine(d);
   const updated =
@@ -721,122 +718,43 @@ function ExpandPanelDashboardSummaryCard({
         "w-full max-w-none rounded-xl border border-sandstorm-s40 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(7,41,41,0.04)]",
       )}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3 w-full min-w-0">
-        <div className="flex gap-2 min-w-0 flex-1">
-          <LayoutDashboard className="w-4 h-4 text-forest-f40 shrink-0 mt-0.5" aria-hidden />
-          <div className="min-w-0 flex-1">
-            <p
-              className="text-[13px] font-semibold text-forest-f60 m-0 leading-snug break-words"
-              title={d.name ?? undefined}
-            >
-              {d.name?.trim() || `Dashboard ${d.id}`}
-            </p>
-            {metaLine ? (
-              <p className="text-[11px] text-forest-f30 m-0 mt-0.5 leading-snug">{metaLine}</p>
-            ) : null}
-            <div className="flex flex-wrap gap-1.5 mt-1.5">
-              {platformLabel ? (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium border border-sandstorm-s40 bg-sandstorm-s5 text-forest-f60">
-                  {platformLabel}
-                </span>
-              ) : null}
-              {components.length > 0 ? (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium border border-forest-f40/20 bg-forest-f0 text-forest-f50">
-                  {totalActionCount > 0
-                    ? `${totalActionCount} action${totalActionCount === 1 ? "" : "s"} across ${actionComponents.length} widget${actionComponents.length === 1 ? "" : "s"}`
-                    : `${components.length} widget${components.length === 1 ? "" : "s"} · no actions yet`}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
+      <div className="flex gap-2 min-w-0 w-full">
+        <LayoutDashboard className="w-4 h-4 text-forest-f40 shrink-0 mt-0.5" aria-hidden />
+        <div className="min-w-0 flex-1">
           <button
             type="button"
-            className="text-[11px] font-medium text-forest-f40 hover:text-forest-f50 px-2 py-1 rounded-md border border-transparent hover:border-sandstorm-s40 hover:bg-sandstorm-s5 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              onManage();
-            }}
-          >
-            Manage in portfolio
-          </button>
-          <Button
-            type="button"
-            size="sm"
-            className="text-[12px]"
+            className="text-[13px] font-semibold text-forest-f40 hover:text-forest-f50 m-0 leading-snug break-words text-left transition-colors inline-flex items-center gap-1.5 group"
+            title={d.name ?? undefined}
             onClick={(e) => {
               e.stopPropagation();
               onOpen(d.id);
             }}
           >
-            Open
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="text-[12px] inline-flex items-center gap-1"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenNewTab(d.id);
-            }}
-          >
-            <ExternalLink className="w-3.5 h-3.5 shrink-0" aria-hidden />
-            New tab
-          </Button>
+            {d.name?.trim() || `Dashboard ${d.id}`}
+            <ExternalLink className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden />
+          </button>
+          {metaLine ? (
+            <p className="text-[11px] text-forest-f30 m-0 mt-0.5 leading-snug">{metaLine}</p>
+          ) : null}
+          <div className="flex flex-wrap gap-1.5 mt-1.5">
+            {platformLabel ? (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium border border-sandstorm-s40 bg-sandstorm-s5 text-forest-f60">
+                {platformLabel}
+              </span>
+            ) : null}
+            {components.length > 0 ? (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium border border-forest-f40/20 bg-forest-f0 text-forest-f50">
+                {totalActionCount > 0
+                  ? `${totalActionCount} action${totalActionCount === 1 ? "" : "s"} across ${actionComponents.length} widget${actionComponents.length === 1 ? "" : "s"}`
+                  : `${components.length} widget${components.length === 1 ? "" : "s"} · no actions yet`}
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
 
       {strategicSummary ? (
-        <div className="mt-3 rounded-[10px] border border-sandstorm-s40 bg-sandstorm-s5 px-3.5 py-2.5 w-full min-w-0">
-          <p className="text-[9px] font-semibold text-forest-f30 uppercase tracking-wider m-0 mb-1.5">
-            Strategic context
-          </p>
-          <div className="strategic-context-md text-[11.5px] text-forest-f60/90 leading-relaxed break-words">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                p: ({ children }) => (
-                  <p className="m-0 mb-1.5 last:mb-0 leading-relaxed">{children}</p>
-                ),
-                strong: ({ children }) => (
-                  <strong className="font-semibold text-forest-f60">{children}</strong>
-                ),
-                em: ({ children }) => <em className="italic">{children}</em>,
-                ul: ({ children }) => (
-                  <ul className="m-0 mb-1.5 pl-4 list-disc last:mb-0 space-y-0.5 [&_li::marker]:text-forest-f30/50">{children}</ul>
-                ),
-                ol: ({ children }) => (
-                  <ol className="m-0 mb-1.5 pl-4 list-decimal last:mb-0 space-y-0.5 [&_li::marker]:text-forest-f30/50">{children}</ol>
-                ),
-                li: ({ children }) => (
-                  <li className="m-0 pl-0.5 leading-relaxed">{children}</li>
-                ),
-                h1: ({ children }) => (
-                  <p className="m-0 mb-1 text-[12px] font-semibold text-forest-f60">{children}</p>
-                ),
-                h2: ({ children }) => (
-                  <p className="m-0 mb-1 text-[12px] font-semibold text-forest-f60">{children}</p>
-                ),
-                h3: ({ children }) => (
-                  <p className="m-0 mb-1 text-[11.5px] font-semibold text-forest-f60">{children}</p>
-                ),
-                a: ({ href, children }) => (
-                  <a href={href} target="_blank" rel="noopener noreferrer" className="text-forest-f40 underline decoration-forest-f40/30 hover:decoration-forest-f40/60 transition-colors">{children}</a>
-                ),
-                code: ({ children }) => (
-                  <code className="px-1 py-0.5 rounded bg-sandstorm-s20/60 text-[10.5px] font-mono text-forest-f50">{children}</code>
-                ),
-                blockquote: ({ children }) => (
-                  <blockquote className="m-0 mb-1.5 pl-2.5 border-l-2 border-forest-f40/20 text-forest-f30 italic last:mb-0">{children}</blockquote>
-                ),
-              }}
-            >
-              {strategicSummary}
-            </ReactMarkdown>
-          </div>
-        </div>
+        <StrategicContextCard content={strategicSummary} />
       ) : null}
 
       {desc ? (
@@ -981,8 +899,6 @@ function PortfolioExpandDashboards({
   const listLoading = dashLoading || (needLatestDetail && latestDetailLoading);
 
   const openDash = (id: number) => navigate(openDashboardPath(accountId, id));
-  const openDashTab = (id: number) =>
-    window.open(openDashboardPath(accountId, id), "_blank", "noopener,noreferrer");
 
   const countLabel =
     dashboards.length > 0
@@ -996,8 +912,6 @@ function PortfolioExpandDashboards({
       key={d.id}
       d={d}
       onOpen={openDash}
-      onOpenNewTab={openDashTab}
-      onManage={() => navigate(manageHref)}
     />
   );
 
@@ -1032,35 +946,17 @@ function PortfolioExpandDashboards({
         <div className="space-y-3 w-full">{renderSummary(latestDetail)}</div>
       ) : needLatestDetail && !latestDetail && !latestDetailLoading ? (
         <div className="w-full rounded-xl border border-sandstorm-s40 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(7,41,41,0.04)]">
-          <p className="text-[12px] font-medium text-forest-f60 m-0">Dashboard #{latestDashboardId}</p>
+          <button
+            type="button"
+            className="text-[12px] font-medium text-forest-f40 hover:text-forest-f50 m-0 text-left transition-colors inline-flex items-center gap-1.5 group"
+            onClick={() => openDash(latestDashboardId!)}
+          >
+            Dashboard #{latestDashboardId}
+            <ExternalLink className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden />
+          </button>
           <p className="text-[11px] text-forest-f30 m-0 mt-1">
-            Full details could not be loaded. Open to view widgets and actions.
+            Full details could not be loaded. Click the name above to open.
           </p>
-          <div className="flex flex-wrap gap-2 mt-3">
-            <Button type="button" size="sm" className="text-[12px]" onClick={() => openDash(latestDashboardId!)}>
-              Open
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="text-[12px] inline-flex items-center gap-1"
-              onClick={() => openDashTab(latestDashboardId!)}
-            >
-              <ExternalLink className="w-3.5 h-3.5 shrink-0" aria-hidden />
-              New tab
-            </Button>
-            <button
-              type="button"
-              className="text-[11px] font-medium text-forest-f40 hover:text-forest-f50 px-2 py-1 rounded-md border border-transparent hover:border-sandstorm-s40"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(manageHref);
-              }}
-            >
-              Manage in portfolio
-            </button>
-          </div>
         </div>
       ) : (dashboardCount ?? 0) > 0 ? (
         <div className="w-full rounded-xl border border-sandstorm-s40 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(7,41,41,0.04)]">
@@ -1523,8 +1419,10 @@ export const PortfolioList: React.FC = () => {
                           />
                           {expandedRowId === p.id ? (
                             <tr className="border-t border-forest-f40/20 bg-sandstorm-s20">
-                              <td colSpan={16} className="p-0 align-top min-w-0 w-full">
-                                <PortfolioExpandPanel portfolio={p} />
+                              <td colSpan={16} className="p-0 align-top sticky left-0">
+                                <div style={{ width: `calc(100vw - ${sidebarWidth}px - 3.5rem)` }}>
+                                  <PortfolioExpandPanel portfolio={p} />
+                                </div>
                               </td>
                             </tr>
                           ) : null}
@@ -1885,3 +1783,69 @@ const PortfolioRow: React.FC<PortfolioRowProps> = ({
     </tr>
   );
 };
+
+// ── Strategic Context Card ────────────────────────────────────────────────
+
+const StrategicContextCard: React.FC<{ content: string }> = ({ content }) => (
+  <div
+    className={cn(
+      "mt-3 rounded-[10px] w-full min-w-0",
+      "border border-sandstorm-s40/70 border-l-[3px] border-l-forest-f40/30",
+      "bg-gradient-to-br from-[#f6f9f8] to-sandstorm-s5",
+      "shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
+      "px-3.5 pt-2.5 pb-2.5",
+    )}
+  >
+    <div className="flex items-center gap-1.5 mb-2">
+      <div className="flex items-center justify-center w-4 h-4 rounded bg-forest-f40/[0.08]">
+        <Sparkles className="w-2.5 h-2.5 text-forest-f40/70" />
+      </div>
+      <span className="text-[9px] font-bold text-forest-f30/70 uppercase tracking-[0.08em]">
+        Strategic context
+      </span>
+    </div>
+    <div className="text-[11.5px] text-forest-f50 leading-[1.75] break-words [&>*:last-child]:mb-0">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          p: ({ children }) => (
+            <p className="m-0 mb-2 last:mb-0">{children}</p>
+          ),
+          strong: ({ children }) => (
+            <strong className="font-semibold text-forest-f60">{children}</strong>
+          ),
+          em: ({ children }) => <em className="italic">{children}</em>,
+          ul: ({ children }) => (
+            <ul className="m-0 mb-2 pl-4 list-disc last:mb-0 space-y-0.5 [&_li::marker]:text-forest-f30/40">{children}</ul>
+          ),
+          ol: ({ children }) => (
+            <ol className="m-0 mb-2 pl-4 list-decimal last:mb-0 space-y-0.5 [&_li::marker]:text-forest-f30/40 [&_li::marker]:text-[11px]">{children}</ol>
+          ),
+          li: ({ children }) => (
+            <li className="m-0 pl-0.5">{children}</li>
+          ),
+          h1: ({ children }) => (
+            <p className="m-0 mb-1.5 text-[12px] font-semibold text-forest-f60">{children}</p>
+          ),
+          h2: ({ children }) => (
+            <p className="m-0 mb-1.5 text-[12px] font-semibold text-forest-f60">{children}</p>
+          ),
+          h3: ({ children }) => (
+            <p className="m-0 mb-1 text-[11.5px] font-semibold text-forest-f60">{children}</p>
+          ),
+          a: ({ href, children }) => (
+            <a href={href} target="_blank" rel="noopener noreferrer" className="text-forest-f40 underline decoration-forest-f40/30 hover:decoration-forest-f40/60 transition-colors">{children}</a>
+          ),
+          code: ({ children }) => (
+            <code className="px-1 py-px rounded bg-forest-f40/[0.06] text-[10.5px] font-mono text-forest-f50">{children}</code>
+          ),
+          blockquote: ({ children }) => (
+            <blockquote className="m-0 mb-2 pl-2.5 border-l-2 border-forest-f40/15 text-forest-f30 italic last:mb-0">{children}</blockquote>
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  </div>
+);

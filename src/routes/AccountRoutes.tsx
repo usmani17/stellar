@@ -288,20 +288,20 @@ function AccountRoutes() {
                 }
             />
             <Route
-                path="/brands/:accountId/users"
+                path="/users"
                 element={
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
-                            <AccountRequiredRoute>
-                                <BrandAccessRoute>
-                                    <Layout>
-                                        <AccountUsers />
-                                    </Layout>
-                                </BrandAccessRoute>
-                            </AccountRequiredRoute>
+                            <Layout>
+                                <AccountUsers />
+                            </Layout>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
+            />
+            <Route
+                path="/brands/:accountId/users"
+                element={<Navigate to="/users" replace />}
             />
             <Route
                 path="/brands/:accountId/dashboards/:dashboardId"
