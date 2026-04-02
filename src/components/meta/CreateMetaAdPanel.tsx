@@ -68,7 +68,7 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
 
     setProfilesLoading(true);
     accountsService
-      .fetchMetaProfiles(channelId)
+      .fetchMetaProfiles(channelId, { dbOnly: true })
       .then((res) => {
         if (cancelled) return;
         const list = (res.profiles || []) as Array<{

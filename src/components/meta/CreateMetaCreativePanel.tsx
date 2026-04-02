@@ -203,7 +203,7 @@ export const CreateMetaCreativePanel: React.FC<
 
     setProfilesLoading(true);
     accountsService
-      .fetchMetaProfiles(channelId)
+      .fetchMetaProfiles(channelId, { dbOnly: true })
       .then((res) => {
         if (cancelled) return;
         const list = (res.profiles || []) as Array<{

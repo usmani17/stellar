@@ -76,7 +76,7 @@ export const CreateCustomAudiencePanel: React.FC<CreateCustomAudiencePanelProps>
   const loadProfiles = useCallback(() => {
     setProfilesLoading(true);
     accountsService
-      .fetchMetaProfiles(channelId)
+      .fetchMetaProfiles(channelId, { dbOnly: true })
       .then((res) => {
         const list = (res.profiles || []) as Array<{ id?: number; name?: string; account_id?: string }>;
         setProfiles(list.filter((p) => p.id != null) as MetaProfileOption[]);

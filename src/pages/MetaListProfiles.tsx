@@ -77,17 +77,27 @@ export const MetaListProfiles: React.FC = () => {
       setLoading(true);
       setError(null);
 
+      // Backend always calls Meta Graph /me/adaccounts and merges DB is_selected (Google-style).
       const response = await accountsService.fetchMetaProfiles(
-        parseInt(channelId)
+        parseInt(channelId),
+        { debugMeta: import.meta.env.DEV }
       );
+
+      if (import.meta.env.DEV) {
+        console.log("[MetaListProfiles] API response:", response);
+      }
 
       const metaProfiles = Array.isArray(response)
         ? response
         : response.profiles || [];
-      const excluded = response.excluded_profiles || [];
+      const excluded = Array.isArray(response)
+        ? []
+        : response.excluded_profiles || [];
 
       if (metaProfiles.length === 0 && excluded.length === 0) {
-        setError("No profiles found from Meta API");
+        setError(
+          "No Meta ad accounts returned for this connection. Check the Meta channel token and permissions."
+        );
         setProfiles([]);
         setSelectedProfileIds(new Set());
         setExcludedProfiles([]);
@@ -110,12 +120,21 @@ export const MetaListProfiles: React.FC = () => {
       setProfiles(metaProfiles);
       setSelectedProfileIds(selectedIds);
     } catch (err: any) {
+      const status = err.response?.status;
+      const data = err.response?.data;
+      console.error("[MetaListProfiles] fetchMetaProfiles failed:", {
+        status,
+        data,
+        message: err.message,
+        full: err,
+      });
       setError(
         err.response?.data?.error ||
           err.response?.data?.message ||
+          err.response?.data?.detail ||
+          (typeof data === "string" ? data : null) ||
           "Failed to fetch profiles from Meta. Please try again."
       );
-      console.error("Failed to load Meta profiles:", err);
       setProfiles([]);
       setSelectedProfileIds(new Set());
     } finally {
