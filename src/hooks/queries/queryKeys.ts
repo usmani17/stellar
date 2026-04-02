@@ -159,5 +159,7 @@ export const queryKeys = {
       [...queryKeys.portfolios.all, "expand", accountId, portfolioId] as const,
     tracking: (portfolioId: number, page?: number) =>
       [...queryKeys.portfolios.all, "tracking", portfolioId, page ?? 1] as const,
+    liveMetrics: (ids: number[]) =>
+      [...queryKeys.portfolios.all, "live-metrics", ids.sort((a, b) => a - b).join(",")] as const,
   },
 };

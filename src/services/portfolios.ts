@@ -302,4 +302,14 @@ export const portfoliosService = {
     );
     return data;
   },
+
+  getLiveMetrics: async (
+    ids: number[],
+  ): Promise<Record<string, PortfolioLatestTracking>> => {
+    const { data } = await api.get<Record<string, PortfolioLatestTracking>>(
+      "/assistant/portfolios/live-metrics/",
+      { params: { ids: ids.join(",") } },
+    );
+    return data;
+  },
 };

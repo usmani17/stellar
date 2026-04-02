@@ -30,7 +30,7 @@ import {
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { useAssistant } from "../../contexts/AssistantContext";
-import { usePortfolios, usePortfolioSummary } from "../../hooks/queries/usePortfolios";
+import { usePortfolios, usePortfolioSummary, usePortfolioLiveMetrics } from "../../hooks/queries/usePortfolios";
 import { useDeletePortfolio } from "../../hooks/mutations/usePortfolioMutations";
 import { useDebouncedSearch } from "../../hooks/useDebouncedSearch";
 import { Sidebar } from "../../components/layout/Sidebar";
@@ -112,7 +112,7 @@ function formatCurrency(val: number | null | undefined): string {
 
 function formatNumber(val: number | null | undefined): string {
   if (val == null) return "—";
-  return val.toLocaleString();
+  return val.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
 function formatPacing(val: number | null | undefined): string {
@@ -141,18 +141,18 @@ function formatTargetKpiLabel(
   return formatKpiValue(targetType, targetValue);
 }
 
-/** Subtitle under target value, e.g. "(CPA - Conversions)" or "(CPC)". */
+/** Subtitle under target value, e.g. "(CPA - BP | Website Form Fill)" or "(CPC)". */
 function formatTargetKpiSubtitle(
   targetType: string | null | undefined,
   metricType: string | null | undefined,
-  trackingKpiName: string | null | undefined,
+  _trackingKpiName: string | null | undefined,
   primaryConversionMetricName: string | null | undefined,
 ): string | null {
   if (!targetType?.trim()) return null;
   const tt = targetType.trim().toUpperCase();
-  const name = (trackingKpiName || primaryConversionMetricName || "").trim();
-  if (metricType === "conversion" && name) {
-    return `${tt} - ${name}`;
+  const convName = primaryConversionMetricName?.trim();
+  if (metricType === "conversion" && convName) {
+    return `${tt} - ${convName}`;
   }
   return tt;
 }
@@ -184,6 +184,12 @@ function healthBadgeClasses(health: string | null | undefined): string {
 
 function EmptyValue() {
   return <span className="text-forest-f20 tabular-nums">—</span>;
+}
+
+function MetricSkeleton() {
+  return (
+    <span className="inline-block h-3.5 w-14 rounded bg-sandstorm-s20 animate-pulse" />
+  );
 }
 
 /** Normalize API guardrails (object, JSON string, or missing). */
@@ -1174,11 +1180,24 @@ export const PortfolioList: React.FC = () => {
     refetch,
   } = usePortfolios(currentPage, PAGE_SIZE, searchQuery, accountId);
 
+  const needsLiveIds = useMemo(
+    () => portfolios.filter((p) => !p.latestTracking).map((p) => p.id),
+    [portfolios],
+  );
+
+  const { data: liveMetrics, isLoading: liveMetricsLoading } =
+    usePortfolioLiveMetrics(needsLiveIds, { enabled: needsLiveIds.length > 0 });
+
   const { data: summary } = usePortfolioSummary(accountId);
   const deleteMutation = useDeletePortfolio();
 
   const sortedPortfolios = useMemo(() => {
-    const list = [...portfolios];
+    const list = portfolios.map((p) => {
+      if (p.latestTracking) return p;
+      const live = liveMetrics?.[String(p.id)];
+      if (live) return { ...p, latestTracking: live };
+      return p;
+    });
     const mul = sort.dir === "asc" ? 1 : -1;
     list.sort((a, b) => {
       const ta = a.latestTracking;
@@ -1204,7 +1223,7 @@ export const PortfolioList: React.FC = () => {
       }
     });
     return list;
-  }, [portfolios, sort]);
+  }, [portfolios, sort, liveMetrics]);
 
   const toggleSort = (key: SortKey) => {
     setSort((s) =>
@@ -1441,6 +1460,9 @@ export const PortfolioList: React.FC = () => {
                         <React.Fragment key={p.id}>
                           <PortfolioRow
                             portfolio={p}
+                            metricsLoading={
+                              !p.latestTracking && liveMetricsLoading && needsLiveIds.includes(p.id)
+                            }
                             expanded={expandedRowId === p.id}
                             onToggleExpand={() =>
                               setExpandedRowId((id) => (id === p.id ? null : p.id))
@@ -1532,6 +1554,7 @@ export const PortfolioList: React.FC = () => {
 
 interface PortfolioRowProps {
   portfolio: PortfolioListItem;
+  metricsLoading?: boolean;
   expanded: boolean;
   onToggleExpand: () => void;
   onView: () => void;
@@ -1544,6 +1567,7 @@ interface PortfolioRowProps {
 
 const PortfolioRow: React.FC<PortfolioRowProps> = ({
   portfolio: p,
+  metricsLoading = false,
   expanded,
   onToggleExpand,
   onView,
@@ -1682,13 +1706,15 @@ const PortfolioRow: React.FC<PortfolioRowProps> = ({
         {p.totalBudget != null ? formatCurrency(p.totalBudget) : <EmptyValue />}
       </td>
       <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
-        {t?.targetSpendFtd != null ? formatCurrency(t.targetSpendFtd) : <EmptyValue />}
+        {metricsLoading ? <MetricSkeleton /> : t?.targetSpendFtd != null ? formatCurrency(t.targetSpendFtd) : <EmptyValue />}
       </td>
       <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
-        {t?.totalSpend != null ? formatCurrency(t.totalSpend) : <EmptyValue />}
+        {metricsLoading ? <MetricSkeleton /> : t?.totalSpend != null ? formatCurrency(t.totalSpend) : <EmptyValue />}
       </td>
       <td className="table-cell whitespace-nowrap align-middle tabular-nums">
-        {t?.pacingPercentage != null ? (
+        {metricsLoading ? (
+          <MetricSkeleton />
+        ) : t?.pacingPercentage != null ? (
           <span className={cn("text-[12px] font-medium", pacingTextClass(t.pacingPercentage))}>
             {formatPacing(t.pacingPercentage)}
           </span>
@@ -1697,10 +1723,10 @@ const PortfolioRow: React.FC<PortfolioRowProps> = ({
         )}
       </td>
       <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
-        {t?.conversions != null ? formatNumber(t.conversions) : <EmptyValue />}
+        {metricsLoading ? <MetricSkeleton /> : t?.conversions != null ? formatNumber(t.conversions) : <EmptyValue />}
       </td>
       <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
-        {t?.revenue != null ? formatCurrency(t.revenue) : <EmptyValue />}
+        {metricsLoading ? <MetricSkeleton /> : t?.revenue != null ? formatCurrency(t.revenue) : <EmptyValue />}
       </td>
       <td
         className={cn(
@@ -1728,13 +1754,15 @@ const PortfolioRow: React.FC<PortfolioRowProps> = ({
         </div>
       </td>
       <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
-        {ftdKpi !== "—" ? ftdKpi : <EmptyValue />}
+        {metricsLoading ? <MetricSkeleton /> : ftdKpi !== "—" ? ftdKpi : <EmptyValue />}
       </td>
       <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
-        {l7dKpi !== "—" ? l7dKpi : <EmptyValue />}
+        {metricsLoading ? <MetricSkeleton /> : l7dKpi !== "—" ? l7dKpi : <EmptyValue />}
       </td>
       <td className="table-cell whitespace-nowrap align-middle tabular-nums">
-        {t?.achievementPercentage != null ? (
+        {metricsLoading ? (
+          <MetricSkeleton />
+        ) : t?.achievementPercentage != null ? (
           <span
             className={cn(
               "text-[12px] font-medium",
@@ -1748,7 +1776,9 @@ const PortfolioRow: React.FC<PortfolioRowProps> = ({
         )}
       </td>
       <td className="table-cell whitespace-nowrap align-middle">
-        {health ? (
+        {metricsLoading ? (
+          <MetricSkeleton />
+        ) : health ? (
           <span
             className={cn(
               "inline-flex max-w-[10rem] whitespace-normal px-2 py-0.5 text-center text-[10px] font-medium leading-tight border",
