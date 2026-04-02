@@ -93,63 +93,6 @@ export const Dropdown = <T extends string | number = string>({
         if (!dropdownRef.current) return;
 
         const buttonRect = dropdownRef.current.getBoundingClientRect();
-        
-        // Check if dropdown is inside a table (td, th, tr, tbody, thead, tfoot, table)
-        const isInTable = (() => {
-          let element: HTMLElement | null = dropdownRef.current;
-          while (element) {
-            const tagName = element.tagName;
-            if (
-              tagName === "TD" || 
-              tagName === "TH" || 
-              tagName === "TR" || 
-              tagName === "TBODY" || 
-              tagName === "THEAD" || 
-              tagName === "TFOOT" || 
-              tagName === "TABLE"
-            ) {
-              return true;
-            }
-            // Also check for table-related classes
-            if (element.classList.contains("table-container") || 
-                element.classList.contains("table-cell")) {
-              return true;
-            }
-            element = element.parentElement;
-          }
-          return false;
-        })();
-
-        const scrollableParent = (() => {
-          let parent = dropdownRef.current?.parentElement;
-          while (parent) {
-            const style = window.getComputedStyle(parent);
-            // Check for overflow properties that could clip content
-            if (
-              style.overflow === "auto" ||
-              style.overflow === "scroll" ||
-              style.overflow === "hidden" ||
-              style.overflowY === "auto" ||
-              style.overflowY === "scroll" ||
-              style.overflowY === "hidden" ||
-              style.overflowX === "auto" ||
-              style.overflowX === "scroll" ||
-              style.overflowX === "hidden"
-            ) {
-              return parent;
-            }
-            // Check for position that creates a stacking context
-            if (style.position === "relative" || style.position === "absolute" || style.position === "fixed") {
-              // If it's a positioned element with overflow, it could clip
-              const overflow = style.overflow || style.overflowY || style.overflowX;
-              if (overflow && overflow !== "visible") {
-                return parent;
-              }
-            }
-            parent = parent.parentElement;
-          }
-          return null;
-        })();
 
         // Always use fixed positioning to ensure dropdown is not clipped
         // This ensures proper positioning relative to viewport, not parent containers
@@ -272,15 +215,16 @@ export const Dropdown = <T extends string | number = string>({
         window.removeEventListener("resize", updatePosition);
       };
     } else {
-      setMenuPosition(null);
+      const t = window.setTimeout(() => setMenuPosition(null), 0);
+      return () => window.clearTimeout(t);
     }
   }, [isOpen, align, position, options.length]);
 
-  // Open dropdown if defaultOpen is true
+  // Open dropdown if defaultOpen is true (deferred to avoid sync setState in effect)
   useEffect(() => {
-    if (defaultOpen && !disabled) {
-      setIsOpen(true);
-    }
+    if (!defaultOpen || disabled) return;
+    const t = window.setTimeout(() => setIsOpen(true), 0);
+    return () => window.clearTimeout(t);
   }, [defaultOpen, disabled]);
 
   // Filter options based on search query
@@ -449,6 +393,7 @@ export const Dropdown = <T extends string | number = string>({
     const menuContent = (
       <div
         ref={menuRef}
+        data-stellar-dropdown-menu
         className={cn(
           useFixedPosition ? "fixed" : "absolute",
           "z-[999999] bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col",

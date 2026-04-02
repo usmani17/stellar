@@ -44,8 +44,11 @@ import {
   ChevronDown,
   FileSpreadsheet,
   MessageSquare,
+  Shield,
+  Users,
 } from "lucide-react";
 import { useChatHistorySidebarOptional } from "../../contexts/ChatHistorySidebarContext";
+
 import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
 import { getActiveWorkspaceLabel } from "../../lib/workspace";
 import { getAvatarInitials, getInitialColor } from "../../lib/initials";
@@ -65,15 +68,15 @@ export const Sidebar: React.FC = () => {
     (!!user?.workspaces && user.workspaces.length > 0) || !!user?.workspace;
   const workspaceLabel = getActiveWorkspaceLabel(user);
   const activeMembershipRole = user?.workspaces?.find(
-    (w) => w.id === activeWorkspaceId
+    (w) => w.id === activeWorkspaceId,
   )?.role;
-  const hasUsersAccess =
-    (activeMembershipRole ?? user?.role) !== "team"; // Owner and Manager can see Users tab
+  const hasUsersAccess = (activeMembershipRole ?? user?.role) !== "team"; // Owner and Manager can see Users tab
   const accountId = getCurrentAccountId(location.pathname);
   const { isCollapsed, toggleSidebar, sidebarWidth } = useSidebar();
   const { accounts, getAccountById } = useAccounts();
   const accountIdNum = accountId !== null ? accountId : undefined;
-  const currentAccount = accountIdNum != null ? getAccountById(accountIdNum) : null;
+  const currentAccount =
+    accountIdNum != null ? getAccountById(accountIdNum) : null;
   const { data: channelsFromApi = [] } = useChannels(accountIdNum);
   const channels = currentAccount?.channels?.length
     ? currentAccount.channels
@@ -83,16 +86,28 @@ export const Sidebar: React.FC = () => {
   const hasMetaChannel = channels.some((c) => c.channel_type === "meta");
   const hasTikTokChannel = channels.some((c) => c.channel_type === "tiktok");
   const amazonChannelId =
-    (location.pathname.includes("/amazon/") ? getChannelIdFromUrl(location.pathname) : null) ??
+    (location.pathname.includes("/amazon/")
+      ? getChannelIdFromUrl(location.pathname)
+      : null) ??
     channels.find((c) => c.channel_type === "amazon")?.id ??
     0;
   const googleChannelId =
-    (location.pathname.includes("/google/") ? getChannelIdFromUrl(location.pathname) : null) ??
+    (location.pathname.includes("/google/")
+      ? getChannelIdFromUrl(location.pathname)
+      : null) ??
     channels.find((c) => c.channel_type === "google")?.id ??
     0;
   const metaChannelId =
-    (location.pathname.includes("/meta/") ? getChannelIdFromUrl(location.pathname) : null) ??
+    (location.pathname.includes("/meta/")
+      ? getChannelIdFromUrl(location.pathname)
+      : null) ??
     channels.find((c) => c.channel_type === "meta")?.id ??
+    0;
+  const tiktokChannelId =
+    (location.pathname.includes("/tiktok/")
+      ? getChannelIdFromUrl(location.pathname)
+      : null) ??
+    channels.find((c) => c.channel_type === "tiktok")?.id ??
     0;
 
   const workspaceList: WorkspaceMembershipSummary[] =
@@ -117,111 +132,115 @@ export const Sidebar: React.FC = () => {
     "amazon" | "google" | "tiktok" | "meta" | null
   >(null);
   const [showBrandRequiredModal, setShowBrandRequiredModal] = useState(false);
-  const [brandRequiredReturnUrl, setBrandRequiredReturnUrl] = useState<string | undefined>(undefined);
+  const [brandRequiredReturnUrl, setBrandRequiredReturnUrl] = useState<
+    string | undefined
+  >(undefined);
   const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
   const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState("");
   const workspaceDropdownRef = useRef<HTMLDivElement>(null);
 
-  const [persistedAmazonCollapsed, setPersistedAmazonCollapsed] =
+  const [isAmazonSectionCollapsed, setIsAmazonSectionCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(AMAZON_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
-  const [persistedGoogleCollapsed, setPersistedGoogleCollapsed] =
+  const [isGoogleSectionCollapsed, setIsGoogleSectionCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(GOOGLE_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
-  const [persistedMetaCollapsed, setPersistedMetaCollapsed] =
-    useState<boolean>(() => {
+  const [isMetaSectionCollapsed, setIsMetaSectionCollapsed] = useState<boolean>(
+    () => {
       const saved = localStorage.getItem(META_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
-    });
-  const [persistedTikTokCollapsed, setPersistedTikTokCollapsed] =
+    },
+  );
+  const [isTikTokSectionCollapsed, setIsTikTokSectionCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(TIKTOK_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
-  const [persistedWorkspaceCollapsed, setPersistedWorkspaceCollapsed] =
+  const [isWorkspaceSectionCollapsed, setIsWorkspaceSectionCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(WORKSPACE_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
 
-  const marketplace = getMarketplaceFromUrl(location.pathname);
-  const isBrandsArea =
-    location.pathname === "/brands" ||
-    /^\/brands\/\d+\/integrations$/.test(location.pathname) ||
-    /^\/brands\/\d+\/profiles$/.test(location.pathname) ||
-    /^\/brands\/\d+\/users$/.test(location.pathname) ||
-    /^\/brands\/\d+\/workflows(\/|$)/.test(location.pathname) ||
-    /^\/brands\/\d+\/knowledge(\/|$)/.test(location.pathname) ||
-    /^\/brands\/\d+\/google-sheets(\/|$)/.test(location.pathname) ||
-    location.pathname === "/workspace/team";
+  useEffect(() => {
+    const marketplace = getMarketplaceFromUrl(location.pathname);
+    const isBrandsArea =
+      location.pathname === "/brands" ||
+      /^\/brands\/\d+\/integrations$/.test(location.pathname) ||
+      /^\/brands\/\d+\/profiles$/.test(location.pathname) ||
+      /^\/brands\/\d+\/users$/.test(location.pathname) ||
+      /^\/brands\/\d+\/workflows(\/|$)/.test(location.pathname) ||
+      /^\/brands\/\d+\/knowledge(\/|$)/.test(location.pathname) ||
+      /^\/brands\/\d+\/google-sheets(\/|$)/.test(location.pathname) ||
+      location.pathname === "/workspace/team";
 
-  // Derive effective collapsed state from pathname (no setState in effect)
-  const isWorkspaceSectionCollapsed = isBrandsArea
-    ? false
-    : persistedWorkspaceCollapsed;
-  const isAmazonSectionCollapsed =
-    location.pathname === "/brands"
-      ? true
-      : marketplace === "amazon"
-        ? false
-        : persistedAmazonCollapsed;
-  const isGoogleSectionCollapsed =
-    location.pathname === "/brands"
-      ? true
-      : marketplace === "google"
-        ? false
-        : persistedGoogleCollapsed;
-  const isMetaSectionCollapsed =
-    location.pathname === "/brands"
-      ? true
-      : marketplace === "meta"
-        ? false
-        : persistedMetaCollapsed;
-  const isTikTokSectionCollapsed =
-    location.pathname === "/brands"
-      ? true
-      : marketplace === "tiktok"
-        ? false
-        : persistedTikTokCollapsed;
+    if (isBrandsArea) {
+      setIsWorkspaceSectionCollapsed(false);
+    }
+    // If on brands page, collapse all marketplace sections
+    if (location.pathname === "/brands") {
+      setIsAmazonSectionCollapsed(true);
+      setIsGoogleSectionCollapsed(true);
+      setIsMetaSectionCollapsed(true);
+    } else {
+      // Auto-expand the relevant marketplace section when on that page
+      if (marketplace === "amazon") {
+        setIsAmazonSectionCollapsed(false);
+      } else if (marketplace === "google") {
+        setIsGoogleSectionCollapsed(false);
+      } else if (marketplace === "meta") {
+        setIsMetaSectionCollapsed(false);
+      } else if (marketplace === "tiktok") {
+        setIsTikTokSectionCollapsed(false);
+      }
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     localStorage.setItem(
       WORKSPACE_SECTION_STORAGE_KEY,
-      String(persistedWorkspaceCollapsed),
+      String(isWorkspaceSectionCollapsed),
     );
-  }, [persistedWorkspaceCollapsed]);
+  }, [isWorkspaceSectionCollapsed]);
 
   useEffect(() => {
     localStorage.setItem(
       AMAZON_SECTION_STORAGE_KEY,
-      String(persistedAmazonCollapsed),
+      String(isAmazonSectionCollapsed),
     );
-  }, [persistedAmazonCollapsed]);
+  }, [isAmazonSectionCollapsed]);
 
   useEffect(() => {
     localStorage.setItem(
       GOOGLE_SECTION_STORAGE_KEY,
-      String(persistedGoogleCollapsed),
+      String(isGoogleSectionCollapsed),
     );
-  }, [persistedGoogleCollapsed]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      TIKTOK_SECTION_STORAGE_KEY,
-      String(persistedTikTokCollapsed),
-    );
-  }, [persistedTikTokCollapsed]);
+  }, [isGoogleSectionCollapsed]);
 
   useEffect(() => {
     localStorage.setItem(
       META_SECTION_STORAGE_KEY,
-      String(persistedMetaCollapsed),
+      String(isMetaSectionCollapsed),
     );
-  }, [persistedMetaCollapsed]);
+  }, [isMetaSectionCollapsed]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      TIKTOK_SECTION_STORAGE_KEY,
+      String(isTikTokSectionCollapsed),
+    );
+  }, [isTikTokSectionCollapsed]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      META_SECTION_STORAGE_KEY,
+      String(isMetaSectionCollapsed),
+    );
+  }, [isMetaSectionCollapsed]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -245,23 +264,23 @@ export const Sidebar: React.FC = () => {
     : workspaceList;
 
   const toggleAmazonSection = () => {
-    setPersistedAmazonCollapsed((prev) => !prev);
+    setIsAmazonSectionCollapsed((prev) => !prev);
   };
 
   const toggleGoogleSection = () => {
-    setPersistedGoogleCollapsed((prev) => !prev);
+    setIsGoogleSectionCollapsed((prev) => !prev);
   };
 
   const toggleMetaSection = () => {
-    setPersistedMetaCollapsed((prev) => !prev);
+    setIsMetaSectionCollapsed((prev) => !prev);
   };
 
   const toggleTikTokSection = () => {
-    setPersistedTikTokCollapsed((prev) => !prev);
+    setIsTikTokSectionCollapsed((prev) => !prev);
   };
 
   const toggleWorkspaceSection = () => {
-    setPersistedWorkspaceCollapsed((prev) => !prev);
+    setIsWorkspaceSectionCollapsed((prev) => !prev);
   };
 
   const chatHistorySidebar = useChatHistorySidebarOptional();
@@ -274,7 +293,10 @@ export const Sidebar: React.FC = () => {
     if (path === "/brands/profiles")
       return /^\/brands\/\d+\/profiles$/.test(location.pathname);
     if (path === "/brands/users" || path === "/workspace/team")
-      return location.pathname === "/workspace/team" || /^\/brands\/\d+\/users$/.test(location.pathname);
+      return (
+        location.pathname === "/workspace/team" ||
+        /^\/brands\/\d+\/users$/.test(location.pathname)
+      );
     if (path === "/brands/workflows")
       return /^\/brands\/\d+\/workflows(\/|$)/.test(location.pathname);
     if (path === "/brands/knowledge")
@@ -323,10 +345,18 @@ export const Sidebar: React.FC = () => {
       return location.pathname.includes("/meta/adsets");
     }
     if (path === "/meta/ads") {
-      return location.pathname.includes("/meta/ads") && !location.pathname.includes("/meta/adsets") && !location.pathname.includes("/meta/creatives");
+      return (
+        location.pathname.includes("/meta/ads") &&
+        !location.pathname.includes("/meta/adsets") &&
+        !location.pathname.includes("/meta/creatives") &&
+        !location.pathname.includes("/meta/audiences")
+      );
     }
     if (path === "/meta/creatives") {
       return location.pathname.includes("/meta/creatives");
+    }
+    if (path === "/meta/audiences") {
+      return location.pathname.includes("/meta/audiences");
     }
 
     // Generic paths for Amazon (exclude google and tiktok paths)
@@ -384,7 +414,10 @@ export const Sidebar: React.FC = () => {
       );
     }
     if (path === "/portfolios") {
-      return location.pathname === "/portfolios" || /^\/brands\/\d+\/portfolios(\/|$)/.test(location.pathname);
+      return (
+        location.pathname === "/portfolios" ||
+        /^\/brands\/\d+\/portfolios(\/|$)/.test(location.pathname)
+      );
     }
     // if (path === "/strategies") {
     //   return location.pathname === "/strategies" || location.pathname === "/strategies/new" || /^\/strategies\/\d+(\/run-history)?$/.test(location.pathname);
@@ -442,18 +475,14 @@ export const Sidebar: React.FC = () => {
 
   return (
     <div
-      className="sidebar-nav border-r border-[rgba(0,0,0,0.1)] h-screen fixed left-0 top-0 overflow-y-auto bg-[#f9f9f6] transition-all duration-300"
+      className="sidebar-nav z-40 border-r border-[rgba(0,0,0,0.1)] h-screen fixed left-0 top-0 overflow-y-auto bg-[#f9f9f6] transition-all duration-300"
       style={{ width: `${sidebarWidth}px` }}
     >
       <div className="p-4">
         {/* Logo and Toggle Button */}
         <div className="mb-2 flex items-center gap-3 justify-between">
           {!isCollapsed && (
-            <img
-              src={PrismLogo}
-              alt="Prism Logo"
-              className="h-[30px] w-auto"
-            />
+            <img src={PrismLogo} alt="Prism Logo" className="h-[30px] w-auto" />
           )}
           <button
             onClick={toggleSidebar}
@@ -486,20 +515,145 @@ export const Sidebar: React.FC = () => {
         </div>
 
         {/* Workspace switcher — matches brand dropdown (initials + panel) */}
-        {hasWorkspace && workspaceLabel && !isCollapsed && activeWorkspaceRow && (
-          <div className="mb-6 px-1 relative" ref={workspaceDropdownRef}>
-            {workspaceList.length > 1 ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const open = !isWorkspaceDropdownOpen;
-                    setIsWorkspaceDropdownOpen(open);
-                    if (!open) setWorkspaceSearchQuery("");
-                  }}
-                  className="account-dropdown-button w-full min-w-0 justify-between px-3"
-                  aria-label="Switch workspace"
-                  aria-expanded={isWorkspaceDropdownOpen}
+        {hasWorkspace &&
+          workspaceLabel &&
+          !isCollapsed &&
+          activeWorkspaceRow && (
+            <div className="mb-6 px-1 relative" ref={workspaceDropdownRef}>
+              {workspaceList.length > 1 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const open = !isWorkspaceDropdownOpen;
+                      setIsWorkspaceDropdownOpen(open);
+                      if (!open) setWorkspaceSearchQuery("");
+                    }}
+                    className="account-dropdown-button w-full min-w-0 justify-between px-3"
+                    aria-label="Switch workspace"
+                    aria-expanded={isWorkspaceDropdownOpen}
+                  >
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div
+                        className="w-6 h-6 rounded text-white text-[9px] flex items-center justify-center font-semibold shrink-0 leading-none"
+                        style={{
+                          backgroundColor: getInitialColor(
+                            getAvatarInitials(activeWorkspaceRow.name)[0] ??
+                              "?",
+                          ),
+                        }}
+                      >
+                        {getAvatarInitials(activeWorkspaceRow.name)}
+                      </div>
+                      <span className="text-[13.2px] text-[#072929] truncate min-w-0 text-left">
+                        {activeWorkspaceRow.name}
+                      </span>
+                    </div>
+                    <ChevronDown
+                      className={`w-4 h-4 text-[#072929] shrink-0 transition-transform ${
+                        isWorkspaceDropdownOpen ? "rotate-180" : ""
+                      }`}
+                      aria-hidden
+                    />
+                  </button>
+
+                  {isWorkspaceDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-[#FEFEFB] border border-[#e8e8e3] rounded-[10px] shadow-lg overflow-hidden">
+                      <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#e8e8e3]">
+                        <h3 className="text-[13.2px] font-semibold text-[#072929]">
+                          Switch workspace
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsWorkspaceDropdownOpen(false);
+                            setWorkspaceSearchQuery("");
+                          }}
+                          className="w-5 h-5 flex items-center justify-center text-[#556179] hover:text-[#072929] transition-colors"
+                          aria-label="Close"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="px-3 py-2 border-b border-[#e8e8e3]">
+                        <input
+                          type="text"
+                          placeholder="Search workspaces..."
+                          value={workspaceSearchQuery}
+                          onChange={(e) =>
+                            setWorkspaceSearchQuery(e.target.value)
+                          }
+                          className="w-full px-3 py-2 text-[12.32px] bg-white border border-[#e8e8e3] rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-f60/20 focus:border-forest-f60"
+                        />
+                      </div>
+                      <div className="max-h-[280px] overflow-y-auto">
+                        <ul>
+                          {filteredWorkspaces.length === 0 &&
+                          workspaceSearchQuery ? (
+                            <li className="px-3 py-4 text-center text-[12.32px] text-[#556179]">
+                              No workspaces match &quot;{workspaceSearchQuery}
+                              &quot;
+                            </li>
+                          ) : (
+                            filteredWorkspaces.map((w) => {
+                              const ini = getAvatarInitials(w.name);
+                              return (
+                                <li key={w.id}>
+                                  <button
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => {
+                                      clearAccountIdFromStorage();
+                                      setActiveWorkspaceId(w.id);
+                                      navigate("/brands", { replace: true });
+                                      setIsWorkspaceDropdownOpen(false);
+                                      setWorkspaceSearchQuery("");
+                                    }}
+                                    className={`w-full flex items-center gap-2 px-3 py-2 text-[12.32px] text-left hover:bg-gray-50 transition-colors ${
+                                      w.id === activeWorkspaceId
+                                        ? "bg-gray-50"
+                                        : ""
+                                    }`}
+                                  >
+                                    <div
+                                      className="w-6 h-6 rounded text-white text-[9px] flex items-center justify-center font-semibold shrink-0 leading-none"
+                                      style={{
+                                        backgroundColor: getInitialColor(
+                                          ini[0] ?? "?",
+                                        ),
+                                      }}
+                                    >
+                                      {ini}
+                                    </div>
+                                    <span className="flex-1 text-left truncate text-[#072929]">
+                                      {w.name}
+                                    </span>
+                                  </button>
+                                </li>
+                              );
+                            })
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div
+                  className="account-dropdown-button w-full min-w-0 cursor-default px-3"
+                  title={activeWorkspaceRow.name}
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <div
@@ -512,127 +666,14 @@ export const Sidebar: React.FC = () => {
                     >
                       {getAvatarInitials(activeWorkspaceRow.name)}
                     </div>
-                    <span className="text-[13.2px] text-[#072929] truncate min-w-0 text-left">
+                    <span className="text-[13.2px] text-[#072929] truncate min-w-0">
                       {activeWorkspaceRow.name}
                     </span>
                   </div>
-                  <ChevronDown
-                    className={`w-4 h-4 text-[#072929] shrink-0 transition-transform ${
-                      isWorkspaceDropdownOpen ? "rotate-180" : ""
-                    }`}
-                    aria-hidden
-                  />
-                </button>
-
-                {isWorkspaceDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-[#FEFEFB] border border-[#e8e8e3] rounded-[10px] shadow-lg overflow-hidden">
-                    <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#e8e8e3]">
-                      <h3 className="text-[13.2px] font-semibold text-[#072929]">
-                        Switch workspace
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsWorkspaceDropdownOpen(false);
-                          setWorkspaceSearchQuery("");
-                        }}
-                        className="w-5 h-5 flex items-center justify-center text-[#556179] hover:text-[#072929] transition-colors"
-                        aria-label="Close"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                    <div className="px-3 py-2 border-b border-[#e8e8e3]">
-                      <input
-                        type="text"
-                        placeholder="Search workspaces..."
-                        value={workspaceSearchQuery}
-                        onChange={(e) => setWorkspaceSearchQuery(e.target.value)}
-                        className="w-full px-3 py-2 text-[12.32px] bg-white border border-[#e8e8e3] rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-f60/20 focus:border-forest-f60"
-                      />
-                    </div>
-                    <div className="max-h-[280px] overflow-y-auto">
-                      <ul>
-                        {filteredWorkspaces.length === 0 && workspaceSearchQuery ? (
-                          <li className="px-3 py-4 text-center text-[12.32px] text-[#556179]">
-                            No workspaces match &quot;{workspaceSearchQuery}&quot;
-                          </li>
-                        ) : (
-                          filteredWorkspaces.map((w) => {
-                            const ini = getAvatarInitials(w.name);
-                            return (
-                              <li key={w.id}>
-                                <button
-                                  type="button"
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  onClick={() => {
-                                    clearAccountIdFromStorage();
-                                    setActiveWorkspaceId(w.id);
-                                    navigate("/brands", { replace: true });
-                                    setIsWorkspaceDropdownOpen(false);
-                                    setWorkspaceSearchQuery("");
-                                  }}
-                                  className={`w-full flex items-center gap-2 px-3 py-2 text-[12.32px] text-left hover:bg-gray-50 transition-colors ${
-                                    w.id === activeWorkspaceId ? "bg-gray-50" : ""
-                                  }`}
-                                >
-                                  <div
-                                    className="w-6 h-6 rounded text-white text-[9px] flex items-center justify-center font-semibold shrink-0 leading-none"
-                                    style={{
-                                      backgroundColor: getInitialColor(ini[0] ?? "?"),
-                                    }}
-                                  >
-                                    {ini}
-                                  </div>
-                                  <span className="flex-1 text-left truncate text-[#072929]">
-                                    {w.name}
-                                  </span>
-                                </button>
-                              </li>
-                            );
-                          })
-                        )}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div
-                className="account-dropdown-button w-full min-w-0 cursor-default px-3"
-                title={activeWorkspaceRow.name}
-              >
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <div
-                    className="w-6 h-6 rounded text-white text-[9px] flex items-center justify-center font-semibold shrink-0 leading-none"
-                    style={{
-                      backgroundColor: getInitialColor(
-                        getAvatarInitials(activeWorkspaceRow.name)[0] ?? "?",
-                      ),
-                    }}
-                  >
-                    {getAvatarInitials(activeWorkspaceRow.name)}
-                  </div>
-                  <span className="text-[13.2px] text-[#072929] truncate min-w-0">
-                    {activeWorkspaceRow.name}
-                  </span>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )}
 
         {/* Home / Chat - first nav item; hover expands chat history sidebar on /chat */}
         <div className="mb-6">
@@ -661,322 +702,660 @@ export const Sidebar: React.FC = () => {
 
         {/* Workspace Section - sub-nav: Brands, Integrations, Profiles, Users (hidden when no workspace) */}
         {hasWorkspace && (
-        <div className="mb-6">
-          {!isCollapsed ? (
-            <>
-              <div className="mb-3 flex items-center justify-between gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-                <div className="flex items-center gap-2 min-w-0" onClick={toggleWorkspaceSection}>
-                  <img src={WorkspaceIcon} alt="" className="w-5 h-5 shrink-0" />
-                  <h2
-                    className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide truncate"
+          <div className="mb-6">
+            {!isCollapsed ? (
+              <>
+                <div className="mb-3 flex items-center justify-between gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
+                  <div
+                    className="flex items-center gap-2 min-w-0"
+                    onClick={toggleWorkspaceSection}
                   >
-                    Workspace
-                  </h2>
+                    <img
+                      src={WorkspaceIcon}
+                      alt=""
+                      className="w-5 h-5 shrink-0"
+                    />
+                    <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide truncate">
+                      Workspace
+                    </h2>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleWorkspaceSection();
+                    }}
+                    className="p-1 rounded hover:bg-gray-100 transition-colors shrink-0"
+                    aria-label={
+                      isWorkspaceSectionCollapsed
+                        ? "Expand Workspace section"
+                        : "Collapse Workspace section"
+                    }
+                  >
+                    <svg
+                      className={`w-4 h-4 text-gray-600 transition-transform ${
+                        isWorkspaceSectionCollapsed
+                          ? "rotate-[-90deg]"
+                          : "rotate-0"
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleWorkspaceSection();
-                  }}
-                  className="p-1 rounded hover:bg-gray-100 transition-colors shrink-0"
-                  aria-label={
-                    isWorkspaceSectionCollapsed
-                      ? "Expand Workspace section"
-                      : "Collapse Workspace section"
-                  }
-                >
-                  <svg
-                    className={`w-4 h-4 text-gray-600 transition-transform ${
-                      isWorkspaceSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
-                    }`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
-              </div>
-              {!isWorkspaceSectionCollapsed && (
-                <div className="space-y-1 ml-[15px]">
-                  <Link
-                    to="/brands"
-                    className={`flex items-center p-2 rounded-xl gap-2 ${
-                      isActive("/brands")
-                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                    }`}
-                    title="Brands"
-                  >
-                    <img
-                      src={isActive("/brands") ? BrandsActiveIcon : BrandsIcon}
-                      alt=""
-                      className="w-5 h-5 shrink-0"
-                    />
-                    <span className="text-[12.32px] font-normal leading-[16px]">
-                      Brands
-                    </span>
-                  </Link>
-                  <Link
-                    to={
-                      accountId
-                        ? buildAccountRoute(accountId, "integrations")
-                        : "/brands"
-                    }
-                    onClick={(e) =>
-                      handleAccountRequiredClick(e, () =>
-                        accountId
-                          ? buildAccountRoute(accountId, "integrations")
-                          : "/brands",
-                      )
-                    }
-                    className={`flex items-center p-2 rounded-xl gap-2 ${
-                      isActive("/brands/integrations")
-                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                    }`}
-                    title="Integrations"
-                  >
-                    <img
-                      src={isActive("/brands/integrations") ? IntegrationsActiveIcon : IntegrationsIcon}
-                      alt=""
-                      className="w-5 h-5 shrink-0"
-                    />
-                    <span className="text-[12.32px] font-normal leading-[16px]">
-                      Integrations
-                    </span>
-                  </Link>
-                  <Link
-                    to={
-                      accountId
-                        ? buildAccountRoute(accountId, "profiles")
-                        : "/brands"
-                    }
-                    onClick={(e) =>
-                      handleAccountRequiredClick(e, () =>
-                        accountId
-                          ? buildAccountRoute(accountId, "profiles")
-                          : "/brands",
-                      )
-                    }
-                    className={`flex items-center p-2 rounded-xl gap-2 ${
-                      isActive("/brands/profiles")
-                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                    }`}
-                    title="Profiles"
-                  >
-                    <img
-                      src={isActive("/brands/profiles") ? ProfilesActiveIcon : ProfilesIcon}
-                      alt=""
-                      className="w-5 h-5 shrink-0"
-                    />
-                    <span className="text-[12.32px] font-normal leading-[16px]">
-                      Profiles
-                    </span>
-                  </Link>
-                  {hasUsersAccess && (
+                {!isWorkspaceSectionCollapsed && (
+                  <div className="space-y-1 ml-[15px]">
                     <Link
-                      to={
-                        accountId
-                          ? buildAccountRoute(accountId, "users")
-                          : accounts.length > 0
-                            ? buildAccountRoute(accounts[0].id, "users")
-                            : "/workspace/team"
-                      }
+                      to="/brands"
                       className={`flex items-center p-2 rounded-xl gap-2 ${
-                        isActive("/workspace/team") || isActive("/brands/" + (accountId ?? "") + "/users")
+                        isActive("/brands")
                           ? "w-full bg-forest-f60 !text-white hover:!text-white"
                           : "text-black hover:bg-transparent hover:text-[#136D6D]"
                       }`}
-                      title="Users"
+                      title="Brands"
                     >
                       <img
-                        src={isActive("/workspace/team") || isActive("/brands/" + (accountId ?? "") + "/users") ? UsersActiveIcon : UsersIcon}
+                        src={
+                          isActive("/brands") ? BrandsActiveIcon : BrandsIcon
+                        }
                         alt=""
                         className="w-5 h-5 shrink-0"
                       />
                       <span className="text-[12.32px] font-normal leading-[16px]">
-                        Users
+                        Brands
                       </span>
                     </Link>
-                  )}
-                  <Link
-                    to="/portfolios"
-                    className={`flex items-center p-2 rounded-xl gap-2 ${
-                      isActive("/portfolios")
-                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                    }`}
-                    title="Portfolios"
-                  >
-                    <Briefcase
-                      className={`w-5 h-5 shrink-0 ${
-                        isActive("/portfolios") ? "text-white" : "text-forest-f30"
+                    <Link
+                      to={
+                        accountId
+                          ? buildAccountRoute(accountId, "integrations")
+                          : "/brands"
+                      }
+                      onClick={(e) =>
+                        handleAccountRequiredClick(e, () =>
+                          accountId
+                            ? buildAccountRoute(accountId, "integrations")
+                            : "/brands",
+                        )
+                      }
+                      className={`flex items-center p-2 rounded-xl gap-2 ${
+                        isActive("/brands/integrations")
+                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
                       }`}
-                    />
-                    <span className="text-[12.32px] font-normal leading-[16px]">
-                      Portfolios
-                    </span>
-                  </Link>
-                  <Link
-                    to={
-                      accountId
-                        ? buildAccountRoute(accountId, "workflows")
-                        : "/brands"
-                    }
-                    onClick={(e) =>
-                      handleAccountRequiredClick(e, () =>
+                      title="Integrations"
+                    >
+                      <img
+                        src={
+                          isActive("/brands/integrations")
+                            ? IntegrationsActiveIcon
+                            : IntegrationsIcon
+                        }
+                        alt=""
+                        className="w-5 h-5 shrink-0"
+                      />
+                      <span className="text-[12.32px] font-normal leading-[16px]">
+                        Integrations
+                      </span>
+                    </Link>
+                    <Link
+                      to={
+                        accountId
+                          ? buildAccountRoute(accountId, "profiles")
+                          : "/brands"
+                      }
+                      onClick={(e) =>
+                        handleAccountRequiredClick(e, () =>
+                          accountId
+                            ? buildAccountRoute(accountId, "profiles")
+                            : "/brands",
+                        )
+                      }
+                      className={`flex items-center p-2 rounded-xl gap-2 ${
+                        isActive("/brands/profiles")
+                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                      }`}
+                      title="Profiles"
+                    >
+                      <img
+                        src={
+                          isActive("/brands/profiles")
+                            ? ProfilesActiveIcon
+                            : ProfilesIcon
+                        }
+                        alt=""
+                        className="w-5 h-5 shrink-0"
+                      />
+                      <span className="text-[12.32px] font-normal leading-[16px]">
+                        Profiles
+                      </span>
+                    </Link>
+                    {hasUsersAccess && (
+                      <Link
+                        to={
+                          accountId
+                            ? buildAccountRoute(accountId, "users")
+                            : accounts.length > 0
+                              ? buildAccountRoute(accounts[0].id, "users")
+                              : "/workspace/team"
+                        }
+                        className={`flex items-center p-2 rounded-xl gap-2 ${
+                          isActive("/workspace/team") ||
+                          isActive("/brands/" + (accountId ?? "") + "/users")
+                            ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                            : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                        }`}
+                        title="Users"
+                      >
+                        <img
+                          src={
+                            isActive("/workspace/team") ||
+                            isActive("/brands/" + (accountId ?? "") + "/users")
+                              ? UsersActiveIcon
+                              : UsersIcon
+                          }
+                          alt=""
+                          className="w-5 h-5 shrink-0"
+                        />
+                        <span className="text-[12.32px] font-normal leading-[16px]">
+                          Users
+                        </span>
+                      </Link>
+                    )}
+                    <Link
+                      to="/portfolios"
+                      className={`flex items-center p-2 rounded-xl gap-2 ${
+                        isActive("/portfolios")
+                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                      }`}
+                      title="Portfolios"
+                    >
+                      <Briefcase
+                        className={`w-5 h-5 shrink-0 ${
+                          isActive("/portfolios")
+                            ? "text-white"
+                            : "text-forest-f30"
+                        }`}
+                      />
+                      <span className="text-[12.32px] font-normal leading-[16px]">
+                        Portfolios
+                      </span>
+                    </Link>
+                    <Link
+                      to={
                         accountId
                           ? buildAccountRoute(accountId, "workflows")
-                          : "/brands",
-                      )
-                    }
-                    className={`flex items-center p-2 rounded-xl gap-2 ${
-                      isActive("/brands/workflows")
-                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                    }`}
-                    title="Workflows"
-                  >
-                    <CalendarClock
-                      className={`w-5 h-5 shrink-0 ${
-                        isActive("/brands/workflows") ? "text-white" : "text-forest-f30"
+                          : "/brands"
+                      }
+                      onClick={(e) =>
+                        handleAccountRequiredClick(e, () =>
+                          accountId
+                            ? buildAccountRoute(accountId, "workflows")
+                            : "/brands",
+                        )
+                      }
+                      className={`flex items-center p-2 rounded-xl gap-2 ${
+                        isActive("/brands/workflows")
+                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
                       }`}
-                    />
-                    <span className="text-[12.32px] font-normal leading-[16px]">
-                      Workflows
-                    </span>
-                  </Link>
-                  <Link
-                    to={
-                      accountId
-                        ? buildAccountRoute(accountId, "google-sheets/integrations")
-                        : "/brands"
-                    }
-                    onClick={(e) =>
-                      handleAccountRequiredClick(e, () =>
+                      title="Workflows"
+                    >
+                      <CalendarClock
+                        className={`w-5 h-5 shrink-0 ${
+                          isActive("/brands/workflows")
+                            ? "text-white"
+                            : "text-forest-f30"
+                        }`}
+                      />
+                      <span className="text-[12.32px] font-normal leading-[16px]">
+                        Workflows
+                      </span>
+                    </Link>
+                    <Link
+                      to={
                         accountId
-                          ? buildAccountRoute(accountId, "google-sheets/integrations")
-                          : "/brands",
-                      )
-                    }
-                    className={`flex items-center p-2 rounded-xl gap-2 ${
-                      isActive("/brands/google-sheets")
-                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                    }`}
-                    title="Google Sheets"
-                  >
-                    <FileSpreadsheet
-                      className={`w-5 h-5 shrink-0 ${
-                        isActive("/brands/google-sheets") ? "text-white" : "text-forest-f30"
+                          ? buildAccountRoute(
+                              accountId,
+                              "google-sheets/integrations",
+                            )
+                          : "/brands"
+                      }
+                      onClick={(e) =>
+                        handleAccountRequiredClick(e, () =>
+                          accountId
+                            ? buildAccountRoute(
+                                accountId,
+                                "google-sheets/integrations",
+                              )
+                            : "/brands",
+                        )
+                      }
+                      className={`flex items-center p-2 rounded-xl gap-2 ${
+                        isActive("/brands/google-sheets")
+                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
                       }`}
-                    />
-                    <span className="text-[12.32px] font-normal leading-[16px]">
-                      Google Sheets
-                    </span>
-                  </Link>
-                  <Link
-                    to={
-                      accountId
-                        ? buildAccountRoute(accountId, "knowledge")
-                        : "/brands"
-                    }
-                    onClick={(e) =>
-                      handleAccountRequiredClick(e, () =>
+                      title="Google Sheets"
+                    >
+                      <FileSpreadsheet
+                        className={`w-5 h-5 shrink-0 ${
+                          isActive("/brands/google-sheets")
+                            ? "text-white"
+                            : "text-forest-f30"
+                        }`}
+                      />
+                      <span className="text-[12.32px] font-normal leading-[16px]">
+                        Google Sheets
+                      </span>
+                    </Link>
+                    <Link
+                      to={
                         accountId
                           ? buildAccountRoute(accountId, "knowledge")
-                          : "/brands",
-                      )
-                    }
-                    className={`flex items-center p-2 rounded-xl gap-2 ${
-                      isActive("/brands/knowledge")
-                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                    }`}
-                    title="Knowledge"
-                  >
-                    <BookOpen
-                      className={`w-5 h-5 shrink-0 ${
-                        isActive("/brands/knowledge") ? "text-white" : "text-forest-f30"
+                          : "/brands"
+                      }
+                      onClick={(e) =>
+                        handleAccountRequiredClick(e, () =>
+                          accountId
+                            ? buildAccountRoute(accountId, "knowledge")
+                            : "/brands",
+                        )
+                      }
+                      className={`flex items-center p-2 rounded-xl gap-2 ${
+                        isActive("/brands/knowledge")
+                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
                       }`}
-                    />
-                    <span className="text-[12.32px] font-normal leading-[16px]">
-                      Knowledge
-                    </span>
-                  </Link>
+                      title="Knowledge"
+                    >
+                      <BookOpen
+                        className={`w-5 h-5 shrink-0 ${
+                          isActive("/brands/knowledge")
+                            ? "text-white"
+                            : "text-forest-f30"
+                        }`}
+                      />
+                      <span className="text-[12.32px] font-normal leading-[16px]">
+                        Knowledge
+                      </span>
+                    </Link>
+                  </div>
+                )}
+              </>
+            ) : (
+              <Link
+                to="/brands"
+                className={`flex items-center justify-center p-2 rounded-xl ${
+                  isActive("/brands")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent"
+                }`}
+                title="Workspace"
+              >
+                <img src={WorkspaceIcon} alt="" className="w-5 h-5 shrink-0" />
+              </Link>
+            )}
+          </div>
+        )}
+
+        {/* Super Admin section - visible only for global super admins */}
+        {user?.is_super_admin && (
+          <div className="mb-6">
+            {!isCollapsed ? (
+              <>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg">
+                  <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide truncate">
+                    Super Admin
+                  </h2>
                 </div>
-              )}
-            </>
-          ) : (
-            <Link
-              to="/brands"
-              className={`flex items-center justify-center p-2 rounded-xl ${
-                isActive("/brands")
-                  ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                  : "text-black hover:bg-transparent"
-              }`}
-              title="Workspace"
-            >
-              <img
-                src={WorkspaceIcon}
-                alt=""
-                className="w-5 h-5 shrink-0"
-              />
-            </Link>
-          )}
-        </div>
+                <button
+                  type="button"
+                  onClick={() => navigate("/super-admin/workspaces")}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg w-full text-left ${
+                    location.pathname.startsWith("/super-admin")
+                      ? "bg-forest-f60 text-white"
+                      : "text-forest-f60 hover:bg-sandstorm-s10"
+                  }`}
+                >
+                  <Shield className="w-4 h-4 shrink-0" />
+                  <span className="text-[13px]">Workspaces</span>
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => navigate("/super-admin/workspaces")}
+                className={`flex items-center justify-center p-2 rounded-xl ${
+                  location.pathname.startsWith("/super-admin")
+                    ? "bg-forest-f60 text-white"
+                    : "text-forest-f60 hover:bg-sandstorm-s10"
+                }`}
+                title="Super Admin – Workspaces"
+              >
+                <Shield className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         )}
 
         {/* Amazon Section (hidden when no workspace; hidden when GOOGLE_ONLY_UI) */}
         {!GOOGLE_ONLY_UI && hasWorkspace && (
-        <div>
-          {!isCollapsed && (
-            <div className="mb-3">
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "campaigns")
-                    : "/brands"
-                }
-                onClick={(e) => {
-                  handleAmazonNavClick(e, () =>
+          <div>
+            {!isCollapsed && (
+              <div className="mb-3">
+                <Link
+                  to={
                     accountId
-                      ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "campaigns")
-                      : "/brands/1/amazon/campaigns",
-                  );
-                }}
-                className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <img src={AmazonIcon} alt="Amazon" className="w-4 h-4" />
-                  <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
-                    Amazon
-                  </h2>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleAmazonSection();
-                  }}
-                  className="p-1 rounded hover:bg-gray-100 transition-colors"
-                  aria-label={
-                    isAmazonSectionCollapsed
-                      ? "Expand Amazon section"
-                      : "Collapse Amazon section"
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          amazonChannelId,
+                          "amazon",
+                          "campaigns",
+                        )
+                      : "/brands"
                   }
+                  onClick={(e) => {
+                    handleAmazonNavClick(e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            amazonChannelId,
+                            "amazon",
+                            "campaigns",
+                          )
+                        : "/brands/1/amazon/campaigns",
+                    );
+                  }}
+                  className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <img src={AmazonIcon} alt="Amazon" className="w-4 h-4" />
+                    <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
+                      Amazon
+                    </h2>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleAmazonSection();
+                    }}
+                    className="p-1 rounded hover:bg-gray-100 transition-colors"
+                    aria-label={
+                      isAmazonSectionCollapsed
+                        ? "Expand Amazon section"
+                        : "Collapse Amazon section"
+                    }
+                  >
+                    <svg
+                      className={`w-4 h-4 text-gray-600 transition-transform ${
+                        isAmazonSectionCollapsed
+                          ? "rotate-[-90deg]"
+                          : "rotate-0"
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                </Link>
+              </div>
+            )}
+            {(isCollapsed || !isAmazonSectionCollapsed) && (
+              <div className={`space-y-1 ${!isCollapsed ? "ml-[15px]" : ""}`}>
+                <Link
+                  to={
+                    accountId
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          amazonChannelId,
+                          "amazon",
+                          "campaigns",
+                        )
+                      : "/brands"
+                  }
+                  onClick={(e) =>
+                    handleAmazonNavClick(e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            amazonChannelId,
+                            "amazon",
+                            "campaigns",
+                          )
+                        : "/brands/1/amazon/campaigns",
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/campaigns") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/campaigns")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "Campaigns" : undefined}
+                >
+                  <img
+                    src={
+                      isActive("/campaigns")
+                        ? CampaignWhiteIcon
+                        : CampaignIconRegular
+                    }
+                    alt=""
+                    className="w-5 h-5"
+                  />
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/campaigns") ? "!text-white" : ""
+                      }`}
+                    >
+                      Campaigns
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to={
+                    accountId
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          amazonChannelId,
+                          "amazon",
+                          "adgroups",
+                        )
+                      : "/brands"
+                  }
+                  onClick={(e) =>
+                    handleAmazonNavClick(e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            amazonChannelId,
+                            "amazon",
+                            "adgroups",
+                          )
+                        : "/brands/1/amazon/adgroups",
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/adgroups") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/adgroups")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "Ad Groups" : undefined}
+                >
+                  <img
+                    src={AdGroupIcon}
+                    alt=""
+                    className={`w-5 h-5 ${
+                      isActive("/adgroups") ? "brightness-0 invert" : ""
+                    }`}
+                  />
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/adgroups") ? "!text-white" : ""
+                      }`}
+                    >
+                      Ad Groups
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to={
+                    accountId
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          amazonChannelId,
+                          "amazon",
+                          "keywords",
+                        )
+                      : "/brands"
+                  }
+                  onClick={(e) =>
+                    handleAmazonNavClick(e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            amazonChannelId,
+                            "amazon",
+                            "keywords",
+                          )
+                        : "/brands/1/amazon/keywords",
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/keywords") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/keywords")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "Keywords" : undefined}
+                >
+                  <img
+                    src={
+                      isActive("/keywords") ? KeywordsWhiteIcon : KeywordsIcon
+                    }
+                    alt=""
+                    className={`w-5 h-5 ${
+                      isActive("/keywords") ? "brightness-0 invert" : ""
+                    }`}
+                  />
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/keywords") ? "!text-white" : ""
+                      }`}
+                    >
+                      Keywords
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to={
+                    accountId
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          amazonChannelId,
+                          "amazon",
+                          "targets",
+                        )
+                      : "/brands"
+                  }
+                  onClick={(e) =>
+                    handleAmazonNavClick(e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            amazonChannelId,
+                            "amazon",
+                            "targets",
+                          )
+                        : "/brands/1/amazon/targets",
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/targets") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/targets")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "Targets" : undefined}
+                >
+                  <img
+                    src={isActive("/targets") ? TargetsWhiteIcon : TargetsIcon}
+                    alt=""
+                    className={`w-5 h-5 ${
+                      isActive("/targets") ? "brightness-0 invert" : ""
+                    }`}
+                  />
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/targets") ? "!text-white" : ""
+                      }`}
+                    >
+                      Targets
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to={
+                    accountId
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          amazonChannelId,
+                          "amazon",
+                          "logs",
+                        )
+                      : "/brands"
+                  }
+                  onClick={(e) =>
+                    handleAmazonNavClick(e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            amazonChannelId,
+                            "amazon",
+                            "logs",
+                          )
+                        : "/brands/1/amazon/logs",
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/amazon/logs") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/amazon/logs")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "Logs" : undefined}
                 >
                   <svg
-                    className={`w-4 h-4 text-gray-600 transition-transform ${
-                      isAmazonSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
+                    className={`w-5 h-5 ${
+                      isActive("/amazon/logs") ? "brightness-0 invert" : ""
                     }`}
                     fill="none"
                     viewBox="0 0 24 24"
@@ -986,267 +1365,334 @@ export const Sidebar: React.FC = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                     />
                   </svg>
-                </button>
-              </Link>
-            </div>
-          )}
-          {(isCollapsed || !isAmazonSectionCollapsed) && (
-            <div className={`space-y-1 ${!isCollapsed ? "ml-[15px]" : ""}`}>
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "campaigns")
-                    : "/brands"
-                }
-                onClick={(e) =>
-                  handleAmazonNavClick(e, () =>
-                    accountId
-                      ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "campaigns")
-                      : "/brands/1/amazon/campaigns",
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/campaigns") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/campaigns")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "Campaigns" : undefined}
-              >
-                <img
-                  src={
-                    isActive("/campaigns")
-                      ? CampaignWhiteIcon
-                      : CampaignIconRegular
-                  }
-                  alt=""
-                  className="w-5 h-5"
-                />
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/campaigns") ? "!text-white" : ""
-                    }`}
-                  >
-                    Campaigns
-                  </span>
-                )}
-              </Link>
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "adgroups")
-                    : "/brands"
-                }
-                onClick={(e) =>
-                  handleAmazonNavClick(e, () =>
-                    accountId
-                      ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "adgroups")
-                      : "/brands/1/amazon/adgroups",
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/adgroups") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/adgroups")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "Ad Groups" : undefined}
-              >
-                <img
-                  src={AdGroupIcon}
-                  alt=""
-                  className={`w-5 h-5 ${
-                    isActive("/adgroups") ? "brightness-0 invert" : ""
-                  }`}
-                />
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/adgroups") ? "!text-white" : ""
-                    }`}
-                  >
-                    Ad Groups
-                  </span>
-                )}
-              </Link>
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "keywords")
-                    : "/brands"
-                }
-                onClick={(e) =>
-                  handleAmazonNavClick(e, () =>
-                    accountId
-                      ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "keywords")
-                      : "/brands/1/amazon/keywords",
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/keywords") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/keywords")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "Keywords" : undefined}
-              >
-                <img
-                  src={isActive("/keywords") ? KeywordsWhiteIcon : KeywordsIcon}
-                  alt=""
-                  className={`w-5 h-5 ${
-                    isActive("/keywords") ? "brightness-0 invert" : ""
-                  }`}
-                />
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/keywords") ? "!text-white" : ""
-                    }`}
-                  >
-                    Keywords
-                  </span>
-                )}
-              </Link>
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "targets")
-                    : "/brands"
-                }
-                onClick={(e) =>
-                  handleAmazonNavClick(e, () =>
-                    accountId
-                      ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "targets")
-                      : "/brands/1/amazon/targets",
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/targets") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/targets")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "Targets" : undefined}
-              >
-                <img
-                  src={isActive("/targets") ? TargetsWhiteIcon : TargetsIcon}
-                  alt=""
-                  className={`w-5 h-5 ${
-                    isActive("/targets") ? "brightness-0 invert" : ""
-                  }`}
-                />
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/targets") ? "!text-white" : ""
-                    }`}
-                  >
-                    Targets
-                  </span>
-                )}
-              </Link>
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "logs")
-                    : "/brands"
-                }
-                onClick={(e) =>
-                  handleAmazonNavClick(e, () =>
-                    accountId
-                      ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "logs")
-                      : "/brands/1/amazon/logs",
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/amazon/logs") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/amazon/logs")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "Logs" : undefined}
-              >
-                <svg
-                  className={`w-5 h-5 ${
-                    isActive("/amazon/logs") ? "brightness-0 invert" : ""
-                  }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/amazon/logs") ? "!text-white" : ""
-                    }`}
-                  >
-                    Logs
-                  </span>
-                )}
-              </Link>
-            </div>
-          )}
-        </div>
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/amazon/logs") ? "!text-white" : ""
+                      }`}
+                    >
+                      Logs
+                    </span>
+                  )}
+                </Link>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Google Section */}
         {hasWorkspace && (
-        <div>
-          {!isCollapsed && (
-            <div className="mb-3">
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(accountId, googleChannelId, "google", "campaigns")
-                    : "/brands"
-                }
-                onClick={(e) => {
-                  handleMarketplaceClick("google", e, () =>
+          <div>
+            {!isCollapsed && (
+              <div className="mb-3">
+                <Link
+                  to={
                     accountId
-                      ? buildMarketplaceRoute(accountId, googleChannelId, "google", "campaigns")
-                      : "/brands/1/google/campaigns",
-                  );
-                }}
-                className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <img src={GoogleIcon} alt="Google" className="w-4 h-4" />
-                  <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
-                    Google
-                  </h2>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleGoogleSection();
-                  }}
-                  className="p-1 rounded hover:bg-gray-100 transition-colors"
-                  aria-label={
-                    isGoogleSectionCollapsed
-                      ? "Expand Google section"
-                      : "Collapse Google section"
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          googleChannelId,
+                          "google",
+                          "campaigns",
+                        )
+                      : "/brands"
                   }
+                  onClick={(e) => {
+                    handleMarketplaceClick("google", e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            googleChannelId,
+                            "google",
+                            "campaigns",
+                          )
+                        : "/brands/1/google/campaigns",
+                    );
+                  }}
+                  className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <img src={GoogleIcon} alt="Google" className="w-4 h-4" />
+                    <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
+                      Google
+                    </h2>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleGoogleSection();
+                    }}
+                    className="p-1 rounded hover:bg-gray-100 transition-colors"
+                    aria-label={
+                      isGoogleSectionCollapsed
+                        ? "Expand Google section"
+                        : "Collapse Google section"
+                    }
+                  >
+                    <svg
+                      className={`w-4 h-4 text-gray-600 transition-transform ${
+                        isGoogleSectionCollapsed
+                          ? "rotate-[-90deg]"
+                          : "rotate-0"
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                </Link>
+              </div>
+            )}
+            {(isCollapsed || !isGoogleSectionCollapsed) && (
+              <div className={`space-y-1 ${!isCollapsed ? "ml-[15px]" : ""}`}>
+                <Link
+                  to={
+                    accountId
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          googleChannelId,
+                          "google",
+                          "campaigns",
+                        )
+                      : "/brands"
+                  }
+                  onClick={(e) =>
+                    handleMarketplaceClick("google", e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            googleChannelId,
+                            "google",
+                            "campaigns",
+                          )
+                        : "/brands/1/google/campaigns",
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/google/campaigns") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/google/campaigns")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "Campaign" : undefined}
+                >
+                  <img
+                    src={
+                      isActive("/google/campaigns")
+                        ? CampaignWhiteIcon
+                        : CampaignIconRegular
+                    }
+                    alt=""
+                    className="w-5 h-5"
+                  />
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/google/campaigns") ? "!text-white" : ""
+                      }`}
+                    >
+                      Campaign
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to={
+                    accountId
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          googleChannelId,
+                          "google",
+                          "adgroups",
+                        )
+                      : "/brands"
+                  }
+                  onClick={(e) =>
+                    handleMarketplaceClick("google", e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            googleChannelId,
+                            "google",
+                            "adgroups",
+                          )
+                        : "/brands/1/google/adgroups",
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/google/adgroups") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/google/adgroups")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "Ad Group" : undefined}
+                >
+                  <img
+                    src={AdGroupIcon}
+                    alt=""
+                    className={`w-5 h-5 ${
+                      isActive("/google/adgroups") ? "brightness-0 invert" : ""
+                    }`}
+                  />
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/google/adgroups") ? "!text-white" : ""
+                      }`}
+                    >
+                      Ad Group
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to={
+                    accountId
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          googleChannelId,
+                          "google",
+                          "keywords",
+                        )
+                      : "/brands"
+                  }
+                  onClick={(e) =>
+                    handleMarketplaceClick("google", e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            googleChannelId,
+                            "google",
+                            "keywords",
+                          )
+                        : "/brands/1/google/keywords",
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/google/keywords") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/google/keywords")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "Keyword" : undefined}
                 >
                   <svg
-                    className={`w-4 h-4 text-gray-600 transition-transform ${
-                      isGoogleSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
+                    className="w-5 h-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                    />
+                  </svg>
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/google/keywords") ? "!text-white" : ""
+                      }`}
+                    >
+                      Keyword
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to={
+                    accountId
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          googleChannelId,
+                          "google",
+                          "ads",
+                        )
+                      : "/brands"
+                  }
+                  onClick={(e) =>
+                    handleMarketplaceClick("google", e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            googleChannelId,
+                            "google",
+                            "ads",
+                          )
+                        : "/brands/1/google/ads",
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/google/ads") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/google/ads")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "Ads" : undefined}
+                >
+                  <img src={ProductTargetIcon} alt="" className="w-5 h-5" />
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/google/ads") ? "!text-white" : ""
+                      }`}
+                    >
+                      Ads
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to={
+                    accountId
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          googleChannelId,
+                          "google",
+                          "logs",
+                        )
+                      : "/brands"
+                  }
+                  onClick={(e) =>
+                    handleMarketplaceClick("google", e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            googleChannelId,
+                            "google",
+                            "logs",
+                          )
+                        : buildMarketplaceRoute(
+                            1,
+                            googleChannelId,
+                            "google",
+                            "logs",
+                          ),
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/google/logs") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/google/logs")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "Logs" : undefined}
+                >
+                  <svg
+                    className={`w-5 h-5 ${
+                      isActive("/google/logs") ? "brightness-0 invert" : ""
                     }`}
                     fill="none"
                     viewBox="0 0 24 24"
@@ -1256,482 +1702,533 @@ export const Sidebar: React.FC = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                     />
                   </svg>
-                </button>
-              </Link>
-            </div>
-          )}
-          {(isCollapsed || !isGoogleSectionCollapsed) && (
-            <div className={`space-y-1 ${!isCollapsed ? "ml-[15px]" : ""}`}>
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(accountId, googleChannelId, "google", "campaigns")
-                    : "/brands"
-                }
-                onClick={(e) =>
-                  handleMarketplaceClick("google", e, () =>
-                    accountId
-                      ? buildMarketplaceRoute(accountId, googleChannelId, "google", "campaigns")
-                      : "/brands/1/google/campaigns",
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/google/campaigns") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/google/campaigns")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "Campaign" : undefined}
-              >
-                <img
-                  src={
-                    isActive("/google/campaigns")
-                      ? CampaignWhiteIcon
-                      : CampaignIconRegular
-                  }
-                  alt=""
-                  className="w-5 h-5"
-                />
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/google/campaigns") ? "!text-white" : ""
-                    }`}
-                  >
-                    Campaign
-                  </span>
-                )}
-              </Link>
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(accountId, googleChannelId, "google", "adgroups")
-                    : "/brands"
-                }
-                onClick={(e) =>
-                  handleMarketplaceClick("google", e, () =>
-                    accountId
-                      ? buildMarketplaceRoute(accountId, googleChannelId, "google", "adgroups")
-                      : "/brands/1/google/adgroups",
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/google/adgroups") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/google/adgroups")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "Ad Group" : undefined}
-              >
-                <img
-                  src={AdGroupIcon}
-                  alt=""
-                  className={`w-5 h-5 ${
-                    isActive("/google/adgroups") ? "brightness-0 invert" : ""
-                  }`}
-                />
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/google/adgroups") ? "!text-white" : ""
-                    }`}
-                  >
-                    Ad Group
-                  </span>
-                )}
-              </Link>
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(accountId, googleChannelId, "google", "keywords")
-                    : "/brands"
-                }
-                onClick={(e) =>
-                  handleMarketplaceClick("google", e, () =>
-                    accountId
-                      ? buildMarketplaceRoute(accountId, googleChannelId, "google", "keywords")
-                      : "/brands/1/google/keywords",
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/google/keywords") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/google/keywords")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "Keyword" : undefined}
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
-                  />
-                </svg>
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/google/keywords") ? "!text-white" : ""
-                    }`}
-                  >
-                    Keyword
-                  </span>
-                )}
-              </Link>
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(accountId, googleChannelId, "google", "ads")
-                    : "/brands"
-                }
-                onClick={(e) =>
-                  handleMarketplaceClick("google", e, () =>
-                    accountId
-                      ? buildMarketplaceRoute(accountId, googleChannelId, "google", "ads")
-                      : "/brands/1/google/ads",
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/google/ads") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/google/ads")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "Ads" : undefined}
-              >
-                <img src={ProductTargetIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/google/ads") ? "!text-white" : ""
-                    }`}
-                  >
-                    Ads
-                  </span>
-                )}
-              </Link>
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(accountId, googleChannelId, "google", "logs")
-                    : "/brands"
-                }
-                onClick={(e) =>
-                  handleMarketplaceClick("google", e, () =>
-                    accountId
-                      ? buildMarketplaceRoute(accountId, googleChannelId, "google", "logs")
-                      : buildMarketplaceRoute(1, googleChannelId, "google", "logs"),
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/google/logs") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/google/logs")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "Logs" : undefined}
-              >
-                <svg
-                  className={`w-5 h-5 ${
-                    isActive("/google/logs") ? "brightness-0 invert" : ""
-                  }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/google/logs") ? "!text-white" : ""
-                    }`}
-                  >
-                    Logs
-                  </span>
-                )}
-              </Link>
-            </div>
-          )}
-        </div>
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/google/logs") ? "!text-white" : ""
+                      }`}
+                    >
+                      Logs
+                    </span>
+                  )}
+                </Link>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Meta Section - Campaign, Adset, Ad */}
         {hasWorkspace && (
-        <div>
-          {!isCollapsed && (
-            <div className="mb-3">
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "campaigns")
-                    : "/brands"
-                }
-                onClick={(e) => {
-                  handleMarketplaceClick("meta", e, () =>
+          <div>
+            {!isCollapsed && (
+              <div className="mb-3">
+                <Link
+                  to={
                     accountId
-                      ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "campaigns")
-                      : "/brands/1/meta/campaigns",
-                  );
-                }}
-                className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <img src={MetaIcon} alt="Meta" className="w-4 h-4" />
-                  <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
-                    Meta
-                  </h2>
-                </div>
-                <button
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          metaChannelId,
+                          "meta",
+                          "campaigns",
+                        )
+                      : "/brands"
+                  }
                   onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleMetaSection();
+                    handleMarketplaceClick("meta", e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            metaChannelId,
+                            "meta",
+                            "campaigns",
+                          )
+                        : "/brands/1/meta/campaigns",
+                    );
                   }}
-                  className="p-1 rounded hover:bg-gray-100 transition-colors"
-                  aria-label={
-                    isMetaSectionCollapsed
-                      ? "Expand Meta section"
-                      : "Collapse Meta section"
-                  }
+                  className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
                 >
-                  <svg
-                    className={`w-4 h-4 text-gray-600 transition-transform ${
-                      isMetaSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
-                    }`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+                  <div className="flex items-center gap-2">
+                    <img src={MetaIcon} alt="Meta" className="w-4 h-4" />
+                    <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
+                      Meta
+                    </h2>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleMetaSection();
+                    }}
+                    className="p-1 rounded hover:bg-gray-100 transition-colors"
+                    aria-label={
+                      isMetaSectionCollapsed
+                        ? "Expand Meta section"
+                        : "Collapse Meta section"
+                    }
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
-              </Link>
-            </div>
-          )}
-          {(isCollapsed || !isMetaSectionCollapsed) && (
-            <div className={`space-y-1 ${!isCollapsed ? "ml-[15px]" : ""}`}>
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "campaigns")
-                    : "/brands"
-                }
-                onClick={(e) =>
-                  handleMarketplaceClick("meta", e, () =>
+                    <svg
+                      className={`w-4 h-4 text-gray-600 transition-transform ${
+                        isMetaSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                </Link>
+              </div>
+            )}
+            {(isCollapsed || !isMetaSectionCollapsed) && (
+              <div className={`space-y-1 ${!isCollapsed ? "ml-[15px]" : ""}`}>
+                <Link
+                  to={
                     accountId
-                      ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "campaigns")
-                      : "/brands/1/meta/campaigns",
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/meta/campaigns") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/meta/campaigns")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "Campaign" : undefined}
-              >
-                <img
-                  src={
-                    isActive("/meta/campaigns")
-                      ? CampaignWhiteIcon
-                      : CampaignIconRegular
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          metaChannelId,
+                          "meta",
+                          "campaigns",
+                        )
+                      : "/brands"
                   }
-                  alt=""
-                  className="w-5 h-5"
-                />
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/meta/campaigns") ? "!text-white" : ""
-                    }`}
-                  >
-                    Campaign
-                  </span>
-                )}
-              </Link>
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "adsets")
-                    : "/brands"
-                }
-                onClick={(e) =>
-                  handleMarketplaceClick("meta", e, () =>
-                    accountId
-                      ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "adsets")
-                      : "/brands/1/meta/adsets",
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/meta/adsets") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/meta/adsets")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "Adset" : undefined}
-              >
-                <img
-                  src={AdGroupIcon}
-                  alt=""
-                  className={`w-5 h-5 ${
-                    isActive("/meta/adsets") ? "brightness-0 invert" : ""
+                  onClick={(e) =>
+                    handleMarketplaceClick("meta", e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            metaChannelId,
+                            "meta",
+                            "campaigns",
+                          )
+                        : "/brands/1/meta/campaigns",
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/meta/campaigns") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/meta/campaigns")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
                   }`}
-                />
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/meta/adsets") ? "!text-white" : ""
-                    }`}
-                  >
-                    Adset
-                  </span>
-                )}
-              </Link>
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "ads")
-                    : "/brands"
-                }
-                onClick={(e) =>
-                  handleMarketplaceClick("meta", e, () =>
+                  title={isCollapsed ? "Campaign" : undefined}
+                >
+                  <img
+                    src={
+                      isActive("/meta/campaigns")
+                        ? CampaignWhiteIcon
+                        : CampaignIconRegular
+                    }
+                    alt=""
+                    className="w-5 h-5"
+                  />
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/meta/campaigns") ? "!text-white" : ""
+                      }`}
+                    >
+                      Campaign
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to={
                     accountId
-                      ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "ads")
-                      : "/brands/1/meta/ads",
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/meta/ads") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/meta/ads")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "Ad" : undefined}
-              >
-                <img src={ProductTargetIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/meta/ads") ? "!text-white" : ""
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          metaChannelId,
+                          "meta",
+                          "adsets",
+                        )
+                      : "/brands"
+                  }
+                  onClick={(e) =>
+                    handleMarketplaceClick("meta", e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            metaChannelId,
+                            "meta",
+                            "adsets",
+                          )
+                        : "/brands/1/meta/adsets",
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/meta/adsets") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/meta/adsets")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "Adset" : undefined}
+                >
+                  <img
+                    src={AdGroupIcon}
+                    alt=""
+                    className={`w-5 h-5 ${
+                      isActive("/meta/adsets") ? "brightness-0 invert" : ""
                     }`}
-                  >
-                    Ad
-                  </span>
-                )}
-              </Link>
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "creatives")
-                    : "/brands"
-                }
-                onClick={(e) =>
-                  handleMarketplaceClick("meta", e, () =>
+                  />
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/meta/adsets") ? "!text-white" : ""
+                      }`}
+                    >
+                      Adset
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to={
                     accountId
-                      ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "creatives")
-                      : "/brands/1/meta/creatives",
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/meta/creatives") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/meta/creatives")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "Creative" : undefined}
-              >
-                <img src={ProductTargetIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/meta/creatives") ? "!text-white" : ""
-                    }`}
-                  >
-                    Creative
-                  </span>
-                )}
-              </Link>
-            </div>
-          )}
-        </div>
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          metaChannelId,
+                          "meta",
+                          "ads",
+                        )
+                      : "/brands"
+                  }
+                  onClick={(e) =>
+                    handleMarketplaceClick("meta", e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            metaChannelId,
+                            "meta",
+                            "ads",
+                          )
+                        : "/brands/1/meta/ads",
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/meta/ads") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/meta/ads")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "Ad" : undefined}
+                >
+                  <img src={ProductTargetIcon} alt="" className="w-5 h-5" />
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/meta/ads") ? "!text-white" : ""
+                      }`}
+                    >
+                      Ad
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to={
+                    accountId
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          metaChannelId,
+                          "meta",
+                          "creatives",
+                        )
+                      : "/brands"
+                  }
+                  onClick={(e) =>
+                    handleMarketplaceClick("meta", e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            metaChannelId,
+                            "meta",
+                            "creatives",
+                          )
+                        : "/brands/1/meta/creatives",
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/meta/creatives") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/meta/creatives")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "Creative" : undefined}
+                >
+                  <img src={ProductTargetIcon} alt="" className="w-5 h-5" />
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/meta/creatives") ? "!text-white" : ""
+                      }`}
+                    >
+                      Creative
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to={
+                    accountId
+                      ? buildMarketplaceRoute(
+                          accountId,
+                          metaChannelId,
+                          "meta",
+                          "audiences",
+                        )
+                      : "/brands"
+                  }
+                  onClick={(e) =>
+                    handleMarketplaceClick("meta", e, () =>
+                      accountId
+                        ? buildMarketplaceRoute(
+                            accountId,
+                            metaChannelId,
+                            "meta",
+                            "audiences",
+                          )
+                        : "/brands/1/meta/audiences",
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/meta/audiences") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/meta/audiences")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "Audiences" : undefined}
+                >
+                  <Users
+                    className={`w-5 h-5 ${isActive("/meta/audiences") ? "brightness-0 invert" : ""}`}
+                  />
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/meta/audiences") ? "!text-white" : ""
+                      }`}
+                    >
+                      Audiences
+                    </span>
+                  )}
+                </Link>
+              </div>
+            )}
+          </div>
         )}
 
         {/* TikTok Section (hidden when GOOGLE_ONLY_UI) */}
         {!GOOGLE_ONLY_UI && hasWorkspace && (
-        <div>
-          {!isCollapsed && (
-            <div className="mb-3">
-              <Link
-                to={
-                  accountId
-                    ? `/brands/${accountId}/tiktok/campaigns`
-                    : "/brands"
-                }
-                onClick={(e) => {
-                  handleMarketplaceClick("tiktok", e, () =>
-                    accountId ? `/brands/${accountId}/tiktok/campaigns` : null,
-                  );
-                }}
-                className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <svg
-                    className="w-4 h-4"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                  >
-                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7.41a4.85 4.85 0 0 0 3.77 1.52v-3.4a1 1 0 0 0-1.04-1.09z" />
-                  </svg>
-                  <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
-                    TikTok
-                  </h2>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleTikTokSection();
-                  }}
-                  className="p-1 rounded hover:bg-gray-100 transition-colors"
-                  aria-label={
-                    isTikTokSectionCollapsed
-                      ? "Expand TikTok section"
-                      : "Collapse TikTok section"
+          <div>
+            {!isCollapsed && (
+              <div className="mb-3">
+                <Link
+                  to={
+                    accountId
+                      ? `/brands/${accountId}/tiktok/campaigns`
+                      : "/brands"
                   }
+                  onClick={(e) => {
+                    handleMarketplaceClick("tiktok", e, () =>
+                      accountId
+                        ? `/brands/${accountId}/tiktok/campaigns`
+                        : null,
+                    );
+                  }}
+                  className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <svg
+                      className="w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7.41a4.85 4.85 0 0 0 3.77 1.52v-3.4a1 1 0 0 0-1.04-1.09z" />
+                    </svg>
+                    <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
+                      TikTok
+                    </h2>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleTikTokSection();
+                    }}
+                    className="p-1 rounded hover:bg-gray-100 transition-colors"
+                    aria-label={
+                      isTikTokSectionCollapsed
+                        ? "Expand TikTok section"
+                        : "Collapse TikTok section"
+                    }
+                  >
+                    <svg
+                      className={`w-4 h-4 text-gray-600 transition-transform ${
+                        isTikTokSectionCollapsed
+                          ? "rotate-[-90deg]"
+                          : "rotate-0"
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                </Link>
+              </div>
+            )}
+
+            {(isCollapsed || !isTikTokSectionCollapsed) && (
+              <div className={`space-y-1 ${!isCollapsed ? "ml-[15px]" : ""}`}>
+                <Link
+                  to={
+                    accountId
+                      ? `/brands/${accountId}/tiktok/campaigns`
+                      : "/brands"
+                  }
+                  onClick={(e) =>
+                    handleMarketplaceClick("tiktok", e, () =>
+                      accountId
+                        ? `/brands/${accountId}/tiktok/campaigns`
+                        : null,
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/tiktok/campaigns") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/tiktok/campaigns")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "TikTok Campaigns" : undefined}
+                >
+                  <img
+                    src={
+                      isActive("/tiktok/campaigns")
+                        ? CampaignWhiteIcon
+                        : CampaignIconRegular
+                    }
+                    alt=""
+                    className="w-5 h-5"
+                  />
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/tiktok/campaigns") ? "!text-white" : ""
+                      }`}
+                    >
+                      Campaigns
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to={
+                    accountId
+                      ? `/brands/${accountId}/tiktok/adgroups`
+                      : "/brands"
+                  }
+                  onClick={(e) =>
+                    handleMarketplaceClick("tiktok", e, () =>
+                      accountId ? `/brands/${accountId}/tiktok/adgroups` : null,
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/tiktok/adgroups") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/tiktok/adgroups")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "TikTok Ad Groups" : undefined}
+                >
+                  <img
+                    src={AdGroupIcon}
+                    alt=""
+                    className={`w-5 h-5 ${
+                      isActive("/tiktok/adgroups") ? "brightness-0 invert" : ""
+                    }`}
+                  />
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/tiktok/adgroups") ? "!text-white" : ""
+                      }`}
+                    >
+                      Ad Groups
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to={accountId ? `/brands/${accountId}/tiktok/ads` : "/brands"}
+                  onClick={(e) =>
+                    handleMarketplaceClick("tiktok", e, () =>
+                      accountId ? `/brands/${accountId}/tiktok/ads` : null,
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/tiktok/ads") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/tiktok/ads")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "TikTok Ads" : undefined}
+                >
+                  <img
+                    src={ProductTargetIcon}
+                    alt=""
+                    className={`w-5 h-5 ${
+                      isActive("/tiktok/ads") ? "brightness-0 invert" : ""
+                    }`}
+                  />
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/tiktok/ads") ? "!text-white" : ""
+                      }`}
+                    >
+                      Ads
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to={
+                    accountId ? `/brands/${accountId}/tiktok/logs` : "/brands"
+                  }
+                  onClick={(e) =>
+                    handleMarketplaceClick("tiktok", e, () =>
+                      accountId
+                        ? `/brands/${accountId}/tiktok/logs`
+                        : "/brands/1/tiktok/logs",
+                    )
+                  }
+                  className={`flex items-center p-2 rounded-xl ${
+                    isActive("/tiktok/logs") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                    isActive("/tiktok/logs")
+                      ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                      : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                  title={isCollapsed ? "Logs" : undefined}
                 >
                   <svg
-                    className={`w-4 h-4 text-gray-600 transition-transform ${
-                      isTikTokSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
+                    className={`w-5 h-5 ${
+                      isActive("/tiktok/logs") ? "brightness-0 invert" : ""
                     }`}
                     fill="none"
                     viewBox="0 0 24 24"
@@ -1741,171 +2238,22 @@ export const Sidebar: React.FC = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                     />
                   </svg>
-                </button>
-              </Link>
-            </div>
-          )}
-
-          {(isCollapsed || !isTikTokSectionCollapsed) && (
-            <div className={`space-y-1 ${!isCollapsed ? "ml-[15px]" : ""}`}>
-              <Link
-                to={
-                  accountId
-                    ? `/brands/${accountId}/tiktok/campaigns`
-                    : "/brands"
-                }
-                onClick={(e) =>
-                  handleMarketplaceClick("tiktok", e, () =>
-                    accountId
-                      ? `/brands/${accountId}/tiktok/campaigns`
-                      : null,
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/tiktok/campaigns") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/tiktok/campaigns")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "TikTok Campaigns" : undefined}
-              >
-                <img
-                  src={
-                    isActive("/tiktok/campaigns")
-                      ? CampaignWhiteIcon
-                      : CampaignIconRegular
-                  }
-                  alt=""
-                  className="w-5 h-5"
-                />
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/tiktok/campaigns") ? "!text-white" : ""
-                    }`}
-                  >
-                    Campaigns
-                  </span>
-                )}
-              </Link>
-              <Link
-                to={
-                  accountId ? `/brands/${accountId}/tiktok/adgroups` : "/brands"
-                }
-                onClick={(e) =>
-                  handleMarketplaceClick("tiktok", e, () =>
-                    accountId ? `/brands/${accountId}/tiktok/adgroups` : null,
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/tiktok/adgroups") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/tiktok/adgroups")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "TikTok Ad Groups" : undefined}
-              >
-                <img
-                  src={AdGroupIcon}
-                  alt=""
-                  className={`w-5 h-5 ${
-                    isActive("/tiktok/adgroups") ? "brightness-0 invert" : ""
-                  }`}
-                />
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/tiktok/adgroups") ? "!text-white" : ""
-                    }`}
-                  >
-                    Ad Groups
-                  </span>
-                )}
-              </Link>
-              <Link
-                to={accountId ? `/brands/${accountId}/tiktok/ads` : "/brands"}
-                onClick={(e) =>
-                  handleMarketplaceClick("tiktok", e, () =>
-                    accountId ? `/brands/${accountId}/tiktok/ads` : null,
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/tiktok/ads") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/tiktok/ads")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "TikTok Ads" : undefined}
-              >
-                <img
-                  src={ProductTargetIcon}
-                  alt=""
-                  className={`w-5 h-5 ${
-                    isActive("/tiktok/ads") ? "brightness-0 invert" : ""
-                  }`}
-                />
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/tiktok/ads") ? "!text-white" : ""
-                    }`}
-                  >
-                    Ads
-                  </span>
-                )}
-              </Link>
-              <Link
-                to={accountId ? `/brands/${accountId}/tiktok/logs` : "/brands"}
-                onClick={(e) =>
-                  handleMarketplaceClick("tiktok", e, () =>
-                    accountId
-                      ? `/brands/${accountId}/tiktok/logs`
-                      : "/brands/1/tiktok/logs",
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/tiktok/logs") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/tiktok/logs")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
-                title={isCollapsed ? "Logs" : undefined}
-              >
-                <svg
-                  className={`w-5 h-5 ${
-                    isActive("/tiktok/logs") ? "brightness-0 invert" : ""
-                  }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/tiktok/logs") ? "!text-white" : ""
-                    }`}
-                  >
-                    Logs
-                  </span>
-                )}
-              </Link>
-            </div>
-          )}
-        </div>
+                  {!isCollapsed && (
+                    <span
+                      className={`text-[12.32px] font-normal leading-[16px] ${
+                        isActive("/tiktok/logs") ? "!text-white" : ""
+                      }`}
+                    >
+                      Logs
+                    </span>
+                  )}
+                </Link>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Strategies - bottom of sidebar */}

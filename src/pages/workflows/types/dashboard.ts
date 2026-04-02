@@ -317,7 +317,8 @@ export type ActionType =
   | "update_targeting"
   | "set_ad_schedule"
   | "adjust_device_bid"
-  | "adjust_demographic_bid";
+  | "adjust_demographic_bid"
+  | "adjust_age_targeting";
 
 export type GoogleEntityType =
   | "campaign" | "adgroup" | "keyword" | "ad" | "asset_group" | "product_group";
@@ -339,7 +340,7 @@ export const PLATFORM_ACTION_SUPPORT: Record<ActionPlatform, ActionType[]> = {
     "change_state", "adjust_budget", "adjust_bid", "add_negative_keyword",
     "change_bid_strategy", "adjust_target", "add_keyword",
     "exclude_placement", "update_targeting", "set_ad_schedule",
-    "adjust_device_bid", "adjust_demographic_bid",
+    "adjust_device_bid", "adjust_demographic_bid", "adjust_age_targeting",
   ],
   meta: [
     "change_state", "adjust_budget", "adjust_bid",
@@ -367,9 +368,13 @@ export const PLATFORM_ENTITY_TYPES: Record<ActionPlatform, ActionEntityType[]> =
 };
 
 export interface ActionSchedule {
-  frequency: "hourly" | "daily" | "weekly";
+  frequency: "hourly" | "daily" | "weekly" | "monthly";
   time?: string;
+  /** @deprecated Sun=0..Sat=6 — prefer `weekdays` (Mon=0..Sun=6) */
   day_of_week?: number;
+  /** Mon=0 .. Sun=6 (workflow convention) */
+  weekdays?: number[];
+  monthDays?: number[];
   timezone: string;
   auto_execute: boolean;
   last_run_at?: string;

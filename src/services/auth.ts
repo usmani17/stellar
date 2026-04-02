@@ -30,6 +30,7 @@ export interface User {
   role?: UserRole;
   created_at: string;
   has_unusable_password?: boolean;
+  is_super_admin?: boolean;
 }
 
 export interface AuthResponse {

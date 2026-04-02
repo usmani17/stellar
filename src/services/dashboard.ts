@@ -15,6 +15,8 @@ export interface DashboardResponse {
   name: string;
   platform: string;
   description?: string;
+  /** Agent / workflow narrative summary (strategic context). */
+  summary?: string | null;
   accountId: number;
   channelId?: number;
   profileId?: number;
@@ -34,6 +36,20 @@ export interface DashboardResponse {
 export async function getDashboards(accountId: number): Promise<DashboardResponse[]> {
   const { data } = await api.get<DashboardResponse[]>(
     `${API_BASE}/${accountId}/dashboards/`
+  );
+  return data;
+}
+
+/**
+ * Fetch dashboards linked to a specific portfolio.
+ */
+export async function getDashboardsByPortfolio(
+  accountId: number,
+  portfolioId: number,
+): Promise<DashboardResponse[]> {
+  const { data } = await api.get<DashboardResponse[]>(
+    `${API_BASE}/${accountId}/dashboards/`,
+    { params: { portfolio_id: portfolioId } },
   );
   return data;
 }

@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Play,
   Pause,
@@ -10,6 +11,8 @@ import {
   Pencil,
   Check,
   X,
+  Clock,
+  Calendar,
 } from "lucide-react";
 import { cn } from "../../../../lib/cn";
 import type {
@@ -18,10 +21,25 @@ import type {
   ActionExecution,
   ActionCondition,
   CompoundActionCondition,
+  ActionSchedule,
 } from "../../types/dashboard";
 import { previewActions, getActionHistory } from "../../../../services/dashboardActions";
 import { formatMetricLabel } from "../../utils/formatDashboardValue";
 import { ACTION_TYPE_COLORS, ACTION_TYPE_LABELS } from "./actionTypeDisplay";
+import {
+  SCHEDULE_FREQUENCY_OPTIONS,
+  TIME_OPTIONS,
+  WEEKDAY_SHORT,
+  snapTimeToHour,
+} from "./dashboardConstants";
+import { toWeekdaysArray, toMonthDaysArray } from "../../utils/scheduleUtils";
+import { Dropdown } from "../../../../components/ui";
+
+/**
+ * When false, condition values in the "If …" row are read-only (no pencil / inline save).
+ * Params like budget %, tCPA, and description can still be edited unless we narrow that later.
+ */
+export const DASHBOARD_ACTION_CONDITION_INLINE_EDIT = false;
 
 // ── Inline editor for a single numeric field ───────────────────────────────
 
@@ -30,11 +48,31 @@ interface InlineEditProps {
   onSave: (val: string) => void;
   isDark: boolean;
   wide?: boolean;
+  /** When true, show value only (used for conditions while inline condition edit is disabled). */
+  readOnly?: boolean;
 }
 
-const InlineEdit: React.FC<InlineEditProps> = ({ value, onSave, isDark, wide }) => {
+const InlineEdit: React.FC<InlineEditProps> = ({ value, onSave, isDark, wide, readOnly }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ? String(value) : "");
+
+  if (readOnly) {
+    const display =
+      value !== undefined && value !== null && value !== ""
+        ? String(value)
+        : "—";
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center px-1.5 py-0.5 rounded text-xs",
+          wide ? "" : "font-mono",
+          isDark ? "text-neutral-200" : "text-forest-f60"
+        )}
+      >
+        {display}
+      </span>
+    );
+  }
 
   if (!editing) {
     return (
@@ -105,6 +143,57 @@ interface InlineConfirmProps {
   variant?: "danger" | "warning";
 }
 
+/** Explains what change_state will do (enable vs pause) so it is not confused with the "If" filters. */
+function ChangeStateOutcomeBanner({ status, isDark }: { status: unknown; isDark: boolean }) {
+  const raw = status != null && status !== "" ? String(status).trim() : "";
+  const normalized = raw.toUpperCase();
+
+  let title: string;
+  let subtitle: string;
+
+  if (normalized === "ENABLED") {
+    title = "Turns the campaign on";
+    subtitle = "Applies Enabled status when the conditions below match.";
+  } else if (normalized === "PAUSED") {
+    title = "Pauses the campaign";
+    subtitle = "Applies Paused status when the conditions below match.";
+  } else if (raw) {
+    title = `Sets status to ${raw}`;
+    subtitle = "Verify params.status in the rule configuration.";
+  } else {
+    title = "Target status missing";
+    subtitle = "This action should include params.status (ENABLED or PAUSED).";
+  }
+
+  const tone =
+    normalized === "ENABLED"
+      ? isDark
+        ? "border-emerald-800/45 bg-emerald-950/30 text-emerald-100"
+        : "border-emerald-600/35 bg-emerald-50 text-emerald-950"
+      : normalized === "PAUSED"
+        ? isDark
+          ? "border-amber-800/45 bg-amber-950/25 text-amber-100"
+          : "border-amber-500/40 bg-amber-50 text-amber-950"
+        : isDark
+          ? "border-neutral-600 bg-neutral-800/60 text-neutral-200"
+          : "border-sandstorm-s40 bg-sandstorm-s10 text-forest-f60";
+
+  return (
+    <div className={cn("rounded-md border px-2.5 py-1.5", tone)} role="status">
+      <p className="font-semibold text-[11px] m-0">{title}</p>
+      <p className={cn("text-[10px] m-0 mt-0.5 opacity-90", isDark ? "text-neutral-300" : "text-forest-f30")}>
+        {subtitle}
+        {raw ? (
+          <>
+            {" "}
+            <span className="font-mono">({raw})</span>
+          </>
+        ) : null}
+      </p>
+    </div>
+  );
+}
+
 const InlineConfirm: React.FC<InlineConfirmProps> = ({ message, onConfirm, onCancel, isDark, variant = "danger" }) => (
   <div
     className={cn(
@@ -138,6 +227,56 @@ const InlineConfirm: React.FC<InlineConfirmProps> = ({ message, onConfirm, onCan
   </div>
 );
 
+const DEFAULT_ACTION_SCHEDULE: ActionSchedule = {
+  frequency: "daily",
+  time: "09:00",
+  timezone: "UTC",
+  auto_execute: true,
+};
+
+/** Frequency for display/edit; missing frequency with time/next/last treated as daily (legacy / partial API). */
+function effectiveScheduleFrequency(schedule?: ActionSchedule): ActionSchedule["frequency"] | undefined {
+  if (!schedule) return undefined;
+  const hasTiming =
+    Boolean(schedule.time && String(schedule.time).trim()) ||
+    Boolean(schedule.next_run_at) ||
+    Boolean(schedule.last_run_at);
+  return schedule.frequency ?? (hasTiming ? "daily" : undefined);
+}
+
+function getScheduleLabel(schedule?: ActionSchedule): string {
+  const frequency = effectiveScheduleFrequency(schedule);
+  if (!frequency || !schedule) {
+    return "Execution schedule — click to set";
+  }
+  const normalized: ActionSchedule = { ...DEFAULT_ACTION_SCHEDULE, ...schedule, frequency };
+  const timezone = normalized.timezone || "UTC";
+  const t = snapTimeToHour(normalized.time);
+
+  if (normalized.frequency === "hourly") {
+    return `Execution Schedule: Hourly (${timezone})`;
+  }
+
+  if (normalized.frequency === "weekly") {
+    const w = toWeekdaysArray(normalized.weekdays);
+    const daysLabel =
+      w.length > 0
+        ? w.map((d) => WEEKDAY_SHORT[d] ?? "?").join(", ")
+        : normalized.day_of_week != null
+          ? WEEKDAY_SHORT[((Number(normalized.day_of_week) + 6) % 7)] ?? "Mon"
+          : "Mon";
+    return `Execution Schedule: Weekly ${daysLabel} ${t} (${timezone})`;
+  }
+
+  if (normalized.frequency === "monthly") {
+    const md = toMonthDaysArray(normalized.monthDays);
+    const daysPart = md.length > 0 ? md.sort((a, b) => a - b).join(", ") : "1";
+    return `Execution Schedule: Monthly ${daysPart} @ ${t} (${timezone})`;
+  }
+
+  return `Execution Schedule: Daily ${t} (${timezone})`;
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 interface DashboardWidgetActionsProps {
@@ -169,6 +308,16 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const [confirmingPause, setConfirmingPause] = useState<string | null>(null);
+  const [editingSchedule, setEditingSchedule] = useState<string | null>(null);
+  /** Snapshot of `rule.schedule` when the editor opened; used to revert on Cancel / Escape / click-outside. */
+  const scheduleEditorBaselineRef = useRef<Map<string, ActionSchedule | undefined>>(new Map());
+  const scheduleEditorAnchorRef = useRef<HTMLSpanElement | null>(null);
+  const schedulePopoverPanelRef = useRef<HTMLDivElement | null>(null);
+  const [schedulePopoverLayout, setSchedulePopoverLayout] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
 
   const visibleActions = actions.filter((a) => a.status !== "deleted");
   const activeActions = visibleActions.filter((a) => a.status === "active");
@@ -203,6 +352,106 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
     },
     [actions, onActionsChange]
   );
+
+  const updateSchedule = useCallback(
+    (id: string, schedule: ActionRule["schedule"]) => {
+      if (!onActionsChange) return;
+      const updated = actions.map((a) => {
+        if (a.id !== id) return a;
+        if (schedule === undefined) {
+          const next = { ...a };
+          delete next.schedule;
+          return next;
+        }
+        return { ...a, schedule };
+      });
+      onActionsChange(updated);
+    },
+    [actions, onActionsChange]
+  );
+
+  const discardScheduleEdit = useCallback(
+    (ruleId: string) => {
+      const baseline = scheduleEditorBaselineRef.current.get(ruleId);
+      scheduleEditorBaselineRef.current.delete(ruleId);
+      if (!onActionsChange) {
+        setEditingSchedule(null);
+        return;
+      }
+      const updated = actions.map((a) => {
+        if (a.id !== ruleId) return a;
+        if (baseline === undefined) {
+          const next = { ...a };
+          delete next.schedule;
+          return next;
+        }
+        return {
+          ...a,
+          schedule: JSON.parse(JSON.stringify(baseline)) as ActionSchedule,
+        };
+      });
+      onActionsChange(updated);
+      setEditingSchedule(null);
+    },
+    [actions, onActionsChange]
+  );
+
+  const commitScheduleEditClose = useCallback((ruleId: string) => {
+    scheduleEditorBaselineRef.current.delete(ruleId);
+    setEditingSchedule(null);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!editingSchedule) {
+      setSchedulePopoverLayout(null);
+      return;
+    }
+    const updatePosition = () => {
+      const el = scheduleEditorAnchorRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const pad = 16;
+      const width = Math.min(288, Math.max(200, window.innerWidth - pad * 2));
+      const left = Math.max(pad, Math.min(r.right - width, window.innerWidth - width - pad));
+      const gap = 6;
+      setSchedulePopoverLayout({ top: r.bottom + gap, left, width });
+    };
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    document.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      document.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [editingSchedule]);
+
+  useEffect(() => {
+    if (!editingSchedule) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (target instanceof Element && target.closest("[data-stellar-dropdown-menu]")) {
+        return;
+      }
+      if (schedulePopoverPanelRef.current?.contains(target as Node)) return;
+      const anchor = scheduleEditorAnchorRef.current;
+      if (anchor?.contains(target as Node)) return;
+      discardScheduleEdit(editingSchedule);
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [editingSchedule, discardScheduleEdit]);
+
+  useEffect(() => {
+    if (!editingSchedule) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        discardScheduleEdit(editingSchedule);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [editingSchedule, discardScheduleEdit]);
 
   const confirmPause = useCallback(
     (id: string) => {
@@ -409,22 +658,43 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
 
       {/* Body */}
       {isOpen && (
-        <div className="px-4 pb-3 space-y-2">
+        <div className="px-4 pb-3 space-y-4">
+          {!DASHBOARD_ACTION_CONDITION_INLINE_EDIT ? (
+            <p
+              className={cn(
+                "text-[10px] m-0 px-3 py-2 rounded-lg border border-dashed leading-relaxed",
+                isDark
+                  ? "border-neutral-600 text-neutral-400 bg-neutral-800/40"
+                  : "border-sandstorm-s40 text-forest-f30 bg-sandstorm-s5/80"
+              )}
+            >
+              <span className="font-semibold text-current">If conditions are view-only.</span> They show when
+              this action runs; use workflow configuration or re-enable editing in code when you need to change
+              thresholds here.
+            </p>
+          ) : null}
           {/* Rule list */}
           {visibleActions.map((rule) => {
             const colors = ACTION_TYPE_COLORS[rule.type] || ACTION_TYPE_COLORS.change_state;
             const isPaused = rule.status === "paused";
             const isSelected = selectedIds.has(rule.id) && !isPaused;
+            const schedEditing: ActionSchedule = { ...DEFAULT_ACTION_SCHEDULE, ...rule.schedule };
 
             return (
-              <div key={rule.id} className="space-y-1.5">
+              <div
+                key={rule.id}
+                className={cn(
+                  "space-y-1.5 pb-3 border-b last:border-b-0 last:pb-0",
+                  isDark ? "border-neutral-600/50" : "border-sandstorm-s40/70"
+                )}
+              >
                 <div
                   className={cn(
                     "flex items-start gap-2.5 px-3 py-2.5 rounded-lg transition-all",
                     isPaused && "opacity-50",
                     isDark
-                      ? "bg-neutral-700/50 hover:bg-neutral-700"
-                      : "bg-white hover:bg-sandstorm-s5 border border-sandstorm-s40/40"
+                      ? "bg-neutral-700/50 hover:bg-neutral-700 border border-neutral-600/40"
+                      : "bg-white hover:bg-sandstorm-s5 border border-sandstorm-s40 shadow-sm"
                   )}
                 >
                   {/* Checkbox */}
@@ -469,6 +739,10 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                       )}
                     </div>
 
+                    {rule.type === "change_state" ? (
+                      <ChangeStateOutcomeBanner status={rule.params?.status} isDark={isDark} />
+                    ) : null}
+
                     <div className={cn("text-xs leading-relaxed", isDark ? "text-neutral-300" : "text-forest-f50")}>
                       <InlineEdit
                         value={rule.description}
@@ -494,6 +768,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                             }
                             onSave={(v) => updateConditionValue(rule.id, v)}
                             isDark={isDark}
+                            readOnly={!DASHBOARD_ACTION_CONDITION_INLINE_EDIT}
                           />
                         </span>
                       )}
@@ -518,6 +793,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                                 value={Array.isArray(sc.value) ? sc.value.join(", ") : sc.value}
                                 onSave={(v) => updateConditionValue(rule.id, v, idx)}
                                 isDark={isDark}
+                                readOnly={!DASHBOARD_ACTION_CONDITION_INLINE_EDIT}
                               />
                             </React.Fragment>
                           ))}
@@ -650,6 +926,290 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                           </span>
                         </span>
                       )}
+                      <span
+                        className="relative inline-flex shrink-0"
+                        ref={editingSchedule === rule.id ? scheduleEditorAnchorRef : null}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (editingSchedule === rule.id) {
+                              commitScheduleEditClose(rule.id);
+                              return;
+                            }
+                            const prev = rule.schedule;
+                            scheduleEditorBaselineRef.current.set(
+                              rule.id,
+                              prev
+                                ? (JSON.parse(JSON.stringify(prev)) as ActionSchedule)
+                                : undefined
+                            );
+                            if (!effectiveScheduleFrequency(rule.schedule)) {
+                              updateSchedule(rule.id, { ...DEFAULT_ACTION_SCHEDULE });
+                            } else if (rule.schedule?.frequency === "hourly") {
+                              updateSchedule(rule.id, {
+                                ...DEFAULT_ACTION_SCHEDULE,
+                                ...rule.schedule,
+                                frequency: "daily",
+                                timezone: rule.schedule.timezone ?? "UTC",
+                                auto_execute: rule.schedule.auto_execute ?? true,
+                              });
+                            }
+                            setEditingSchedule(rule.id);
+                          }}
+                          className={cn(
+                            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border transition-colors",
+                            isDark
+                              ? "border-neutral-600 hover:bg-neutral-700/40 text-neutral-300"
+                              : "border-sandstorm-s40 hover:bg-sandstorm-s10 text-forest-f40"
+                          )}
+                          title="Edit execution schedule"
+                          aria-expanded={editingSchedule === rule.id}
+                        >
+                          <Clock className={cn("w-3 h-3", isDark ? "text-neutral-400" : "text-forest-f30")} />
+                          <span className="opacity-80">{getScheduleLabel(rule.schedule)}</span>
+                        </button>
+                        {editingSchedule === rule.id && schedulePopoverLayout
+                          ? createPortal(
+                              <div
+                                ref={schedulePopoverPanelRef}
+                                data-stellar-schedule-popover=""
+                                style={{
+                                  top: schedulePopoverLayout.top,
+                                  left: schedulePopoverLayout.left,
+                                  width: schedulePopoverLayout.width,
+                                }}
+                                className={cn(
+                                  "fixed z-[100000] max-h-[min(70vh,520px)] overflow-y-auto p-2.5 rounded-lg border shadow-lg",
+                                  isDark ? "bg-neutral-900 border-neutral-600" : "bg-white border-sandstorm-s40"
+                                )}
+                                role="dialog"
+                                aria-label="Execution schedule editor"
+                              >
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <Calendar className={cn("w-3 h-3 shrink-0", isDark ? "text-neutral-400" : "text-forest-f30")} />
+                                <span className={cn("text-xs font-medium", isDark ? "text-neutral-300" : "text-forest-f60")}>
+                                  Execution Schedule
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => discardScheduleEdit(rule.id)}
+                                className={cn(
+                                  "shrink-0 rounded p-0.5 transition-colors",
+                                  isDark
+                                    ? "text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200"
+                                    : "text-forest-f30 hover:bg-sandstorm-s10 hover:text-forest-f60"
+                                )}
+                                aria-label="Cancel and close schedule editor"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            <div className="space-y-2">
+                              <div className="min-w-[86px]">
+                                <Dropdown
+                                  options={SCHEDULE_FREQUENCY_OPTIONS}
+                                  value={schedEditing.frequency || "daily"}
+                                  onChange={(value) => {
+                                    const frequency = value as ActionSchedule["frequency"];
+                                    const next: ActionSchedule = {
+                                      ...DEFAULT_ACTION_SCHEDULE,
+                                      ...rule.schedule,
+                                      frequency,
+                                      timezone: "UTC",
+                                      auto_execute: true,
+                                    };
+                                    if (frequency === "weekly") {
+                                      const w = toWeekdaysArray(next.weekdays);
+                                      next.weekdays = w.length > 0 ? w : [0];
+                                      delete next.day_of_week;
+                                      delete next.monthDays;
+                                    } else if (frequency === "monthly") {
+                                      const m = toMonthDaysArray(next.monthDays);
+                                      next.monthDays = m.length > 0 ? m : [1];
+                                      delete next.weekdays;
+                                      delete next.day_of_week;
+                                    } else {
+                                      delete next.weekdays;
+                                      delete next.monthDays;
+                                      delete next.day_of_week;
+                                    }
+                                    updateSchedule(rule.id, next);
+                                  }}
+                                  buttonClassName={cn(
+                                    "h-6 min-h-6 px-2 py-0 text-[11px] rounded",
+                                    isDark
+                                      ? "bg-neutral-700 border border-neutral-600 text-neutral-200"
+                                      : "bg-white border border-sandstorm-s40 text-forest-f60"
+                                  )}
+                                  menuClassName={cn(
+                                    "text-[11px]",
+                                    isDark ? "bg-neutral-800 border-neutral-700" : "bg-white border-sandstorm-s40"
+                                  )}
+                                  optionClassName={cn(
+                                    "text-[11px] py-1",
+                                    isDark ? "text-neutral-200 hover:bg-neutral-700" : "text-forest-f60 hover:bg-sandstorm-s10"
+                                  )}
+                                  align="left"
+                                />
+                              </div>
+
+                              {schedEditing.frequency !== "hourly" && (
+                                <div className="min-w-[90px]">
+                                  <Dropdown
+                                    options={TIME_OPTIONS}
+                                    value={snapTimeToHour(schedEditing.time)}
+                                    onChange={(time) => {
+                                      updateSchedule(rule.id, {
+                                        ...schedEditing,
+                                        time,
+                                        timezone: "UTC",
+                                        auto_execute: true,
+                                      });
+                                    }}
+                                    buttonClassName={cn(
+                                      "h-6 min-h-6 px-2 py-0 text-[11px] rounded",
+                                      isDark
+                                        ? "bg-neutral-700 border border-neutral-600 text-neutral-200"
+                                        : "bg-white border border-sandstorm-s40 text-forest-f60"
+                                    )}
+                                    menuClassName={cn(
+                                      "text-[11px]",
+                                      isDark ? "bg-neutral-800 border-neutral-700" : "bg-white border-sandstorm-s40"
+                                    )}
+                                    optionClassName={cn(
+                                      "text-[11px] py-1",
+                                      isDark ? "text-neutral-200 hover:bg-neutral-700" : "text-forest-f60 hover:bg-sandstorm-s10"
+                                    )}
+                                    align="left"
+                                  />
+                                </div>
+                              )}
+
+                              {schedEditing.frequency === "weekly" && (
+                                <div>
+                                  <span className={cn("text-[10px] block mb-1", isDark ? "text-neutral-400" : "text-forest-f30")}>
+                                    Days (Mon–Sun)
+                                  </span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {WEEKDAY_SHORT.map((label, idx) => {
+                                      const sel = toWeekdaysArray(schedEditing.weekdays).includes(idx);
+                                      return (
+                                        <button
+                                          key={label}
+                                          type="button"
+                                          onClick={() => {
+                                            const cur = toWeekdaysArray(schedEditing.weekdays);
+                                            let nxt = sel ? cur.filter((d) => d !== idx) : [...cur, idx].sort((a, b) => a - b);
+                                            if (nxt.length === 0) nxt = [idx];
+                                            updateSchedule(rule.id, {
+                                              ...schedEditing,
+                                              frequency: "weekly",
+                                              weekdays: nxt,
+                                              timezone: "UTC",
+                                              auto_execute: true,
+                                            });
+                                          }}
+                                          className={cn(
+                                            "w-9 h-9 rounded-md text-[10px] font-semibold border transition-colors",
+                                            sel
+                                              ? isDark
+                                                ? "bg-[#2DD4BF]/25 border-[#2DD4BF]/50 text-[#2DD4BF]"
+                                                : "bg-forest-f40 text-white border-forest-f40"
+                                              : isDark
+                                                ? "border-neutral-600 text-neutral-300 hover:bg-neutral-700"
+                                                : "border-sandstorm-s40 text-forest-f60 hover:bg-sandstorm-s10"
+                                          )}
+                                        >
+                                          {label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
+                              {schedEditing.frequency === "monthly" && (
+                                <div>
+                                  <span className={cn("text-[10px] block mb-1", isDark ? "text-neutral-400" : "text-forest-f30")}>
+                                    Days of month
+                                  </span>
+                                  <div className="grid grid-cols-7 gap-1 max-w-[220px]">
+                                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
+                                      const sel = toMonthDaysArray(schedEditing.monthDays).includes(day);
+                                      return (
+                                        <button
+                                          key={day}
+                                          type="button"
+                                          onClick={() => {
+                                            const cur = toMonthDaysArray(schedEditing.monthDays);
+                                            let nxt = sel ? cur.filter((d) => d !== day) : [...cur, day].sort((a, b) => a - b);
+                                            if (nxt.length === 0) nxt = [day];
+                                            updateSchedule(rule.id, {
+                                              ...schedEditing,
+                                              frequency: "monthly",
+                                              monthDays: nxt,
+                                              timezone: "UTC",
+                                              auto_execute: true,
+                                            });
+                                          }}
+                                          className={cn(
+                                            "h-7 rounded text-[10px] font-medium border transition-colors",
+                                            sel
+                                              ? isDark
+                                                ? "bg-[#2DD4BF]/25 border-[#2DD4BF]/50 text-[#2DD4BF]"
+                                                : "bg-forest-f40 text-white border-forest-f40"
+                                              : isDark
+                                                ? "border-neutral-600 text-neutral-300 hover:bg-neutral-700"
+                                                : "border-sandstorm-s40 text-forest-f60 hover:bg-sandstorm-s10"
+                                          )}
+                                        >
+                                          {day}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t border-dashed border-sandstorm-s40/50 dark:border-neutral-600">
+                              <p className={cn("text-[10px] opacity-80 m-0", isDark ? "text-neutral-400" : "text-forest-f30")}>
+                                UTC • auto-execution
+                              </p>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => discardScheduleEdit(rule.id)}
+                                  className={cn(
+                                    "px-2 py-1 rounded text-[10px] font-medium border transition-colors",
+                                    isDark
+                                      ? "border-neutral-600 text-neutral-300 hover:bg-neutral-700"
+                                      : "border-sandstorm-s40 text-forest-f60 hover:bg-sandstorm-s10"
+                                  )}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => commitScheduleEditClose(rule.id)}
+                                  className={cn(
+                                    "px-2 py-1 rounded text-[10px] font-medium",
+                                    isDark ? "bg-neutral-600 hover:bg-neutral-500 text-neutral-100" : "bg-forest-f40 hover:bg-forest-f50 text-white"
+                                  )}
+                                >
+                                  Done
+                                </button>
+                              </div>
+                            </div>
+                          </div>,
+                              document.body
+                            )
+                        : null}
+                      </span>
                     </div>
                   </div>
 
@@ -696,7 +1256,6 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                     variant="danger"
                   />
                 )}
-
                 {/* Pause confirmation */}
                 {confirmingPause === rule.id && (
                   <InlineConfirm

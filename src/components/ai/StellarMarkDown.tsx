@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Clipboard, Check, Download } from "lucide-react";
@@ -183,7 +182,6 @@ interface StellarMarkDownProps {
 export const StellarMarkDown: React.FC<StellarMarkDownProps> = ({ content, type }) => {
     const stringContent = typeof content === "string" ? content : String(content);
     const [previewFile, setPreviewFile] = useState<{ url: string; fileName: string } | null>(null);
-    const navigate = useNavigate();
 
     // Helper to check if a URL is a relative link (no domain/protocol)
     const isRelativeLink = (href: string | undefined): boolean => {
@@ -270,18 +268,15 @@ export const StellarMarkDown: React.FC<StellarMarkDownProps> = ({ content, type 
                             );
                         }
 
-                        // Handle relative links with navigation
+                        // Handle relative links — open in new tab
                         if (isRelativeLink(href)) {
                             return (
                                 <a
                                     href={href}
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        if (href) navigate(href);
-                                    }}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                     className={`${type === "human" ? "text-blue-500 underline" : "text-blue-500"
                                         } hover:opacity-80 cursor-pointer`}
-                                    role="button"
                                 >
                                     {children}
                                 </a>

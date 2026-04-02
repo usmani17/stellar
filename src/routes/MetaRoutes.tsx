@@ -11,6 +11,7 @@ import { MetaAdsetDetail } from "../pages/meta/MetaAdsetDetail";
 import { MetaAds } from "../pages/meta/MetaAds";
 import { MetaAdDetail } from "../pages/meta/MetaAdDetail";
 import { MetaCreatives } from "../pages/meta/MetaCreatives";
+import { MetaAudiences } from "../pages/meta/MetaAudiences";
 
 function MetaRoutes() {
     return (
@@ -120,6 +121,22 @@ function MetaRoutes() {
                                 <BrandAccessRoute>
                                     <Layout>
                                         <MetaCreatives />
+                                    </Layout>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/brands/:accountId/:channelId/meta/audiences"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <MetaAudiences />
                                     </Layout>
                                 </BrandAccessRoute>
                             </AccountRequiredRoute>

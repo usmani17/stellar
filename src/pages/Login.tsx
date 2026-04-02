@@ -13,6 +13,7 @@ import {
   Divider,
 } from "../components/ui";
 import auth0Icon from "../assets/images/auth0.svg";
+import { getApiErrorMessage } from "../utils/authErrors";
 
 const LOGIN_REDIRECT_KEY = "loginRedirect";
 
@@ -64,31 +65,13 @@ export const Login: React.FC = () => {
       const redirectTo = from ? getRedirectPath(from) : (sessionStorage.getItem(LOGIN_REDIRECT_KEY) || "/brands");
       sessionStorage.removeItem(LOGIN_REDIRECT_KEY);
       navigate(redirectTo, { replace: true });
-    } catch (err: any) {
-      // Better error handling - check for axios error structure
+    } catch (err: unknown) {
       console.error("Login error:", err);
-      console.error("Error response:", err?.response);
-      console.error("Error data:", err?.response?.data);
-      
-      // Extract error message from various possible locations
-      let errorMessage = "Login failed. Please check your email and password.";
-      
-      if (err?.response?.data) {
-        // Check for error field first (most common)
-        if (err.response.data.error) {
-          errorMessage = err.response.data.error;
-        } else if (err.response.data.message) {
-          errorMessage = err.response.data.message;
-        } else if (typeof err.response.data === 'string') {
-          errorMessage = err.response.data;
-        } else if (err.response.data.detail) {
-          errorMessage = err.response.data.detail;
-        }
-      } else if (err?.message) {
-        errorMessage = err.message;
-      }
-      
-      console.log("Setting error message:", errorMessage);
+      console.error("Error response:", (err as { response?: unknown })?.response);
+      const errorMessage = getApiErrorMessage(
+        err,
+        "Login failed. Please check your email and password.",
+      );
       setError(errorMessage);
       setLoading(false);
     }
@@ -104,12 +87,11 @@ export const Login: React.FC = () => {
       await loginWithAuth0();
       // Note: We don't set loading to false here because the page will redirect
       // If there's an error, it will be caught and we'll reset the loading state
-    } catch (err: any) {
-      const errorMessage = 
-        err?.response?.data?.error || 
-        err?.response?.data?.message ||
-        err?.message ||
-        "Failed to initiate Auth0 login. Please try again.";
+    } catch (err: unknown) {
+      const errorMessage = getApiErrorMessage(
+        err,
+        "Failed to initiate Auth0 login. Please try again.",
+      );
       setError(errorMessage);
       setAuth0Loading(false);
     }
