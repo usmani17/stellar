@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type {
   ActionCondition,
   ActionRule,
@@ -543,6 +545,7 @@ const ACTION_TYPE_LABELS: Record<ActionType, string> = {
   set_ad_schedule: "Set ad schedule",
   adjust_device_bid: "Adjust device bid",
   adjust_demographic_bid: "Adjust demographic bid",
+  adjust_age_targeting: "Adjust age targeting",
 };
 
 const CONDITION_OP_LABEL: Record<ActionCondition["operator"], string> = {
@@ -786,13 +789,53 @@ function ExpandPanelDashboardSummaryCard({
       </div>
 
       {strategicSummary ? (
-        <div className="mt-3 rounded-lg border border-forest-f40/20 bg-forest-f0/50 px-3 py-2 w-full min-w-0">
-          <p className="text-[9px] font-semibold text-forest-f30 uppercase tracking-wide m-0 mb-1">
+        <div className="mt-3 rounded-[10px] border border-sandstorm-s40 bg-sandstorm-s5 px-3.5 py-2.5 w-full min-w-0">
+          <p className="text-[9px] font-semibold text-forest-f30 uppercase tracking-wider m-0 mb-1.5">
             Strategic context
           </p>
-          <p className="text-[11px] text-forest-f60 m-0 leading-relaxed whitespace-pre-wrap break-words">
-            {strategicSummary}
-          </p>
+          <div className="strategic-context-md text-[11.5px] text-forest-f60/90 leading-relaxed break-words">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                p: ({ children }) => (
+                  <p className="m-0 mb-1.5 last:mb-0 leading-relaxed">{children}</p>
+                ),
+                strong: ({ children }) => (
+                  <strong className="font-semibold text-forest-f60">{children}</strong>
+                ),
+                em: ({ children }) => <em className="italic">{children}</em>,
+                ul: ({ children }) => (
+                  <ul className="m-0 mb-1.5 pl-4 list-disc last:mb-0 space-y-0.5 [&_li::marker]:text-forest-f30/50">{children}</ul>
+                ),
+                ol: ({ children }) => (
+                  <ol className="m-0 mb-1.5 pl-4 list-decimal last:mb-0 space-y-0.5 [&_li::marker]:text-forest-f30/50">{children}</ol>
+                ),
+                li: ({ children }) => (
+                  <li className="m-0 pl-0.5 leading-relaxed">{children}</li>
+                ),
+                h1: ({ children }) => (
+                  <p className="m-0 mb-1 text-[12px] font-semibold text-forest-f60">{children}</p>
+                ),
+                h2: ({ children }) => (
+                  <p className="m-0 mb-1 text-[12px] font-semibold text-forest-f60">{children}</p>
+                ),
+                h3: ({ children }) => (
+                  <p className="m-0 mb-1 text-[11.5px] font-semibold text-forest-f60">{children}</p>
+                ),
+                a: ({ href, children }) => (
+                  <a href={href} target="_blank" rel="noopener noreferrer" className="text-forest-f40 underline decoration-forest-f40/30 hover:decoration-forest-f40/60 transition-colors">{children}</a>
+                ),
+                code: ({ children }) => (
+                  <code className="px-1 py-0.5 rounded bg-sandstorm-s20/60 text-[10.5px] font-mono text-forest-f50">{children}</code>
+                ),
+                blockquote: ({ children }) => (
+                  <blockquote className="m-0 mb-1.5 pl-2.5 border-l-2 border-forest-f40/20 text-forest-f30 italic last:mb-0">{children}</blockquote>
+                ),
+              }}
+            >
+              {strategicSummary}
+            </ReactMarkdown>
+          </div>
         </div>
       ) : null}
 
@@ -1230,9 +1273,11 @@ export const PortfolioList: React.FC = () => {
     return () => resetPageTitle();
   }, []);
 
-  useEffect(() => {
+  const [prevSearchQuery, setPrevSearchQuery] = useState(searchQuery);
+  if (prevSearchQuery !== searchQuery) {
+    setPrevSearchQuery(searchQuery);
     setCurrentPage(1);
-  }, [searchQuery]);
+  }
 
   const handleRefresh = useCallback(() => {
     refetch();

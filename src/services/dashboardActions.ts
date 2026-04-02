@@ -54,7 +54,7 @@ export type ExecuteActionErrorItem =
 
 export interface ExecuteActionResult {
   action_rule_id: string;
-  status: "success" | "failed";
+  status: "success" | "partial_success" | "failed";
   updated?: number;
   failed?: number;
   errors?: ExecuteActionErrorItem[];

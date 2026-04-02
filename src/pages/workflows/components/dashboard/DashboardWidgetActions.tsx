@@ -1057,7 +1057,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                     </div>
 
                     {rule.type === "change_state" ? (
-                      <ChangeStateOutcomeBanner status={rule.params?.status} isDark={isDark} />
+                      <ChangeStateOutcomeBanner status={rule.params?.status ?? rule.params?.state} isDark={isDark} />
                     ) : null}
 
                     <div className={cn("text-xs leading-relaxed", isDark ? "text-neutral-300" : "text-forest-f50")}>
