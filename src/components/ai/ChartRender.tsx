@@ -83,19 +83,20 @@ export function ChartRender({ config }: { config: ChartConfig }) {
             dataKey={series[0]}
             nameKey={xKey}
             cx="50%"
-            cy="50%"
-            outerRadius={100}
+            cy="45%"
+            outerRadius={70}
             label={({ name, percent }: { name?: string; percent?: number }) => {
               const pct = percent ?? 0;
-              if (pct < 0.02) return null;
+              if (pct < 0.05) return null;
               return `${name ?? ""} ${(pct * 100).toFixed(0)}%`;
             }}
+            labelLine={{ strokeWidth: 1 }}
           >
             {data.map((_, i) => (
               <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
             ))}
           </Pie>
-          <Legend layout="horizontal" align="center" verticalAlign="bottom" />
+          <Legend layout="horizontal" align="center" verticalAlign="bottom" wrapperStyle={{ paddingTop: 8 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE} wrapperStyle={{ zIndex: 10 }} labelStyle={{ color: "#072929" }} itemStyle={{ color: "#072929" }} formatter={(v: unknown): [React.ReactNode, string] => [typeof v === "number" ? v.toLocaleString() : String(v), ""]} />
         </PieChart>
       </ResponsiveContainer>
@@ -133,7 +134,7 @@ export function ChartRender({ config }: { config: ChartConfig }) {
       {title && (
         <div className="text-[12.16px] font-semibold text-[#072929] mb-4">{title}</div>
       )}
-      <div className="h-[223px] bg-transparent rounded-lg">
+      <div className={`${type === "pie" ? "h-[280px]" : "h-[223px]"} bg-transparent rounded-lg`}>
         {chartInner}
       </div>
     </div>

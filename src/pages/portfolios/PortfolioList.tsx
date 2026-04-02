@@ -25,14 +25,17 @@ import {
   Shield,
   ExternalLink,
   Sparkles,
+  Bot,
 } from "lucide-react";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { useSidebar } from "../../contexts/SidebarContext";
+import { useAssistant } from "../../contexts/AssistantContext";
 import { usePortfolios, usePortfolioSummary } from "../../hooks/queries/usePortfolios";
 import { useDeletePortfolio } from "../../hooks/mutations/usePortfolioMutations";
 import { useDebouncedSearch } from "../../hooks/useDebouncedSearch";
 import { Sidebar } from "../../components/layout/Sidebar";
-import { DashboardHeader } from "../../components/layout/DashboardHeader";
+
+import { Assistant } from "../../components/layout/Assistant";
 import {
   Banner,
   Button,
@@ -866,16 +869,14 @@ function dashboardMetaLine(d: DashboardResponse): string | null {
 }
 
 function PortfolioExpandDashboards({
-  accountId,
-  portfolioId,
+  portfolio: p,
   dashboards,
   latestDashboardId,
   dashboardCount,
   dashLoading,
   dashError,
 }: {
-  accountId: number;
-  portfolioId: number;
+  portfolio: PortfolioListItem;
   dashboards: DashboardResponse[];
   latestDashboardId: number | null | undefined;
   dashboardCount: number;
@@ -883,6 +884,10 @@ function PortfolioExpandDashboards({
   dashError: boolean;
 }) {
   const navigate = useNavigate();
+  const { openAssistant, startNewSession, setInputValue, setPortfolioScope } = useAssistant();
+  const accountId = p.accountId;
+  const portfolioId = p.id;
+  const portfolioName = p.name;
 
   const manageHref = `/brands/${accountId}/portfolios/${portfolioId}?tab=dashboards`;
 
@@ -898,7 +903,7 @@ function PortfolioExpandDashboards({
 
   const listLoading = dashLoading || (needLatestDetail && latestDetailLoading);
 
-  const openDash = (id: number) => navigate(openDashboardPath(accountId, id));
+  const openDash = (id: number) => window.open(openDashboardPath(accountId, id), "_blank");
 
   const countLabel =
     dashboards.length > 0
@@ -980,21 +985,65 @@ function PortfolioExpandDashboards({
         </div>
       ) : (dashboardCount ?? 0) === 0 ? (
         <div className="w-full rounded-xl border border-sandstorm-s40 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(7,41,41,0.04)]">
-          <p className="text-[12px] text-forest-f30 m-0 mb-3">
-            No dashboards linked yet. Create one from the portfolio Dashboards tab or the Assistant.
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="text-[12px]"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(manageHref);
-            }}
-          >
-            Go to portfolio · Dashboards
-          </Button>
+          <div className="flex items-start gap-3">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-forest-f40/[0.07] shrink-0 mt-0.5">
+              <Bot className="w-4 h-4 text-forest-f40/70" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[12.5px] text-forest-f60 font-medium m-0 mb-1">
+                No dashboards linked yet
+              </p>
+              <p className="text-[11.5px] text-forest-f30 m-0 mb-3 leading-relaxed">
+                Use the Assistant to create a dashboard with actions for this portfolio.
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="text-[12px] inline-flex items-center gap-1.5 bg-forest-f40 text-white hover:bg-forest-f50 border-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startNewSession();
+                    setPortfolioScope(portfolioId, portfolioName, {
+                      accountId,
+                      channelId: p.channelId ?? undefined,
+                      profileId: p.profileId ?? undefined,
+                      profileName: p.profileName ?? undefined,
+                      platform: p.platform ?? undefined,
+                      portfolioDetail: {
+                        status: p.status,
+                        platform: p.platform,
+                        totalBudget: p.totalBudget ?? undefined,
+                        targetType: p.targetType ?? undefined,
+                        startDate: p.startDate!,
+                        endDate: p.endDate!,
+                        campaignCount: p.campaignCount ?? 0,
+                      },
+                    });
+                    setInputValue(
+                      `Create a dashboard for portfolio "${portfolioName}" (ID: ${portfolioId}). Analyze the campaigns, set up relevant KPI widgets, and suggest actions.`,
+                    );
+                    openAssistant();
+                  }}
+                >
+                  <Bot className="w-3.5 h-3.5" />
+                  Create Dashboard
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-[12px]"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(manageHref);
+                  }}
+                >
+                  Go to portfolio
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>
@@ -1074,8 +1123,7 @@ function PortfolioExpandPanel({ portfolio: p }: { portfolio: PortfolioListItem }
         </div>
 
         <PortfolioExpandDashboards
-          accountId={p.accountId}
-          portfolioId={p.id}
+          portfolio={p}
           dashboards={dashboards}
           latestDashboardId={p.latestDashboardId}
           dashboardCount={p.dashboardCount ?? 0}
@@ -1227,8 +1275,7 @@ export const PortfolioList: React.FC = () => {
         className="flex-1 w-full min-w-0 flex flex-col"
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
-        <DashboardHeader />
-
+        <Assistant>
         <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white flex-1 pb-10">
           <div className="space-y-6">
             {deleteBannerMsg && (
@@ -1465,6 +1512,7 @@ export const PortfolioList: React.FC = () => {
             )}
           </div>
         </div>
+        </Assistant>
       </div>
 
       <ConfirmationModal

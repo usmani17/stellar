@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   X,
   ChevronRight,
@@ -9,6 +10,7 @@ import {
   Star,
   CheckCircle,
   ShieldCheck,
+  ExternalLink,
 } from "lucide-react";
 import { BaseModal, Button, Loader, Radio, Checkbox, Chip } from "../../../components/ui";
 import { cn } from "../../../lib/cn";
@@ -148,7 +150,7 @@ const PLATFORM_METRICS: Record<string, DefaultMetricDef[]> = {
 const WEEKDAY_KEYS: Set<string> = new Set(DAY_KEYS.slice(0, 5) as unknown as string[]);
 
 function isDefaultWeekdaySchedule(
-  preset: "weekdays" | "weekends" | "all" | "custom",
+  preset: "weekdays" | "weekends" | "all" | "custom" | null,
   days: string[],
 ): boolean {
   if (preset !== "weekdays") return false;
@@ -204,7 +206,9 @@ export const CreatePortfolioWizard: React.FC<Props> = ({
   preSelectedCampaigns = [],
   editPortfolio,
 }) => {
+  const navigate = useNavigate();
   const isEditMode = !!editPortfolio;
+  const [createdPortfolio, setCreatedPortfolio] = useState<Portfolio | null>(null);
   const editCampaigns: Campaign[] = useMemo(
     () =>
       editPortfolio?.campaigns?.map((c) => ({
@@ -276,15 +280,9 @@ export const CreatePortfolioWizard: React.FC<Props> = ({
   const [grAudIncInput, setGrAudIncInput] = useState("");
   const [grAudExcInput, setGrAudExcInput] = useState("");
   const [grSchedulePreset, setGrSchedulePreset] = useState<
-    "weekdays" | "weekends" | "all" | "custom"
-  >("weekdays");
-  const [grScheduleDays, setGrScheduleDays] = useState<string[]>([
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-  ]);
+    "weekdays" | "weekends" | "all" | "custom" | null
+  >(null);
+  const [grScheduleDays, setGrScheduleDays] = useState<string[]>([]);
 
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -503,7 +501,7 @@ export const CreatePortfolioWizard: React.FC<Props> = ({
         ...(grAudExclude.length ? { exclude: grAudExclude } : {}),
       };
     }
-    if (grScheduleDays.length) {
+    if (grSchedulePreset && grScheduleDays.length) {
       out.schedule = { preset: grSchedulePreset, days: grScheduleDays };
     }
     return Object.keys(out).length ? out : null;
@@ -530,7 +528,9 @@ export const CreatePortfolioWizard: React.FC<Props> = ({
           ? "Weekends"
           : grSchedulePreset === "all"
             ? "All days"
-            : "Custom";
+            : grSchedulePreset === "custom"
+              ? "Custom"
+              : "Not set";
 
     const sortedDays = [...grScheduleDays].sort(
       (a, b) =>
@@ -695,7 +695,7 @@ export const CreatePortfolioWizard: React.FC<Props> = ({
               ) : null}
             </div>
           ) : (
-            <p className="text-forest-f30 m-0">No days selected.</p>
+            <p className="text-forest-f30 m-0">No schedule set — choose a preset or toggle individual days in Portfolio Settings.</p>
           ),
       },
     ];
@@ -715,7 +715,7 @@ export const CreatePortfolioWizard: React.FC<Props> = ({
     grScheduleDays,
   ]);
 
-  const applySchedulePreset = (p: typeof grSchedulePreset) => {
+  const applySchedulePreset = (p: "weekdays" | "weekends" | "all") => {
     setGrSchedulePreset(p);
     if (p === "weekdays") {
       setGrScheduleDays(["monday", "tuesday", "wednesday", "thursday", "friday"]);
@@ -798,14 +798,17 @@ export const CreatePortfolioWizard: React.FC<Props> = ({
           campaigns: campaignsPayload,
           metrics: metricsPayload,
         };
-        await createMutation.mutateAsync(payload);
+        const created = await createMutation.mutateAsync(payload);
+        setCreatedPortfolio(created);
         setSuccessMessage(`Portfolio "${name.trim()}" created successfully!`);
       }
       onSuccess?.();
-      setTimeout(() => {
-        setSuccessMessage("");
-        handleClose();
-      }, 1500);
+      if (isEditMode) {
+        setTimeout(() => {
+          setSuccessMessage("");
+          handleClose();
+        }, 1500);
+      }
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
@@ -843,12 +846,13 @@ export const CreatePortfolioWizard: React.FC<Props> = ({
       setGrAudExclude([]);
       setGrAudIncInput("");
       setGrAudExcInput("");
-      setGrSchedulePreset("weekdays");
-      setGrScheduleDays(["monday", "tuesday", "wednesday", "thursday", "friday"]);
+      setGrSchedulePreset(null);
+      setGrScheduleDays([]);
       setGrOpen({ budget: false, change: false, demo: false, ad: false, aud: false, sched: false });
       setL30dData(null);
       setConversionActions([]);
       setConversionFetched(false);
+      setCreatedPortfolio(null);
     }
     setError("");
     setSuccessMessage("");
@@ -923,7 +927,33 @@ export const CreatePortfolioWizard: React.FC<Props> = ({
                 <CheckCircle className="w-7 h-7 text-forest-f40" />
               </div>
               <p className="text-[16px] font-medium text-forest-f60">{successMessage}</p>
-              <p className="text-[13px] text-forest-f30">Redirecting...</p>
+              {createdPortfolio ? (
+                <div className="flex items-center gap-3 mt-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="text-[13px] inline-flex items-center gap-1.5 bg-forest-f40 text-white hover:bg-forest-f50 border-0"
+                    onClick={() => {
+                      handleClose();
+                      navigate(`/brands/${createdPortfolio.accountId}/portfolios/${createdPortfolio.id}`);
+                    }}
+                  >
+                    Go to Portfolio
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-[13px]"
+                    onClick={handleClose}
+                  >
+                    Close
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-[13px] text-forest-f30">Redirecting...</p>
+              )}
             </div>
           )}
 

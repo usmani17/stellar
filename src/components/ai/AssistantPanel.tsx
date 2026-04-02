@@ -1910,8 +1910,17 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                                     placeholder={
                                                                         seg.items.length === 0 && timeline.length === 0 && aiStreaming ? (
                                                                             <div className="flex items-center gap-2 text-forest-f30">
-                                                                                <span className="w-1.5 h-1.5 bg-forest-f40 rounded-full animate-pulse" />
-                                                                                <span className="text-[11px] font-medium">Thinking...</span>
+                                                                                {workingOnRequest ? (
+                                                                                    <>
+                                                                                        <Loader2 className="w-3.5 h-3.5 text-forest-f40 animate-spin" />
+                                                                                        <span className="text-[11px] font-medium">Working on request...</span>
+                                                                                    </>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        <span className="w-1.5 h-1.5 bg-forest-f40 rounded-full animate-pulse" />
+                                                                                        <span className="text-[11px] font-medium">Thinking...</span>
+                                                                                    </>
+                                                                                )}
                                                                             </div>
                                                                         ) : undefined
                                                                     }
@@ -1946,8 +1955,17 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                 )}
                                                 {aiStreaming && timeline.length > 0 && !lastText?.content && (
                                                     <div className="flex items-center gap-2 text-forest-f30">
-                                                        <span className="w-1.5 h-1.5 bg-forest-f40 rounded-full animate-pulse" />
-                                                        <span className="text-[11px] font-medium">Thinking...</span>
+                                                        {workingOnRequest ? (
+                                                            <>
+                                                                <Loader2 className="w-3.5 h-3.5 text-forest-f40 animate-spin" />
+                                                                <span className="text-[11px] font-medium">Working on request...</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <span className="w-1.5 h-1.5 bg-forest-f40 rounded-full animate-pulse" />
+                                                                <span className="text-[11px] font-medium">Thinking...</span>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
@@ -1969,8 +1987,17 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                         <span className="chat-message-header-label">Prism</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-forest-f30 mt-2">
-                                        <span className="w-1.5 h-1.5 bg-forest-f40 rounded-full animate-pulse" />
-                                        <span className="text-[11px] font-medium">Thinking...</span>
+                                        {workingOnRequest ? (
+                                            <>
+                                                <Loader2 className="w-3.5 h-3.5 text-forest-f40 animate-spin" />
+                                                <span className="text-[11px] font-medium">Working on request...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span className="w-1.5 h-1.5 bg-forest-f40 rounded-full animate-pulse" />
+                                                <span className="text-[11px] font-medium">Thinking...</span>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>

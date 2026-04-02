@@ -38,6 +38,7 @@ export interface PortfolioLatestTracking {
   targetKpiValue: number | null;
   targetKpiName: string | null;
   trackedAt: string | null;
+  isLive?: boolean;
 }
 
 export interface Portfolio {

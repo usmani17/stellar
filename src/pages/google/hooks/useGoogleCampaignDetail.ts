@@ -228,6 +228,24 @@ export const useGoogleCampaignDetail = ({
               end_date: newValue,
             }
           );
+        // tCPA not stored in DB — re-enable when persisted
+        // } else if (field === "target_cpa") {
+        //   const tcpaDollars = parseFloat(newValue.replace(/[^0-9.]/g, ""));
+        //   if (isNaN(tcpaDollars)) {
+        //     throw new Error("Invalid target CPA value");
+        //   }
+        //   const tcpaMicros = Math.round(tcpaDollars * 1_000_000);
+        //   await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
+        //     accountIdNum,
+        //     channelIdNum,
+        //     {
+        //       campaignIds: [campaignDetail.campaign.campaign_id],
+        //       action: "bidding_strategy",
+        //       bidding_strategy_type: campaignDetail.campaign.bidding_strategy_type,
+        //       target_cpa_micros: tcpaMicros,
+        //     }
+        //   );
+        // }
         }
 
         // Reload campaign detail after update

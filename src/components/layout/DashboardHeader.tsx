@@ -248,8 +248,9 @@ export const DashboardHeader: React.FC = () => {
   const isDraftsPage = /^\/brands\/\d+\/\d+\/google\/drafts(\/|$)/.test(location.pathname);
   const isWorkflowsPage = /^\/brands\/\d+\/workflows(\/|$)/.test(location.pathname);
   const isDashboardsPage = /^\/brands\/\d+\/dashboards(\/|$)/.test(location.pathname);
+  const isPortfoliosPage = /^\/portfolios(\/|$)/.test(location.pathname);
   const shouldHideDatePicker =
-    isProfilePage || isAccountSelectionPage || isDraftsPage || isWorkflowsPage || isDashboardsPage;
+    isProfilePage || isAccountSelectionPage || isDraftsPage || isWorkflowsPage || isDashboardsPage || isPortfoliosPage;
 
   // Use channels from accounts data if available, otherwise fall back to API call
   // This avoids unnecessary API calls when channels are already included in accounts response
@@ -278,9 +279,9 @@ export const DashboardHeader: React.FC = () => {
     : null;
 
   return (
-    <div className="h-20 bg-white border-b border-[rgba(0,0,0,0.1)] flex items-center px-7 fixed top-0 left-0 right-0 z-30" style={{ marginLeft: `${sidebarWidth}px` }}>
+    <div className="dashboard-header h-20 bg-white border-b border-[rgba(0,0,0,0.1)] flex items-center px-7 fixed top-0 left-0 right-0 z-30" style={{ marginLeft: `${sidebarWidth}px` }}>
       {/* ACCOUNT */}
-      {!isProfilePage && (
+      {!isProfilePage && !isPortfoliosPage && (
         <div
           ref={accountDropdownRef}
           className="relative flex items-center gap-3"
