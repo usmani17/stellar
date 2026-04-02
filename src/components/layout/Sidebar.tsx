@@ -52,6 +52,7 @@ import { useChatHistorySidebarOptional } from "../../contexts/ChatHistorySidebar
 import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
 import { getActiveWorkspaceLabel } from "../../lib/workspace";
 import { getAvatarInitials, getInitialColor } from "../../lib/initials";
+import { SidebarUserMenu } from "./SidebarUserMenu";
 import type { WorkspaceMembershipSummary } from "../../services/auth";
 
 const WORKSPACE_SECTION_STORAGE_KEY = "workspace-section-collapsed";
@@ -475,10 +476,10 @@ export const Sidebar: React.FC = () => {
 
   return (
     <div
-      className="sidebar-nav z-40 border-r border-[rgba(0,0,0,0.1)] h-screen fixed left-0 top-0 overflow-y-auto bg-[#f9f9f6] transition-all duration-300"
+      className="sidebar-nav z-40 border-r border-[rgba(0,0,0,0.1)] h-screen fixed left-0 top-0 flex flex-col overflow-hidden bg-[#f9f9f6] transition-all duration-300"
       style={{ width: `${sidebarWidth}px` }}
     >
-      <div className="p-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4">
         {/* Logo and Toggle Button */}
         <div className="mb-2 flex items-center gap-3 justify-between">
           {!isCollapsed && (
@@ -2279,6 +2280,10 @@ export const Sidebar: React.FC = () => {
             </span>
           )}
         </Link> */}
+      </div>
+
+      <div className="shrink-0 px-3 py-3 border-t border-[rgba(0,0,0,0.08)] bg-[#f9f9f6]">
+        <SidebarUserMenu isCollapsed={isCollapsed} />
       </div>
 
       {channelRequiredModal !== null &&
