@@ -14,7 +14,7 @@ import {
 import { useGoogleProfiles } from "../../hooks/queries/useGoogleProfiles";
 import { getStatusBadgeLabel, getChannelTypeLabel } from "../../utils/statusLabels";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { CheckSquare, X, ChevronDown } from "lucide-react";
+import { CheckSquare, X, ChevronDown, Search, FolderPlus } from "lucide-react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
@@ -47,6 +47,8 @@ import {
   type BulkUpdateStatusDetails,
 } from "./components/BulkUpdateConfirmationModal";
 import { CreatePortfolioWizard } from "../portfolios/components/CreatePortfolioWizard";
+import { portfoliosService } from "../../services/portfolios";
+import type { PortfolioListItem } from "../../services/portfolios";
 // import { CustomizeColumns } from "../../components/ui/CustomizeColumns";
 import type { IGoogleCampaign, IGoogleCampaignsSummary } from "../../types/google/campaign";
 import { useQuery } from "@tanstack/react-query";
@@ -177,6 +179,7 @@ export const GoogleCampaigns: React.FC = () => {
   >(new Map());
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showCreatePortfolio, setShowCreatePortfolio] = useState(false);
+  const [showAddToPortfolio, setShowAddToPortfolio] = useState(false);
   const [showBudgetPanel, setShowBudgetPanel] = useState(false);
   const [budgetAction, setBudgetAction] = useState<
     "increase" | "decrease" | "set"
@@ -3582,6 +3585,7 @@ export const GoogleCampaigns: React.FC = () => {
                             { value: "PAUSED", label: "Pause" },
                             { value: "edit_budget", label: "Edit Budget" },
                             { value: "create_portfolio", label: "Create Portfolio" },
+                            { value: "add_to_portfolio", label: "Add to Portfolio" },
                           ].map((opt) => (
                             <button
                               key={opt.value}
@@ -3593,6 +3597,11 @@ export const GoogleCampaigns: React.FC = () => {
                                 if (selectedCampaigns.size === 0) return;
                                 if (opt.value === "create_portfolio") {
                                   setShowCreatePortfolio(true);
+                                  setShowBulkActions(false);
+                                  return;
+                                }
+                                if (opt.value === "add_to_portfolio") {
+                                  setShowAddToPortfolio(true);
                                   setShowBulkActions(false);
                                   return;
                                 }
@@ -4529,6 +4538,243 @@ export const GoogleCampaigns: React.FC = () => {
             .filter(Boolean) as Array<{ campaignId: string; campaignName: string; campaignType: string; campaignStatus: string }>}
         />
       )}
+
+      {showAddToPortfolio && (
+        <AddToPortfolioModal
+          accountId={accountId ? parseInt(accountId, 10) : 0}
+          selectedCampaigns={Array.from(selectedCampaigns)
+            .map((id) => {
+              const key = String(id);
+              const cached = selectedCampaignDetailsRef.current.get(key);
+              if (cached) return cached;
+              const c = campaigns.find((camp) => String(camp.campaign_id) === key);
+              if (!c) return null;
+              return {
+                campaignId: key,
+                campaignName: c.campaign_name || "",
+                campaignType: c.advertising_channel_type || "",
+                campaignStatus: c.status || "",
+              };
+            })
+            .filter(Boolean) as Array<{ campaignId: string; campaignName: string; campaignType: string; campaignStatus: string }>}
+          onClose={() => setShowAddToPortfolio(false)}
+          onSuccess={(portfolioName) => {
+            setShowAddToPortfolio(false);
+            setErrorModal({
+              isOpen: true,
+              message: `Campaigns added to "${portfolioName}" successfully.`,
+              isSuccess: true,
+            });
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+// ── Add to Portfolio Modal ────────────────────────────────────────────────
+
+interface AddToPortfolioModalProps {
+  accountId: number;
+  selectedCampaigns: Array<{ campaignId: string; campaignName: string; campaignType: string; campaignStatus: string }>;
+  onClose: () => void;
+  onSuccess: (portfolioName: string) => void;
+}
+
+const AddToPortfolioModal: React.FC<AddToPortfolioModalProps> = ({
+  accountId,
+  selectedCampaigns,
+  onClose,
+  onSuccess,
+}) => {
+  const [portfolios, setPortfolios] = useState<Array<{ id: number; name: string; campaignCount: number; status: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchPortfolios = async () => {
+      setLoading(true);
+      try {
+        const res = await portfoliosService.getPortfolios({
+          page: 1,
+          page_size: 200,
+          account_id: accountId,
+        });
+        if (!cancelled) {
+          setPortfolios(
+            (res.results ?? []).map((p: PortfolioListItem) => ({
+              id: p.id,
+              name: p.name,
+              campaignCount: p.campaignCount ?? 0,
+              status: p.status,
+            })),
+          );
+        }
+      } catch {
+        if (!cancelled) setPortfolios([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchPortfolios();
+    return () => { cancelled = true; };
+  }, [accountId]);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return portfolios;
+    const q = search.toLowerCase();
+    return portfolios.filter((p) => p.name.toLowerCase().includes(q));
+  }, [portfolios, search]);
+
+  const handleAdd = async () => {
+    if (!selectedPortfolioId) return;
+    setAdding(true);
+    setError(null);
+    try {
+      const portfolio = await portfoliosService.getPortfolio(accountId, selectedPortfolioId);
+      const existingCampaigns = (portfolio.campaigns ?? []).map((c) => ({
+        campaign_id: c.campaignId,
+        campaign_name: c.campaignName,
+        campaign_type: c.campaignType || "",
+        campaign_status: c.campaignStatus || "",
+      }));
+
+      const existingIds = new Set(existingCampaigns.map((c) => c.campaign_id));
+      const newCampaigns = selectedCampaigns
+        .filter((c) => !existingIds.has(c.campaignId))
+        .map((c) => ({
+          campaign_id: c.campaignId,
+          campaign_name: c.campaignName,
+          campaign_type: c.campaignType || "",
+          campaign_status: c.campaignStatus || "",
+        }));
+
+      if (newCampaigns.length === 0) {
+        setError("All selected campaigns are already in this portfolio.");
+        setAdding(false);
+        return;
+      }
+
+      const merged = [...existingCampaigns, ...newCampaigns];
+      await portfoliosService.updatePortfolio(accountId, selectedPortfolioId, {
+        campaigns: merged,
+      });
+      onSuccess(portfolio.name);
+    } catch (err: any) {
+      setError(err?.response?.data?.error ?? err?.message ?? "Failed to add campaigns to portfolio");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+        <div className="px-5 pt-5 pb-3 border-b border-sandstorm-s40">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <FolderPlus className="w-5 h-5 text-forest-f40" />
+              <h2 className="text-[15px] font-medium text-forest-f60">Add to Portfolio</h2>
+            </div>
+            <button onClick={onClose} className="p-1 rounded hover:bg-sandstorm-s10 transition-colors">
+              <X className="w-4 h-4 text-forest-f30" />
+            </button>
+          </div>
+          <p className="text-[12px] text-forest-f30 mb-3">
+            Adding {selectedCampaigns.length} campaign{selectedCampaigns.length !== 1 ? "s" : ""} to an existing portfolio
+          </p>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-forest-f30" />
+            <input
+              type="text"
+              placeholder="Search portfolios..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-2 text-[13px] border border-sandstorm-s40 rounded-lg bg-sandstorm-s5 text-forest-f60 outline-none focus:border-forest-f40 transition-colors"
+            />
+          </div>
+        </div>
+
+        <div className="max-h-[320px] overflow-y-auto p-2">
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader size="sm" message="Loading portfolios..." />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-10 text-[13px] text-forest-f30">
+              {portfolios.length === 0 ? "No portfolios found for this account." : "No matching portfolios."}
+            </div>
+          ) : (
+            filtered.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setSelectedPortfolioId(p.id)}
+                className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors mb-1 ${
+                  selectedPortfolioId === p.id
+                    ? "bg-forest-f40/10 border border-forest-f40/30"
+                    : "hover:bg-sandstorm-s5 border border-transparent"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-medium text-forest-f60 truncate">{p.name}</p>
+                    <p className="text-[11px] text-forest-f30">
+                      {p.campaignCount} campaign{p.campaignCount !== 1 ? "s" : ""} &middot;{" "}
+                      <span className={p.status === "enabled" ? "text-green-600" : "text-forest-f30"}>
+                        {p.status === "enabled" ? "Live" : "Disabled"}
+                      </span>
+                    </p>
+                  </div>
+                  {selectedPortfolioId === p.id && (
+                    <div className="w-4 h-4 rounded-full bg-forest-f40 flex items-center justify-center shrink-0 ml-2">
+                      <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+
+        {error && (
+          <div className="px-5 py-2">
+            <p className="text-[12px] text-red-r30">{error}</p>
+          </div>
+        )}
+
+        <div className="px-5 py-4 border-t border-sandstorm-s40 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-[13px] text-forest-f30 hover:text-forest-f60 transition-colors rounded-lg"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={!selectedPortfolioId || adding}
+            className="px-4 py-2 text-[13px] font-medium text-white bg-forest-f40 rounded-lg hover:bg-forest-f50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+          >
+            {adding ? (
+              <>
+                <Loader size="sm" />
+                Adding...
+              </>
+            ) : (
+              "Add to Portfolio"
+            )}
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
