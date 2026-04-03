@@ -12,8 +12,10 @@ export interface GoogleAdGroup {
   campaign_id?: number;
   campaign_name?: string;
   campaign_status?: string;
+  bidding_strategy_type?: string;
   status: string;
   cpc_bid_dollars?: number;
+  // target_cpa_micros?: number; // tCPA not stored in DB — re-enable when persisted
   // Performance metrics
   spends?: number;
   sales?: number;
@@ -87,6 +89,7 @@ interface GoogleAdGroupsTableProps {
   onPublishDraft?: (row: GoogleAdGroup) => void;
   publishLoadingId?: string | number;
   draftFilterOn?: boolean;
+  biddingStrategyType?: string;
 }
 
 export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
@@ -125,6 +128,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
   onPublishDraft,
   publishLoadingId,
   draftFilterOn,
+  biddingStrategyType: _biddingStrategyType, // tCPA not stored in DB — re-enable when persisted
 }) => {
   const isDraftAdGroup = (row: GoogleAdGroup) => {
     const s = (row.status || "").toUpperCase();
@@ -161,6 +165,8 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
     avg_cost: summary.avg_cost,
     avg_interaction_rate: summary.avg_interaction_rate,
   } as any : null;
+
+  // const isManualCpc = !biddingStrategyType || biddingStrategyType === "MANUAL_CPC"; // tCPA not stored in DB — re-enable when persisted
 
   // Define columns for adgroups - match Amazon column sizes exactly
   const columns: IColumnDefinition[] = useMemo(() => [
@@ -219,12 +225,26 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
     {
       key: "bid",
       label: "Default max. CPC",
-      type: "bid",
+      type: "bid" as const,
       sortable: true,
       editable: true,
-      // Amazon Default Bid: no specific width constraint, let it size naturally
       getValue: (row: GoogleAdGroup) => row.cpc_bid_dollars || 0,
     },
+    /* tCPA column — not stored in DB, re-enable when persisted
+    ...(isManualCpc
+      ? [above CPC column]
+      : [{
+          key: "target_cpa",
+          label: "tCPA",
+          type: "budget" as const,
+          sortable: true,
+          editable: false,
+          getValue: (row: GoogleAdGroup) => {
+            const micros = row.target_cpa_micros;
+            return micros ? micros / 1_000_000 : 0;
+          },
+        }]),
+    */
     {
       key: "currency",
       label: "Currency",

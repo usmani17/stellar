@@ -94,6 +94,7 @@ interface GoogleKeywordsTableProps {
   onPublishDraft?: (row: GoogleKeyword) => void;
   publishLoadingId?: string | number;
   draftFilterOn?: boolean;
+  biddingStrategyType?: string;
 }
 
 export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
@@ -133,9 +134,11 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
   onPublishDraft,
   publishLoadingId,
   draftFilterOn,
+  biddingStrategyType,
 }) => {
   const params = useParams<{ accountId: string }>();
   const currentAccountId = accountId || params.accountId;
+  const isManualCpc = !biddingStrategyType || biddingStrategyType === "MANUAL_CPC";
 
   const isDraftKeyword = (row: GoogleKeyword) => {
     const s = (row.status || "").toUpperCase();
@@ -256,24 +259,23 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       ],
       getValue: (row: GoogleKeyword) => row.status || "",
     },
-    {
+    ...(isManualCpc ? [{
       key: "bid",
       label: "Max. CPC",
-      type: "budget",
+      type: "budget" as const,
       sortable: true,
       editable: true,
       getValue: (row: GoogleKeyword) => {
-        // Handle null/undefined properly - only default to 0 if truly missing
         const bid = row.cpc_bid_dollars;
         return bid !== undefined && bid !== null ? bid : 0;
       },
-    },
+    }] : []),
     {
       key: "match_type",
       label: "Match Type",
       type: "status",
       sortable: true,
-      editable: false, // Disabled: Google Ads API doesn't allow updating keyword match type
+      editable: (row: GoogleKeyword) => !isDraftKeyword(row),
       width: "w-[140px]",
       maxWidth: "max-w-[140px]",
       statusOptions: [
@@ -474,7 +476,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       sortable: true,
       getValue: (row: GoogleKeyword) => (row as any).interaction_rate || 0,
     },
-  ], [currentAccountId, channelId, onStartFinalUrlEdit, currencyCode]);
+  ], [currentAccountId, channelId, onStartFinalUrlEdit, currencyCode, isManualCpc]);
 
   // Handle confirm inline edit - route to appropriate handler
   const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {

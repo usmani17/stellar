@@ -38,6 +38,7 @@ export interface PortfolioLatestTracking {
   targetKpiValue: number | null;
   targetKpiName: string | null;
   trackedAt: string | null;
+  isLive?: boolean;
 }
 
 export interface Portfolio {
@@ -298,6 +299,16 @@ export const portfoliosService = {
     const { data } = await api.post<MetricsPreviewResponse>(
       `/assistant/${accountId}/portfolios/metrics-preview/`,
       payload,
+    );
+    return data;
+  },
+
+  getLiveMetrics: async (
+    ids: number[],
+  ): Promise<Record<string, PortfolioLatestTracking>> => {
+    const { data } = await api.get<Record<string, PortfolioLatestTracking>>(
+      "/assistant/portfolios/live-metrics/",
+      { params: { ids: ids.join(",") } },
     );
     return data;
   },

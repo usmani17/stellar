@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { portfoliosService } from "../../services/portfolios";
+import { portfoliosService, type PortfolioLatestTracking } from "../../services/portfolios";
 import { queryKeys } from "./queryKeys";
 
 export const usePortfolios = (
@@ -68,6 +68,26 @@ export const usePortfolio = (
       if (status === 401 || status === 403 || status === 404) return false;
       return failureCount < 3;
     },
+  });
+};
+
+export const usePortfolioLiveMetrics = (
+  ids: number[],
+  options?: { enabled?: boolean },
+) => {
+  const stableKey = ids
+    .slice()
+    .sort((a, b) => a - b)
+    .join(",");
+
+  return useQuery<Record<string, PortfolioLatestTracking>>({
+    queryKey: queryKeys.portfolios.liveMetrics(ids),
+    queryFn: () => portfoliosService.getLiveMetrics(ids),
+    enabled: (options?.enabled ?? true) && ids.length > 0,
+    refetchOnWindowFocus: false,
+    staleTime: 60_000,
+    // Re-run only when the set of IDs changes
+    meta: { stableKey },
   });
 };
 

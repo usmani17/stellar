@@ -2611,3 +2611,21 @@ button .text-\[12px\] {
   }
 }
 
+/* ── Impersonation banner offset ── */
+:root {
+  --impersonation-h: 0px;
+}
+
+html.is-impersonating {
+  --impersonation-h: 36px;
+}
+
+html.is-impersonating .sidebar-nav {
+  top: var(--impersonation-h) !important;
+  height: calc(100vh - var(--impersonation-h)) !important;
+}
+
+html.is-impersonating .dashboard-header {
+  top: var(--impersonation-h) !important;
+}
+

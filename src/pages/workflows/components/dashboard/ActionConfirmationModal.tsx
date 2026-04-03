@@ -81,7 +81,7 @@ function shouldShowKeywordAnalysisSection(proposal: ActionProposal, rule: Action
   return ruleHasPersistedKeywordAnalysis(rule);
 }
 
-/** After execute: distinguish immediate apply vs staggered keyword queue. */
+/** After execute: distinguish immediate apply, partial success, and staggered keyword queue. */
 function executeSuccessFooterMessage(response: ExecuteActionsResponse | null): string {
   const results = response?.results ?? [];
   const mock = results.filter((r) => r.mock === true);
@@ -95,6 +95,17 @@ function executeSuccessFooterMessage(response: ExecuteActionsResponse | null): s
     return "Keywords scheduled — they will apply in the background.";
   }
   return "Actions applied — some keywords are scheduled for background apply.";
+}
+
+function partialSuccessFooterMessage(response: ExecuteActionsResponse | null): string {
+  const results = response?.results ?? [];
+  const totalUpdated = results.reduce((s, r) => s + (r.updated ?? 0), 0);
+  const totalFailed = results.reduce((s, r) => s + (r.failed ?? 0), 0);
+  if (totalUpdated > 0 && totalFailed > 0) {
+    return `${totalUpdated} updated, ${totalFailed} failed. See details above.`;
+  }
+  if (totalFailed > 0) return `${totalFailed} entit${totalFailed === 1 ? "y" : "ies"} failed.`;
+  return "Some actions partially completed.";
 }
 
 export interface KeywordAnalysisModalContext {
@@ -126,7 +137,7 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
     () => new Set(proposals.map((p) => p.action_rule_id))
   );
   const [isApplying, setIsApplying] = useState(false);
-  const [result, setResult] = useState<"success" | "error" | null>(null);
+  const [result, setResult] = useState<"success" | "partial" | "error" | null>(null);
   const [executeResponse, setExecuteResponse] = useState<ExecuteActionsResponse | null>(null);
   const [errorsPanelExpanded, setErrorsPanelExpanded] = useState(false);
   const [keywordAnalysisUi, setKeywordAnalysisUi] = useState<
@@ -256,13 +267,23 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
     try {
       const response = await onApply(applicableRuleIds);
       setExecuteResponse(response);
-      const hasFailure = response.results?.some(
+      const results = response.results ?? [];
+      const hasPartial = results.some((r) => r.status === "partial_success");
+      const totalUpdated = results.reduce((s, r) => s + (r.updated ?? 0), 0);
+      const totalFailed = results.reduce((s, r) => s + (r.failed ?? 0), 0);
+      const hasFailure = results.some(
         (r) =>
           r.status === "failed" ||
           (r.failed ?? 0) > 0 ||
           (Array.isArray(r.errors) && r.errors.length > 0)
       );
-      setResult(hasFailure ? "error" : "success");
+      if (hasPartial || (hasFailure && totalUpdated > 0)) {
+        setResult("partial");
+      } else if (hasFailure) {
+        setResult("error");
+      } else {
+        setResult("success");
+      }
     } catch {
       setResult("error");
     } finally {
@@ -271,7 +292,7 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
   };
 
   const hasErrorDetails =
-    result === "error" &&
+    (result === "error" || result === "partial") &&
     executeResponse?.results?.some(
       (r) =>
         (Array.isArray(r.errors) && r.errors.length > 0) ||
@@ -895,6 +916,13 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
               <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" aria-hidden />
               <span className={cn("font-medium leading-snug", isDark ? "text-emerald-300" : "text-emerald-700")}>
                 {executeSuccessFooterMessage(executeResponse)}
+              </span>
+            </div>
+          ) : result === "partial" ? (
+            <div className="flex items-center gap-2 text-sm min-w-0">
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" aria-hidden />
+              <span className={cn("font-medium leading-snug", isDark ? "text-amber-300" : "text-amber-700")}>
+                {partialSuccessFooterMessage(executeResponse)}
               </span>
             </div>
           ) : result === "error" ? (

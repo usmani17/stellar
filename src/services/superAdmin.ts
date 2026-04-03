@@ -24,6 +24,29 @@ export interface SuperAdminWorkspaceListResponse {
   results: SuperAdminWorkspace[];
 }
 
+export interface SuperAdminUserWorkspace {
+  id: number;
+  name: string;
+  role: string;
+}
+
+export interface SuperAdminUser {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  workspaces: SuperAdminUserWorkspace[];
+}
+
+export interface SuperAdminAllUsersResponse {
+  count: number;
+  page: number;
+  page_size: number;
+  next_page: number | null;
+  previous_page: number | null;
+  results: SuperAdminUser[];
+}
+
 export const superAdminService = {
   listWorkspaces: async (params: {
     search?: string;
@@ -50,6 +73,19 @@ export const superAdminService = {
   exitImpersonation: async (): Promise<{ status: string }> => {
     const response = await api.post<{ status: string }>(
       "/super-admin/impersonation/exit/",
+    );
+    return response.data;
+  },
+
+  getAllUsers: async (params: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    workspace?: number;
+  }): Promise<SuperAdminAllUsersResponse> => {
+    const response = await api.get<SuperAdminAllUsersResponse>(
+      "/super-admin/all-users/",
+      { params },
     );
     return response.data;
   },

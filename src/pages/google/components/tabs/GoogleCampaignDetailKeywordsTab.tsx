@@ -3,7 +3,7 @@ import { Checkbox } from "../../../../components/ui/Checkbox";
 import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
-import { Button } from "../../../../components/ui";
+import { Button, DraftToggle } from "../../../../components/ui";
 import { Loader } from "../../../../components/ui/Loader";
 import {
   FilterPanel,
@@ -67,6 +67,7 @@ interface GoogleCampaignDetailKeywordsTabProps {
   onToggleDraftsOnly?: () => void;
   onPublishDraft?: (keyword: GoogleKeyword) => void;
   publishLoadingId?: string | number;
+  biddingStrategyType?: string;
 }
 
 export const GoogleCampaignDetailKeywordsTab: React.FC<
@@ -109,7 +110,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
   onToggleDraftsOnly,
   onPublishDraft,
   publishLoadingId,
+  biddingStrategyType,
 }) => {
+  const isManualCpc = !biddingStrategyType || biddingStrategyType === "MANUAL_CPC";
   const formatPercentage = formatPercentageUtil;
   const isDraftKeyword = (kw: GoogleKeyword) => {
     const s = (kw.status || "").toUpperCase();
@@ -476,33 +479,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           {onToggleDraftsOnly != null && (
-            <button
-              type="button"
-              role="switch"
-              aria-checked={showDraftsOnly}
-              onClick={() => {
-                onToggleDraftsOnly();
-                onPageChange(1);
-              }}
-              className={`relative inline-flex items-center h-6 w-16 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-[#072929] focus:ring-offset-2 overflow-hidden ${
-                showDraftsOnly ? "bg-forest-f40" : "bg-gray-200"
-              }`}
-            >
-              <span
-                className={`absolute top-1/2 -translate-y-1/2 pointer-events-none text-[10.64px] font-medium whitespace-nowrap transition-all duration-200 ${
-                  showDraftsOnly
-                    ? "left-2 right-auto text-white"
-                    : "left-auto right-2 text-[#556179]"
-                }`}
-              >
-                Draft
-              </span>
-              <span
-                className={`absolute top-1/2 -translate-y-1/2 left-0.5 w-5 h-5 rounded-full bg-white shadow ring-0 transition-transform duration-200 ${
-                  showDraftsOnly ? "translate-x-10" : "translate-x-0"
-                }`}
-              />
-            </button>
+            <DraftToggle checked={showDraftsOnly} onChange={() => { onToggleDraftsOnly(); onPageChange(1); }} />
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -659,6 +636,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                         {getSortIcon("status", sortBy, sortOrder)}
                       </div>
                     </th>
+                    {isManualCpc && (
                     <th
                       className="table-header hidden md:table-cell w-[130px] max-w-[130px] pr-4"
                       onClick={() => onSort("cpc_bid_dollars")}
@@ -668,6 +646,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                         {getSortIcon("cpc_bid_dollars", sortBy, sortOrder)}
                       </div>
                     </th>
+                    )}
                     <th
                       className="table-header hidden md:table-cell w-[150px] max-w-[150px] pl-2"
                       onClick={() => onSort("match_type")}
@@ -978,6 +957,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                           )}
                         </div>
                       </td>
+                        {isManualCpc && (
                         <td className="table-cell hidden md:table-cell whitespace-nowrap">
                           {(() => {
                             if (updatingKeywordId === keyword.id &&
@@ -1044,6 +1024,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                             );
                           })()}
                         </td>
+                        )}
                         <td className="table-cell hidden md:table-cell w-[150px] max-w-[150px] pl-2">
                           <span className="table-text leading-[1.26]">
                             {keyword.match_type === "EXACT" || keyword.match_type === "Exact"

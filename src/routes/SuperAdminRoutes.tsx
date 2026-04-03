@@ -3,6 +3,7 @@ import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 import { SuperAdminRoute } from "../components/auth/SuperAdminRoute";
 import { Layout } from "../components/layout/Layout";
 import { SuperAdminWorkspaces } from "../pages/super-admin/SuperAdminWorkspaces";
+import { SuperAdminUsers } from "../pages/super-admin/SuperAdminUsers";
 import { PrismImportFromSheet } from "../pages/super-admin/PrismImportFromSheet";
 
 function SuperAdminRoutes() {
@@ -15,6 +16,18 @@ function SuperAdminRoutes() {
             <SuperAdminRoute>
               <Layout>
                 <SuperAdminWorkspaces />
+              </Layout>
+            </SuperAdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/users"
+        element={
+          <ProtectedRoute>
+            <SuperAdminRoute>
+              <Layout>
+                <SuperAdminUsers />
               </Layout>
             </SuperAdminRoute>
           </ProtectedRoute>

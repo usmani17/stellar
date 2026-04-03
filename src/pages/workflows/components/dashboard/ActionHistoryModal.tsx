@@ -41,13 +41,14 @@ const STATUS_MAP: Record<string, {
   dot: string;
   dotDark: string;
 }> = {
-  success:   { icon: CheckCircle2, label: "Success", dot: "text-emerald-600", dotDark: "text-emerald-400" },
-  failed:    { icon: XCircle, label: "Failed", dot: "text-red-500", dotDark: "text-red-400" },
-  executing: { icon: Clock3, label: "Running", dot: "text-amber-500", dotDark: "text-amber-400" },
-  dry_run:   { icon: AlertTriangle, label: "Dry run", dot: "text-sky-500", dotDark: "text-sky-400" },
-  previewed: { icon: Eye, label: "Preview", dot: "text-sky-500", dotDark: "text-sky-400" },
-  proposed:  { icon: History, label: "Proposed", dot: "text-indigo-500", dotDark: "text-indigo-400" },
-  rejected:  { icon: XCircle, label: "Rejected", dot: "text-neutral-400", dotDark: "text-neutral-500" },
+  success:         { icon: CheckCircle2, label: "Success", dot: "text-emerald-600", dotDark: "text-emerald-400" },
+  partial_success: { icon: AlertTriangle, label: "Partial", dot: "text-amber-500", dotDark: "text-amber-400" },
+  failed:          { icon: XCircle, label: "Failed", dot: "text-red-500", dotDark: "text-red-400" },
+  executing:       { icon: Clock3, label: "Running", dot: "text-amber-500", dotDark: "text-amber-400" },
+  dry_run:         { icon: AlertTriangle, label: "Dry run", dot: "text-sky-500", dotDark: "text-sky-400" },
+  previewed:       { icon: Eye, label: "Preview", dot: "text-sky-500", dotDark: "text-sky-400" },
+  proposed:        { icon: History, label: "Proposed", dot: "text-indigo-500", dotDark: "text-indigo-400" },
+  rejected:        { icon: XCircle, label: "Rejected", dot: "text-neutral-400", dotDark: "text-neutral-500" },
 };
 
 function fmtTime(value: string | null): string {
@@ -189,6 +190,7 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
   const statusOpts = [
     { value: "", label: "All Status" },
     { value: "success", label: "Success" },
+    { value: "partial_success", label: "Partial Success" },
     { value: "failed", label: "Failed" },
     { value: "executing", label: "Running" },
     { value: "dry_run", label: "Dry Run" },
@@ -320,6 +322,29 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
                   const result = parseResult(exec.result);
                   const summary = summarizeChange(exec.action_type, params, result);
                   const isFailed = exec.status === "failed";
+                  const isPartial = exec.status === "partial_success";
+                  const updatedCount = typeof result.updated === "number" ? result.updated : 0;
+                  const failedCount = typeof result.failed === "number" ? result.failed : 0;
+                  const resultErrors = Array.isArray(result.errors) ? result.errors as (string | { entity_id?: string; ad_id?: string; error: string })[] : [];
+                  const failedEntityIds = new Set(
+                    resultErrors.map((err) => {
+                      if (typeof err === "string") {
+                        const m = err.match(/^(?:Ad|Campaign|AdGroup|Keyword)\s+(\d+):/);
+                        return m ? m[1] : null;
+                      }
+                      return (err as Record<string, unknown>).entity_id as string ?? (err as Record<string, unknown>).ad_id as string ?? null;
+                    }).filter(Boolean) as string[]
+                  );
+                  const errorByEntityId = new Map<string, string>();
+                  resultErrors.forEach((err) => {
+                    if (typeof err === "string") {
+                      const m = err.match(/^(?:Ad|Campaign|AdGroup|Keyword)\s+(\d+):\s*(.+)/);
+                      if (m) errorByEntityId.set(m[1], m[2]);
+                    } else if (err && typeof err === "object") {
+                      const eid = (err as Record<string, unknown>).entity_id as string ?? (err as Record<string, unknown>).ad_id as string;
+                      if (eid) errorByEntityId.set(String(eid), String((err as Record<string, unknown>).error ?? ""));
+                    }
+                  });
 
                   return (
                     <React.Fragment key={exec.id}>
@@ -327,7 +352,8 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
                       <tr className={cn(
                         "border-b transition-colors",
                         isDark ? "border-neutral-800/60 hover:bg-neutral-800/40" : "border-sandstorm-s40/30 hover:bg-sandstorm-s5/50",
-                        isFailed && (isDark ? "bg-red-950/10" : "bg-red-50/30")
+                        isFailed && (isDark ? "bg-red-950/10" : "bg-red-50/30"),
+                        isPartial && (isDark ? "bg-amber-950/10" : "bg-amber-50/30"),
                       )}>
                         <td className="px-4 py-2.5">
                           <span className="inline-flex items-center gap-1.5">
@@ -346,7 +372,20 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
                           </span>
                         </td>
                         <td className="px-4 py-2.5">
-                          {exec.error ? (
+                          {(isPartial || isFailed) && (updatedCount > 0 || failedCount > 0) ? (
+                            <span className="text-[11.5px] flex items-center gap-2">
+                              {updatedCount > 0 && (
+                                <span className={cn("font-medium", isDark ? "text-emerald-400" : "text-emerald-600")}>
+                                  {updatedCount} updated
+                                </span>
+                              )}
+                              {failedCount > 0 && (
+                                <span className={cn("font-medium", isDark ? "text-red-400" : "text-red-500")}>
+                                  {failedCount} failed
+                                </span>
+                              )}
+                            </span>
+                          ) : exec.error ? (
                             <span className="text-[11px] text-red-500 truncate block max-w-[400px]" title={exec.error}>
                               {exec.error}
                             </span>
@@ -366,48 +405,64 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
                       </tr>
 
                       {/* Child rows — always visible, indented */}
-                      {entities.map((entity, idx) => (
-                        <tr
-                          key={`${exec.id}-${entity.id}-${idx}`}
-                          className={cn(
-                            idx === entities.length - 1 ? "border-b" : "",
-                            isDark
-                              ? "border-neutral-800/40 bg-neutral-800/15"
-                              : "border-sandstorm-s40/15 bg-[#FCFCF9]"
-                          )}
-                        >
-                          {/* Indent — empty status area */}
-                          <td className="py-1.5" />
+                      {entities.map((entity, idx) => {
+                        const entityFailed = failedEntityIds.has(entity.id);
+                        const entityError = errorByEntityId.get(entity.id);
+                        return (
+                          <tr
+                            key={`${exec.id}-${entity.id}-${idx}`}
+                            className={cn(
+                              idx === entities.length - 1 ? "border-b" : "",
+                              isDark
+                                ? "border-neutral-800/40 bg-neutral-800/15"
+                                : "border-sandstorm-s40/15 bg-[#FCFCF9]"
+                            )}
+                          >
+                            {/* Status indicator per entity */}
+                            <td className="py-1.5 pl-4">
+                              {(isPartial || isFailed) && failedEntityIds.size > 0 && (
+                                entityFailed
+                                  ? <XCircle className={cn("w-3 h-3", isDark ? "text-red-400" : "text-red-500")} />
+                                  : <CheckCircle2 className={cn("w-3 h-3", isDark ? "text-emerald-400" : "text-emerald-600")} />
+                              )}
+                            </td>
 
-                          {/* Entity name — indented with icon */}
-                          <td className="py-1.5 pr-4" colSpan={2}>
-                            <div className="flex items-center gap-2 pl-6">
-                              <CornerDownRight className={cn(
-                                "w-3 h-3 shrink-0",
-                                isDark ? "text-neutral-700" : "text-sandstorm-s40"
-                              )} />
-                              <span className={cn("text-[11.5px]", isDark ? "text-neutral-200" : "text-forest-f60")}>
-                                {entity.name}
-                              </span>
-                              {entity.id && entity.id !== entity.name && (
-                                <span className={cn("text-[10px] tabular-nums", isDark ? "text-neutral-600" : "text-forest-f30/35")}>
-                                  {entity.id}
+                            {/* Entity name — indented with icon */}
+                            <td className="py-1.5 pr-4" colSpan={2}>
+                              <div className="flex items-center gap-2 pl-6">
+                                <CornerDownRight className={cn(
+                                  "w-3 h-3 shrink-0",
+                                  isDark ? "text-neutral-700" : "text-sandstorm-s40"
+                                )} />
+                                <span className={cn("text-[11.5px]", isDark ? "text-neutral-200" : "text-forest-f60")}>
+                                  {entity.name}
+                                </span>
+                                {entity.id && entity.id !== entity.name && (
+                                  <span className={cn("text-[10px] tabular-nums", isDark ? "text-neutral-600" : "text-forest-f30/35")}>
+                                    {entity.id}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Change detail or error */}
+                            <td className="px-4 py-1.5">
+                              {entityFailed && entityError ? (
+                                <span className="text-[11px] text-red-500 truncate block max-w-[350px]" title={entityError}>
+                                  {entityError}
+                                </span>
+                              ) : (
+                                <span className={cn("text-[11px] tabular-nums", isDark ? "text-neutral-400" : "text-forest-f30/70")}>
+                                  {entityChangeLabel(entity, exec.action_type, params)}
                                 </span>
                               )}
-                            </div>
-                          </td>
+                            </td>
 
-                          {/* Change detail */}
-                          <td className="px-4 py-1.5">
-                            <span className={cn("text-[11px] tabular-nums", isDark ? "text-neutral-400" : "text-forest-f30/70")}>
-                              {entityChangeLabel(entity, exec.action_type, params)}
-                            </span>
-                          </td>
-
-                          {/* Empty time */}
-                          <td className="py-1.5 pr-5" />
-                        </tr>
-                      ))}
+                            {/* Empty time */}
+                            <td className="py-1.5 pr-5" />
+                          </tr>
+                        );
+                      })}
                     </React.Fragment>
                   );
                 })}

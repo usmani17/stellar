@@ -618,8 +618,8 @@ export const Sidebar: React.FC = () => {
                                       setWorkspaceSearchQuery("");
                                     }}
                                     className={`w-full flex items-center gap-2 px-3 py-2 text-[12.32px] text-left hover:bg-gray-50 transition-colors ${w.id === activeWorkspaceId
-                                        ? "bg-gray-50"
-                                        : ""
+                                      ? "bg-gray-50"
+                                      : ""
                                       }`}
                                   >
                                     <div
@@ -680,8 +680,8 @@ export const Sidebar: React.FC = () => {
             }}
             onMouseLeave={() => chatHistorySidebar?.scheduleCollapse?.()}
             className={`flex items-center p-2 rounded-xl gap-2 ${isActive("/chat")
-                ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                : "text-black hover:bg-transparent hover:text-[#136D6D]"
+              ? "w-full bg-forest-f60 !text-white hover:!text-white"
+              : "text-black hover:bg-transparent hover:text-[#136D6D]"
               } ${isCollapsed ? "justify-center" : ""}`}
             title={isCollapsed ? "Home" : undefined}
           >
@@ -728,8 +728,8 @@ export const Sidebar: React.FC = () => {
                   >
                     <svg
                       className={`w-4 h-4 text-gray-600 transition-transform ${isWorkspaceSectionCollapsed
-                          ? "rotate-[-90deg]"
-                          : "rotate-0"
+                        ? "rotate-[-90deg]"
+                        : "rotate-0"
                         }`}
                       fill="none"
                       viewBox="0 0 24 24"
@@ -749,8 +749,8 @@ export const Sidebar: React.FC = () => {
                     <Link
                       to="/brands"
                       className={`flex items-center p-2 rounded-xl gap-2 ${isActive("/brands")
-                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
                         }`}
                       title="Brands"
                     >
@@ -779,8 +779,8 @@ export const Sidebar: React.FC = () => {
                         )
                       }
                       className={`flex items-center p-2 rounded-xl gap-2 ${isActive("/brands/integrations")
-                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
                         }`}
                       title="Integrations"
                     >
@@ -811,8 +811,8 @@ export const Sidebar: React.FC = () => {
                         )
                       }
                       className={`flex items-center p-2 rounded-xl gap-2 ${isActive("/brands/profiles")
-                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
                         }`}
                       title="Profiles"
                     >
@@ -832,11 +832,10 @@ export const Sidebar: React.FC = () => {
                     {hasUsersAccess && (
                       <Link
                         to="/workspace/users"
-                        className={`flex items-center p-2 rounded-xl gap-2 ${
-                          isActive("/workspace/users")
+                        className={`flex items-center p-2 rounded-xl gap-2 ${isActive("/workspace/users")
                             ? "w-full bg-forest-f60 !text-white hover:!text-white"
                             : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                        }`}
+                          }`}
                         title="Users"
                       >
                         <img
@@ -856,15 +855,15 @@ export const Sidebar: React.FC = () => {
                     <Link
                       to="/portfolios"
                       className={`flex items-center p-2 rounded-xl gap-2 ${isActive("/portfolios")
-                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
                         }`}
                       title="Portfolios"
                     >
                       <Briefcase
                         className={`w-5 h-5 shrink-0 ${isActive("/portfolios")
-                            ? "text-white"
-                            : "text-forest-f30"
+                          ? "text-white"
+                          : "text-forest-f30"
                           }`}
                       />
                       <span className="text-[12.32px] font-normal leading-[16px]">
@@ -885,15 +884,15 @@ export const Sidebar: React.FC = () => {
                         )
                       }
                       className={`flex items-center p-2 rounded-xl gap-2 ${isActive("/brands/workflows")
-                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
                         }`}
                       title="Workflows"
                     >
                       <CalendarClock
                         className={`w-5 h-5 shrink-0 ${isActive("/brands/workflows")
-                            ? "text-white"
-                            : "text-forest-f30"
+                          ? "text-white"
+                          : "text-forest-f30"
                           }`}
                       />
                       <span className="text-[12.32px] font-normal leading-[16px]">
@@ -920,15 +919,15 @@ export const Sidebar: React.FC = () => {
                         )
                       }
                       className={`flex items-center p-2 rounded-xl gap-2 ${isActive("/brands/google-sheets")
-                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
                         }`}
                       title="Google Sheets"
                     >
                       <FileSpreadsheet
                         className={`w-5 h-5 shrink-0 ${isActive("/brands/google-sheets")
-                            ? "text-white"
-                            : "text-forest-f30"
+                          ? "text-white"
+                          : "text-forest-f30"
                           }`}
                       />
                       <span className="text-[12.32px] font-normal leading-[16px]">
@@ -949,15 +948,15 @@ export const Sidebar: React.FC = () => {
                         )
                       }
                       className={`flex items-center p-2 rounded-xl gap-2 ${isActive("/brands/knowledge")
-                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
                         }`}
                       title="Knowledge"
                     >
                       <BookOpen
                         className={`w-5 h-5 shrink-0 ${isActive("/brands/knowledge")
-                            ? "text-white"
-                            : "text-forest-f30"
+                          ? "text-white"
+                          : "text-forest-f30"
                           }`}
                       />
                       <span className="text-[12.32px] font-normal leading-[16px]">
@@ -971,8 +970,8 @@ export const Sidebar: React.FC = () => {
               <Link
                 to="/brands"
                 className={`flex items-center justify-center p-2 rounded-xl ${isActive("/brands")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent"
+                  ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                  : "text-black hover:bg-transparent"
                   }`}
                 title="Workspace"
               >
@@ -996,26 +995,50 @@ export const Sidebar: React.FC = () => {
                   type="button"
                   onClick={() => navigate("/super-admin/workspaces")}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg w-full text-left ${location.pathname.startsWith("/super-admin")
-                      ? "bg-forest-f60 text-white"
-                      : "text-forest-f60 hover:bg-sandstorm-s10"
+                    ? "bg-forest-f60 text-white"
+                    : "text-forest-f60 hover:bg-sandstorm-s10"
                     }`}
                 >
                   <Shield className="w-4 h-4 shrink-0" />
                   <span className="text-[13px]">Workspaces</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/super-admin/users")}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg w-full text-left ${location.pathname === "/super-admin/users"
+                      ? "bg-forest-f60 text-white"
+                      : "text-forest-f60 hover:bg-sandstorm-s10"
+                    }`}
+                >
+                  <Users className="w-4 h-4 shrink-0" />
+                  <span className="text-[13px]">Users</span>
+                </button>
               </>
             ) : (
-              <button
-                type="button"
-                onClick={() => navigate("/super-admin/workspaces")}
-                className={`flex items-center justify-center p-2 rounded-xl ${location.pathname.startsWith("/super-admin")
-                    ? "bg-forest-f60 text-white"
-                    : "text-forest-f60 hover:bg-sandstorm-s10"
-                  }`}
-                title="Super Admin – Workspaces"
-              >
-                <Shield className="w-5 h-5" />
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => navigate("/super-admin/workspaces")}
+                  className={`flex items-center justify-center p-2 rounded-xl w-full ${location.pathname === "/super-admin/workspaces"
+                      ? "bg-forest-f60 text-white"
+                      : "text-forest-f60 hover:bg-sandstorm-s10"
+                    }`}
+                  title="Super Admin – Workspaces"
+                >
+                  <Shield className="w-5 h-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/super-admin/users")}
+                  className={`flex items-center justify-center p-2 rounded-xl w-full ${location.pathname === "/super-admin/users"
+                      ? "bg-forest-f60 text-white"
+                      : "text-forest-f60 hover:bg-sandstorm-s10"
+                    }`}
+                  title="Super Admin – Users"
+                >
+                  <Users className="w-5 h-5" />
+                </button>
+              </>
             )}
           </div>
         )}
@@ -1071,8 +1094,8 @@ export const Sidebar: React.FC = () => {
                   >
                     <svg
                       className={`w-4 h-4 text-gray-600 transition-transform ${isAmazonSectionCollapsed
-                          ? "rotate-[-90deg]"
-                          : "rotate-0"
+                        ? "rotate-[-90deg]"
+                        : "rotate-0"
                         }`}
                       fill="none"
                       viewBox="0 0 24 24"
@@ -1385,8 +1408,8 @@ export const Sidebar: React.FC = () => {
                   >
                     <svg
                       className={`w-4 h-4 text-gray-600 transition-transform ${isGoogleSectionCollapsed
-                          ? "rotate-[-90deg]"
-                          : "rotate-0"
+                        ? "rotate-[-90deg]"
+                        : "rotate-0"
                         }`}
                       fill="none"
                       viewBox="0 0 24 24"
@@ -1989,8 +2012,8 @@ export const Sidebar: React.FC = () => {
                   >
                     <svg
                       className={`w-4 h-4 text-gray-600 transition-transform ${isTikTokSectionCollapsed
-                          ? "rotate-[-90deg]"
-                          : "rotate-0"
+                        ? "rotate-[-90deg]"
+                        : "rotate-0"
                         }`}
                       fill="none"
                       viewBox="0 0 24 24"

@@ -1943,6 +1943,12 @@ export const GoogleCampaignDetail: React.FC = () => {
                             .split("T")[0]
                         : "",
                     );
+                  // tCPA not stored in DB — re-enable when persisted
+                  // } else if (field === "target_cpa" && campaignDetail) {
+                  //   const tcpaDollars = (campaignDetail.campaign as any).target_cpa_micros
+                  //     ? ((campaignDetail.campaign as any).target_cpa_micros / 1_000_000).toString()
+                  //     : "0";
+                  //   setEditedValue(tcpaDollars);
                   }
                 }}
                 onEditValueChange={setEditedValue}
@@ -2025,6 +2031,21 @@ export const GoogleCampaignDetail: React.FC = () => {
                       setEditingField(null);
                       setEditedValue("");
                     }
+                  // tCPA not stored in DB — re-enable when persisted
+                  // } else if (fieldToUse === "target_cpa") {
+                  //   const tcpaValue = parseFloat(valueToCompare);
+                  //   const oldTcpaMicros = (campaignDetail.campaign as any).target_cpa_micros || 0;
+                  //   const oldTcpaDollars = oldTcpaMicros / 1_000_000;
+                  //   if (!isNaN(tcpaValue) && tcpaValue >= 0 && tcpaValue !== oldTcpaDollars) {
+                  //     setInlineEditField("target_cpa");
+                  //     setInlineEditOldValue(formatCurrency2Decimals(oldTcpaDollars));
+                  //     setInlineEditNewValue(valueToCompare);
+                  //     setShowInlineEditModal(true);
+                  //   } else {
+                  //     setEditingField(null);
+                  //     setEditedValue("");
+                  //   }
+                  // }
                   }
                 }}
                 onEditCancel={() => {
@@ -2365,6 +2386,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                               : undefined
                           }
                           onBulkPublishDrafts={handleBulkPublishAdGroupDrafts}
+                          biddingStrategyType={campaignDetail?.campaign?.bidding_strategy_type}
                           createButton={
                             campaignDetail?.campaign
                               .advertising_channel_type === "SEARCH" ||
@@ -2648,6 +2670,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                       campaignChannelType !== "DEMAND_GEN" && (
                         <>
                           <GoogleCampaignDetailKeywordsTab
+                            biddingStrategyType={campaignDetail?.campaign?.bidding_strategy_type}
                             keywords={keywords}
                             loading={keywordsLoading}
                             selectedKeywordIds={selectedKeywordIds}

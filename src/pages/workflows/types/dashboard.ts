@@ -417,6 +417,7 @@ export type ActionExecutionStatus =
   | "previewed"
   | "executing"
   | "success"
+  | "partial_success"
   | "failed"
   | "rejected";
 

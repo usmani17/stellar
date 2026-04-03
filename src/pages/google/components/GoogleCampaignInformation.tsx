@@ -6,6 +6,22 @@ import {
   formatDateForDisplay,
 } from "../utils/googleAdsUtils";
 
+const BIDDING_STRATEGY_LABELS: Record<string, string> = {
+  MANUAL_CPC: "Manual CPC",
+  MAXIMIZE_CONVERSIONS: "Maximize Conversions",
+  MAXIMIZE_CONVERSION_VALUE: "Maximize Conversion Value",
+  TARGET_CPA: "Target CPA",
+  TARGET_ROAS: "Target ROAS",
+  TARGET_IMPRESSION_SHARE: "Target Impression Share",
+  TARGET_SPEND: "Target Spend",
+};
+
+const AUTOMATED_STRATEGIES = new Set([
+  "MAXIMIZE_CONVERSIONS",
+  "MAXIMIZE_CONVERSION_VALUE",
+  "TARGET_CPA",
+]);
+
 interface GoogleCampaignDetail {
   campaign: {
     id: number;
@@ -20,22 +36,26 @@ interface GoogleCampaignDetail {
     account_name?: string;
     customer_id?: string;
     last_sync?: string;
+    bidding_strategy_type?: string;
+    // target_cpa_micros?: number; // tCPA not stored in DB — re-enable when persisted
+    target_roas?: number;
   };
 }
 
+type EditableField = "budget" | "status" | "start_date" | "end_date";
+
 interface GoogleCampaignInformationProps {
   campaignDetail: GoogleCampaignDetail | null;
-  editingField: "budget" | "status" | "start_date" | "end_date" | null;
+  editingField: EditableField | null;
   editedValue: string;
-  onEditField: (field: "budget" | "status" | "start_date" | "end_date") => void;
+  onEditField: (field: EditableField) => void;
   onEditValueChange: (value: string) => void;
   onEditEnd: (
     value?: string,
-    field?: "budget" | "status" | "start_date" | "end_date",
+    field?: EditableField,
   ) => void;
   onEditCancel: () => void;
   loading?: boolean;
-  /** For draft campaigns: the intended publish status (ENABLED/PAUSED) from draft_state. Overrides campaign.status which is SAVED_DRAFT. */
   draftPublishStatus?: "ENABLED" | "PAUSED";
 }
 
@@ -72,13 +92,11 @@ export const GoogleCampaignInformation: React.FC<
 
   if (!campaignDetail) return null;
 
-  // Check if campaign is REMOVED
   const campaignStatus = getStatusWithDefault(
     campaignDetail.campaign.status,
   ).toUpperCase();
   const isRemoved = campaignStatus === "REMOVED";
 
-  // Check if dates are in the past
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -97,6 +115,18 @@ export const GoogleCampaignInformation: React.FC<
     endDate.setHours(0, 0, 0, 0);
   }
   const isEndDateInPast = endDate && endDate < today;
+
+  const biddingStrategy = campaignDetail.campaign.bidding_strategy_type || "";
+  const biddingStrategyLabel =
+    BIDDING_STRATEGY_LABELS[biddingStrategy] ||
+    biddingStrategy.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) ||
+    "—";
+
+  // tCPA not stored in DB — re-enable when persisted
+  // const showTcpa = AUTOMATED_STRATEGIES.has(biddingStrategy);
+  // const tcpaDollars = campaignDetail.campaign.target_cpa_micros
+  //   ? campaignDetail.campaign.target_cpa_micros / 1_000_000
+  //   : 0;
 
   return (
     <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6">
@@ -162,7 +192,6 @@ export const GoogleCampaignInformation: React.FC<
                   onEditField("status");
                 }
                 onEditValueChange(newValue);
-                // Pass the value and field directly to avoid state timing issues
                 onEditEnd(newValue, "status");
               }}
               buttonClassName="edit-button google-table-dropdown w-full"
@@ -231,6 +260,74 @@ export const GoogleCampaignInformation: React.FC<
             </div>
           )}
         </div>
+
+        {/* Bidding Strategy */}
+        {biddingStrategy && (
+          <div className="flex flex-col gap-1">
+            <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+              Bid Strategy
+            </label>
+            <div className="table-text leading-[1.26]">
+              {biddingStrategyLabel}
+            </div>
+          </div>
+        )}
+
+        {/* tCPA — commented out: not stored in DB, re-enable when persisted
+        {showTcpa && !isRemoved && (
+          <div className="flex flex-col gap-1" style={{ width: "120px" }}>
+            <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+              Target CPA
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={
+                editingField === "target_cpa"
+                  ? editedValue.replace(/[^0-9.]/g, "")
+                  : tcpaDollars.toString()
+              }
+              onFocus={() => {
+                if (editingField !== "target_cpa") {
+                  onEditField("target_cpa");
+                  onEditValueChange(tcpaDollars.toString());
+                }
+              }}
+              onChange={(e) => {
+                onEditValueChange(e.target.value);
+              }}
+              onBlur={() => {
+                if (editingField === "target_cpa") {
+                  onEditEnd();
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                } else if (e.key === "Escape") {
+                  onEditCancel();
+                }
+              }}
+              className="inline-edit-input w-32"
+              style={{
+                width: "150px",
+              }}
+            />
+          </div>
+        )}
+
+        {showTcpa && isRemoved && (
+          <div className="flex flex-col gap-1">
+            <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+              Target CPA
+            </label>
+            <div className="table-text leading-[1.26]">
+              {tcpaDollars > 0 ? formatCurrency2Decimals(tcpaDollars) : "—"}
+            </div>
+          </div>
+        )}
+        */}
 
         {/* Start Date */}
         {campaignDetail.campaign.start_date && (

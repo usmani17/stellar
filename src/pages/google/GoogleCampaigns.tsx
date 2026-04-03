@@ -14,12 +14,13 @@ import {
 import { useGoogleProfiles } from "../../hooks/queries/useGoogleProfiles";
 import { getStatusBadgeLabel, getChannelTypeLabel } from "../../utils/statusLabels";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { CheckSquare, X, ChevronDown } from "lucide-react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { useDateRange } from "../../contexts/DateRangeContext";
-import { Button } from "../../components/ui";
+import { Button, DraftToggle } from "../../components/ui";
 import { Dropdown } from "../../components/ui/Dropdown";
 import { Banner } from "../../components/ui/Banner";
 import {
@@ -117,10 +118,7 @@ export const GoogleCampaigns: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
-  const [showDraftsOnly, setShowDraftsOnly] = useState<boolean>(() => {
-    const saved = localStorage.getItem("google_campaigns_show_drafts_only");
-    return saved === "true";
-  });
+  const [showDraftsOnly, setShowDraftsOnly] = useState<boolean>(false);
   const [searchInputValue, setSearchInputValue, debouncedSearchValue] = useDebouncedSearch("", 400);
   const isLoadingRef = useRef(false);
   const lastRequestParamsRef = useRef<string>(""); // Track last request to prevent duplicate calls
@@ -191,6 +189,9 @@ export const GoogleCampaigns: React.FC = () => {
   const [selectedCampaigns, setSelectedCampaigns] = useState<
     Set<string | number>
   >(new Set());
+  const selectedCampaignDetailsRef = useRef<
+    Map<string, { campaignId: string; campaignName: string; campaignType: string; campaignStatus: string }>
+  >(new Map());
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showCreatePortfolio, setShowCreatePortfolio] = useState(false);
   const [showBudgetPanel, setShowBudgetPanel] = useState(false);
@@ -540,8 +541,6 @@ export const GoogleCampaigns: React.FC = () => {
       } else {
         setChartDataFromApi([]);
       }
-      // Clear selection when campaigns reload
-      setSelectedCampaigns(new Set());
     } catch (error) {
       console.error("Failed to load Google campaigns:", error);
       setCampaigns([]);
@@ -692,9 +691,11 @@ export const GoogleCampaigns: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId, channelId, currentPage, itemsPerPage, filters, startDate, endDate, sorting, debouncedSearchValue, showDraftsOnly]);
 
-  // Reset to first page when search term changes (after debounce)
+  // Reset to first page and clear selections when search term changes (after debounce)
   useEffect(() => {
     setCurrentPage(1);
+    setSelectedCampaigns(new Set());
+    selectedCampaignDetailsRef.current.clear();
   }, [debouncedSearchValue]);
 
   const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData, options?: { saveAsDraft?: boolean }) => {
@@ -1935,7 +1936,6 @@ export const GoogleCampaigns: React.FC = () => {
           } else {
             setChartDataFromApi([]);
           }
-          setSelectedCampaigns(new Set()); // Clear selection
         } catch (error) {
           console.error("Failed to sort campaigns:", error);
         } finally {
@@ -2001,13 +2001,26 @@ export const GoogleCampaigns: React.FC = () => {
     );
   };
 
-  // Selection handlers
+  // Selection handlers — persist across page changes
   const handleSelectAll = (checked: boolean) => {
+    const newSelected = new Set(selectedCampaigns);
     if (checked) {
-      setSelectedCampaigns(new Set(filteredCampaigns.map((c) => c.campaign_id)));
+      filteredCampaigns.forEach((c) => {
+        newSelected.add(c.campaign_id);
+        selectedCampaignDetailsRef.current.set(String(c.campaign_id), {
+          campaignId: String(c.campaign_id),
+          campaignName: c.campaign_name || "",
+          campaignType: c.advertising_channel_type || "",
+          campaignStatus: c.status || "",
+        });
+      });
     } else {
-      setSelectedCampaigns(new Set());
+      filteredCampaigns.forEach((c) => {
+        newSelected.delete(c.campaign_id);
+        selectedCampaignDetailsRef.current.delete(String(c.campaign_id));
+      });
     }
+    setSelectedCampaigns(newSelected);
   };
 
   const handleSelectCampaign = (
@@ -2015,13 +2028,29 @@ export const GoogleCampaigns: React.FC = () => {
     checked: boolean
   ) => {
     const newSelected = new Set(selectedCampaigns);
+    const key = String(campaignId);
     if (checked) {
       newSelected.add(campaignId);
+      const c = campaigns.find((camp) => String(camp.campaign_id) === key);
+      if (c) {
+        selectedCampaignDetailsRef.current.set(key, {
+          campaignId: key,
+          campaignName: c.campaign_name || "",
+          campaignType: c.advertising_channel_type || "",
+          campaignStatus: c.status || "",
+        });
+      }
     } else {
       newSelected.delete(campaignId);
+      selectedCampaignDetailsRef.current.delete(key);
     }
     setSelectedCampaigns(newSelected);
   };
+
+  const clearAllSelections = useCallback(() => {
+    setSelectedCampaigns(new Set());
+    selectedCampaignDetailsRef.current.clear();
+  }, []);
 
   // Inline edit handlers
   const startInlineEdit = (
@@ -3271,10 +3300,13 @@ export const GoogleCampaigns: React.FC = () => {
     }
   };
 
+  const currentPageSelectedCount = filteredCampaigns.filter(
+    (c) => selectedCampaigns.has(c.campaign_id),
+  ).length;
   const allSelected =
-    filteredCampaigns.length > 0 && selectedCampaigns.size === filteredCampaigns.length;
+    filteredCampaigns.length > 0 && currentPageSelectedCount === filteredCampaigns.length;
   const someSelected =
-    selectedCampaigns.size > 0 && selectedCampaigns.size < filteredCampaigns.length;
+    currentPageSelectedCount > 0 && currentPageSelectedCount < filteredCampaigns.length;
 
   // Memoize export options to prevent hooks order issues
   const exportOptions = useMemo(() => [
@@ -3472,7 +3504,6 @@ export const GoogleCampaigns: React.FC = () => {
                   isOpen={true}
                   onClose={() => setIsFilterPanelOpen(false)}
                   onApply={(newFilters) => {
-                    // Convert DynamicFilterValues to FilterValues format for compatibility
                     const convertedFilters: FilterValues = newFilters.map((f) => ({
                       id: f.id,
                       field: f.field as FilterValues[0]["field"],
@@ -3481,6 +3512,7 @@ export const GoogleCampaigns: React.FC = () => {
                     })) as FilterValues;
                     setFilters(convertedFilters);
                     setCurrentPage(1);
+                    clearAllSelections();
                   }}
                   initialFilters={filters.map((f) => ({
                     id: f.id,
@@ -3521,37 +3553,18 @@ export const GoogleCampaigns: React.FC = () => {
                 <div className="flex items-center justify-between gap-2">
                   {/* Draft campaigns only switch - "Draft" rightmost when off, leftmost when on; thumb slides */}
                   <div className="flex items-center">
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={showDraftsOnly}
-                      onClick={() => {
+                    <DraftToggle
+                      checked={showDraftsOnly}
+                      onChange={() => {
                         setShowDraftsOnly((prev) => {
                           const next = !prev;
                           localStorage.setItem("google_campaigns_show_drafts_only", String(next));
                           return next;
                         });
                         setCurrentPage(1);
+                        clearAllSelections();
                       }}
-                      className={`relative inline-flex items-center h-6 w-20 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-[#072929] focus:ring-offset-2 overflow-hidden ${
-                        showDraftsOnly ? "bg-forest-f40" : "bg-gray-200"
-                      }`}
-                    >
-                      <span
-                        className={`absolute top-1/2 -translate-y-1/2 pointer-events-none text-[10.64px] font-medium whitespace-nowrap transition-all duration-200 ${
-                          showDraftsOnly
-                            ? "left-2 right-auto text-white"
-                            : "left-auto right-2 text-[#556179]"
-                        }`}
-                      >
-                        Draft
-                      </span>
-                      <span
-                        className={`absolute top-1/2 -translate-y-1/2 left-0.5 w-5 h-5 rounded-full bg-white shadow ring-0 transition-transform duration-200 ${
-                          showDraftsOnly ? "translate-x-[54px]" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
+                    />
                   </div>
                   <div className="flex items-center gap-2">
                   {/* Search Box */}
@@ -3815,6 +3828,71 @@ export const GoogleCampaigns: React.FC = () => {
                   <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[8px] cursor-not-allowed" />
                 )}
               </div>
+
+              {/* Cross-page selection banner */}
+              {selectedCampaigns.size > 0 && (
+                <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-forest-f40/[0.06] border border-forest-f40/20">
+                  <div className="relative group flex items-center gap-2">
+                    <CheckSquare className="w-4 h-4 text-forest-f40" />
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-[12px] text-forest-f60 font-medium cursor-pointer hover:text-forest-f40 transition-colors"
+                    >
+                      {selectedCampaigns.size} campaign{selectedCampaigns.size !== 1 ? "s" : ""} selected
+                      {selectedCampaigns.size > currentPageSelectedCount && (
+                        <span className="text-forest-f30 font-normal"> across pages</span>
+                      )}
+                      <ChevronDown className="w-3 h-3 text-forest-f30 group-hover:text-forest-f40 transition-colors" />
+                    </button>
+                    <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-150 absolute top-full left-0 mt-1 z-50 w-[340px] max-h-[280px] overflow-y-auto rounded-lg border border-sandstorm-s40 bg-white shadow-lg">
+                      <div className="px-3 py-2 border-b border-sandstorm-s40/60 flex items-center justify-between sticky top-0 bg-white z-10">
+                        <span className="text-[10px] font-bold text-forest-f30/70 uppercase tracking-[0.06em]">
+                          Selected campaigns
+                        </span>
+                        <span className="text-[10px] text-forest-f30/50">{selectedCampaigns.size}</span>
+                      </div>
+                      <ul className="py-1">
+                        {Array.from(selectedCampaigns).map((id) => {
+                          const key = String(id);
+                          const detail = selectedCampaignDetailsRef.current.get(key);
+                          const current = campaigns.find((c) => String(c.campaign_id) === key);
+                          const name = detail?.campaignName || current?.campaign_name || `Campaign ${key}`;
+                          return (
+                            <li
+                              key={key}
+                              className="flex items-center justify-between gap-2 px-3 py-1.5 hover:bg-sandstorm-s5 transition-colors group/item"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[11.5px] text-forest-f60 font-medium truncate">{name}</p>
+                                <p className="text-[10px] text-forest-f30/60 font-mono">{key}</p>
+                              </div>
+                              <button
+                                type="button"
+                                className="shrink-0 p-0.5 rounded hover:bg-red-r0 text-forest-f30/40 hover:text-red-r30 transition-colors cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSelectCampaign(id, false);
+                                }}
+                                aria-label={`Deselect ${name}`}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-[11px] text-forest-f40 hover:text-forest-f50 font-medium cursor-pointer transition-colors"
+                    onClick={clearAllSelections}
+                  >
+                    <X className="w-3 h-3" />
+                    Clear all
+                  </button>
+                </div>
+              )}
 
               {/* Google Campaigns Table Card with overlay when panel is open */}
               <div className="relative">
@@ -4503,10 +4581,13 @@ export const GoogleCampaigns: React.FC = () => {
           platform="google"
           preSelectedCampaigns={Array.from(selectedCampaigns)
             .map((id) => {
-              const c = campaigns.find((camp) => String(camp.campaign_id) === String(id));
+              const key = String(id);
+              const cached = selectedCampaignDetailsRef.current.get(key);
+              if (cached) return cached;
+              const c = campaigns.find((camp) => String(camp.campaign_id) === key);
               if (!c) return null;
               return {
-                campaignId: String(c.campaign_id),
+                campaignId: key,
                 campaignName: c.campaign_name || "",
                 campaignType: c.advertising_channel_type || "",
                 campaignStatus: c.status || "",

@@ -5,6 +5,7 @@ export interface GoogleAdGroup {
   adgroup_name?: string;
   status: string;
   cpc_bid_dollars?: number;
+  // target_cpa_micros?: number; // tCPA not stored in DB — re-enable when persisted
   ctr?: number | string;
   spends?: number | string;
   sales?: number | string;

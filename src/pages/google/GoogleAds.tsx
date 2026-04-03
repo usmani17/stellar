@@ -13,7 +13,7 @@ import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { Assistant } from "../../components/layout/Assistant";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { useDateRange } from "../../contexts/DateRangeContext";
-import { Button } from "../../components/ui";
+import { Button, DraftToggle } from "../../components/ui";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { Dropdown } from "../../components/ui/Dropdown";
 import { Banner } from "../../components/ui/Banner";
@@ -1129,33 +1129,13 @@ export const GoogleAds: React.FC = () => {
               {/* Draft switch and Edit/Export - Above Table */}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center">
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={showDraftsOnly}
-                    onClick={() => {
+                  <DraftToggle
+                    checked={showDraftsOnly}
+                    onChange={() => {
                       setShowDraftsOnly((prev) => !prev);
                       setCurrentPage(1);
                     }}
-                    className={`relative inline-flex items-center h-6 w-16 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-[#072929] focus:ring-offset-2 overflow-hidden ${
-                      showDraftsOnly ? "bg-forest-f40" : "bg-gray-200"
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-1/2 -translate-y-1/2 pointer-events-none text-[10.64px] font-medium whitespace-nowrap transition-all duration-200 ${
-                        showDraftsOnly
-                          ? "left-2 right-auto text-white"
-                          : "left-auto right-2 text-[#556179]"
-                      }`}
-                    >
-                      Draft
-                    </span>
-                    <span
-                      className={`absolute top-1/2 -translate-y-1/2 left-0.5 w-5 h-5 rounded-full bg-white shadow ring-0 transition-transform duration-200 ${
-                        showDraftsOnly ? "translate-x-10" : "translate-x-0"
-                      }`}
-                    />
-                  </button>
+                  />
                 </div>
                 <div className="flex items-center gap-2">
                 {!showDraftsOnly && (

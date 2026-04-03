@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Checkbox } from "../../../../components/ui/Checkbox";
 import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
-import { Button } from "../../../../components/ui";
+import { Button, DraftToggle } from "../../../../components/ui";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
 import type { GoogleAd } from "./GoogleTypes";
 import { formatCurrency2Decimals, formatPercentage as formatPercentageUtil } from "../../utils/campaignDetailHelpers";
@@ -300,33 +300,7 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           {onToggleDraftsOnly != null && (
-            <button
-              type="button"
-              role="switch"
-              aria-checked={showDraftsOnly}
-              onClick={() => {
-                onToggleDraftsOnly();
-                onPageChange(1);
-              }}
-              className={`relative inline-flex items-center h-6 w-16 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-[#072929] focus:ring-offset-2 overflow-hidden ${
-                showDraftsOnly ? "bg-forest-f40" : "bg-gray-200"
-              }`}
-            >
-              <span
-                className={`absolute top-1/2 -translate-y-1/2 pointer-events-none text-[10.64px] font-medium whitespace-nowrap transition-all duration-200 ${
-                  showDraftsOnly
-                    ? "left-2 right-auto text-white"
-                    : "left-auto right-2 text-[#556179]"
-                }`}
-              >
-                Draft
-              </span>
-              <span
-                className={`absolute top-1/2 -translate-y-1/2 left-0.5 w-5 h-5 rounded-full bg-white shadow ring-0 transition-transform duration-200 ${
-                  showDraftsOnly ? "translate-x-10" : "translate-x-0"
-                }`}
-              />
-            </button>
+            <DraftToggle checked={showDraftsOnly} onChange={() => { onToggleDraftsOnly(); onPageChange(1); }} />
           )}
         </div>
         <div className="flex items-center gap-2">

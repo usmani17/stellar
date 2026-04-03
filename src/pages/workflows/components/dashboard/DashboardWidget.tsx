@@ -74,6 +74,31 @@ function getComponentErrorMessage(err: unknown): string {
   return typeof err === "string" ? err : "An error occurred";
 }
 
+function getUserFriendlyError(raw: string): string {
+  if (!raw) return "An unexpected error occurred.";
+  if (raw.includes("RESOURCE_EXHAUSTED") || raw.includes("429") || raw.includes("quota")) {
+    return "Google Ads API quota exceeded. Please try again later.";
+  }
+  if (raw.includes("AUTHENTICATION_ERROR") || raw.includes("401")) {
+    return "Authentication failed. Please reconnect your Google Ads account.";
+  }
+  if (raw.includes("PERMISSION_DENIED") || raw.includes("403")) {
+    return "Permission denied. You may not have access to this data.";
+  }
+  if (raw.includes("INVALID_ARGUMENT") || raw.includes("400")) {
+    return "Invalid query parameters. Please contact support.";
+  }
+  if (raw.includes("timeout") || raw.includes("DEADLINE_EXCEEDED")) {
+    return "Request timed out. Please try again.";
+  }
+  if (raw.includes("meta") || raw.includes("Meta")) {
+    const match = raw.match(/Meta.*?error[:\s]*(.+)/i);
+    if (match?.[1]) return match[1].slice(0, 200);
+  }
+  if (raw.length > 200) return raw.slice(0, 200) + "…";
+  return raw;
+}
+
 const VIZ_ICONS: Record<VisualizationType, React.ReactNode> = {
   table: <Table2 className={VIZ_ICON_CLS} aria-hidden />,
   bar_chart: <BarChart2 className={VIZ_ICON_CLS} aria-hidden />,
@@ -627,10 +652,14 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
             )}
           >
             <p className="text-sm font-medium">Failed to load</p>
-            {isLocalEnv && errorMessage ? (
-              <p className="text-xs max-w-full break-words">{errorMessage}</p>
-            ) : (
-              <p className="text-xs">Use the refresh button above to retry.</p>
+            <p className="text-xs max-w-full break-words">
+              {errorMessage ? getUserFriendlyError(errorMessage) : "Use the refresh button above to retry."}
+            </p>
+            {isLocalEnv && errorMessage && (
+              <details className="text-[10px] max-w-full break-words opacity-60 cursor-pointer">
+                <summary>Raw error</summary>
+                <pre className="mt-1 whitespace-pre-wrap text-left">{errorMessage}</pre>
+              </details>
             )}
           </div>
         ) : status === "ready" && data?.error ? (
@@ -641,10 +670,14 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
             )}
           >
             <p className="text-sm font-medium">Query error</p>
-            {isLocalEnv ? (
-              <p className="text-xs max-w-full break-words">{data.error}</p>
-            ) : (
-              <p className="text-xs">An error occurred while loading this component.</p>
+            <p className="text-xs max-w-full break-words">
+              {getUserFriendlyError(data.error)}
+            </p>
+            {isLocalEnv && (
+              <details className="text-[10px] max-w-full break-words opacity-60 cursor-pointer">
+                <summary>Raw error</summary>
+                <pre className="mt-1 whitespace-pre-wrap text-left">{data.error}</pre>
+              </details>
             )}
             <p className={cn("text-xs", isDark ? "text-neutral-400" : "text-forest-f30")}>
               Use the refresh button above to retry.

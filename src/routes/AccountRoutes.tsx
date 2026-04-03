@@ -293,6 +293,10 @@ function AccountRoutes() {
                 element={<Navigate to="/workspace/users" replace />}
             />
             <Route
+                path="/brands/:accountId/users"
+                element={<Navigate to="/users" replace />}
+            />
+            <Route
                 path="/brands/:accountId/dashboards/:dashboardId"
                 element={
                     <ProtectedRoute>

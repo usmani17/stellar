@@ -154,4 +154,9 @@ export const authService = {
     const response = await api.post<{ user: User }>("/users/complete-signup/", data);
     return response.data;
   },
+
+  impersonateUser: async (userId: number): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/users/impersonate/', { user_id: userId });
+    return response.data;
+  },
 };

@@ -38,6 +38,10 @@ interface AuthContextType {
   logout: () => void;
   updateUser: (user: User) => void;
   getAccessToken: () => Promise<string | null>;
+  isSuperAdmin: boolean;
+  isImpersonating: boolean;
+  impersonate: (userId: number) => Promise<void>;
+  stopImpersonating: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -259,9 +263,49 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const getAccessToken = async (): Promise<string | null> => {
-    // Get token from localStorage (set by backend callback)
     const token = localStorage.getItem("accessToken");
     return token || null;
+  };
+
+  const isSuperAdmin = user?.is_super_admin === true;
+  const isImpersonating = !!localStorage.getItem("originalAccessToken");
+
+  const impersonate = async (userId: number) => {
+    localStorage.setItem("originalAccessToken", localStorage.getItem("accessToken") || "");
+    localStorage.setItem("originalRefreshToken", localStorage.getItem("refreshToken") || "");
+    localStorage.setItem("originalUser", localStorage.getItem("user") || "");
+    localStorage.setItem("originalWorkspaceId", localStorage.getItem("currentWorkspaceId") || "");
+
+    const response = await authService.impersonateUser(userId);
+    clearAccountsQueryCache();
+    localStorage.setItem("accessToken", response.tokens.access);
+    localStorage.setItem("refreshToken", response.tokens.refresh);
+    localStorage.setItem("user", JSON.stringify(response.user));
+    localStorage.removeItem("currentWorkspaceId");
+    clearAccountIdFromStorage();
+    applyUserAndWorkspace(response.user);
+    window.location.href = "/brands";
+  };
+
+  const stopImpersonating = () => {
+    const origAccess = localStorage.getItem("originalAccessToken");
+    const origRefresh = localStorage.getItem("originalRefreshToken");
+    const origUser = localStorage.getItem("originalUser");
+    const origWorkspace = localStorage.getItem("originalWorkspaceId");
+
+    if (origAccess) localStorage.setItem("accessToken", origAccess);
+    if (origRefresh) localStorage.setItem("refreshToken", origRefresh);
+    if (origUser) localStorage.setItem("user", origUser);
+    if (origWorkspace) localStorage.setItem("currentWorkspaceId", origWorkspace);
+
+    localStorage.removeItem("originalAccessToken");
+    localStorage.removeItem("originalRefreshToken");
+    localStorage.removeItem("originalUser");
+    localStorage.removeItem("originalWorkspaceId");
+
+    clearAccountsQueryCache();
+    clearAccountIdFromStorage();
+    window.location.href = "/brands";
   };
 
   return (
@@ -282,6 +326,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         logout,
         updateUser,
         getAccessToken,
+        isSuperAdmin,
+        isImpersonating,
+        impersonate,
+        stopImpersonating,
       }}
     >
       {children}

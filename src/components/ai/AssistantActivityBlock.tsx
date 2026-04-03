@@ -1,5 +1,5 @@
 import React from "react";
-import { Lightbulb, ChevronDown } from "lucide-react";
+import { Lightbulb, ChevronDown, Loader2 } from "lucide-react";
 import StellarMarkDown from "./StellarMarkDown";
 import { ToolCallRow } from "./ToolCallRow";
 import { SubagentPanel } from "./SubagentPanel";
@@ -69,9 +69,9 @@ export const AssistantActivityBlock: React.FC<AssistantActivityBlockProps> = ({
               }
               return null;
             })}
-            {workingOnRequest && activityItems.length > 0 && (
-              <div className="assistant-working-indicator text-[11px] text-forest-f30 mt-1 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 bg-forest-f40 rounded-full animate-pulse" aria-hidden />
+            {workingOnRequest && (
+              <div className="assistant-working-indicator text-[11px] text-forest-f30 mt-1.5 flex items-center gap-1.5">
+                <Loader2 className="w-3 h-3 text-forest-f40 animate-spin" aria-hidden />
                 <span>Working on request...</span>
               </div>
             )}

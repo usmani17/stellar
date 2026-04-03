@@ -21,7 +21,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export const WorkspaceSettings: React.FC = () => {
-  const { user, activeWorkspaceId } = useAuth();
+  const { user, activeWorkspaceId, isSuperAdmin, impersonate } = useAuth();
   const { accounts } = useAccounts();
   const { sidebarWidth } = useSidebar();
   const activeWs = user?.workspaces?.find((w) => w.id === activeWorkspaceId);
@@ -503,7 +503,17 @@ export const WorkspaceSettings: React.FC = () => {
                       {users.map((u) => (
                         <tr key={u.id} className="border-t border-[#E8E8E3]">
                           <td className="px-4 py-3">
-                            {u.first_name} {u.last_name}
+                            {isSuperAdmin && u.id !== user?.id ? (
+                              <button
+                                onClick={() => impersonate(u.id)}
+                                className="text-left text-forest-f60 hover:underline cursor-pointer"
+                                title={`Impersonate ${u.first_name} ${u.last_name}`}
+                              >
+                                {u.first_name} {u.last_name}
+                              </button>
+                            ) : (
+                              <>{u.first_name} {u.last_name}</>
+                            )}
                           </td>
                           <td className="px-4 py-3">{u.email}</td>
                           <td className="px-4 py-3">
@@ -511,22 +521,24 @@ export const WorkspaceSettings: React.FC = () => {
                           </td>
                           {(isOwner || isManagerOrOwner) && (
                             <td className="px-4 py-3">
-                              {u.role === "manager" && isManagerOrOwner && (
-                                <button
-                                  onClick={() => setAssignManagerId(u.id)}
-                                  className="text-sm text-forest-f60 hover:underline"
-                                >
-                                  Assign brands
-                                </button>
-                              )}
-                              {u.role === "team" && isManagerOrOwner && (
-                                <button
-                                  onClick={() => setAssignTeamId(u.id)}
-                                  className="text-sm text-forest-f60 hover:underline"
-                                >
-                                  Assign integrations
-                                </button>
-                              )}
+                              <div className="flex items-center gap-2">
+                                {u.role === "manager" && isManagerOrOwner && (
+                                  <button
+                                    onClick={() => setAssignManagerId(u.id)}
+                                    className="text-sm text-forest-f60 hover:underline"
+                                  >
+                                    Assign brands
+                                  </button>
+                                )}
+                                {u.role === "team" && isManagerOrOwner && (
+                                  <button
+                                    onClick={() => setAssignTeamId(u.id)}
+                                    className="text-sm text-forest-f60 hover:underline"
+                                  >
+                                    Assign integrations
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           )}
                         </tr>
