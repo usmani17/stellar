@@ -17,8 +17,8 @@ function ChannelRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <Layout>
-                            <SelectGoogleAdsAccounts />
-                        </Layout>
+                                <SelectGoogleAdsAccounts />
+                            </Layout>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
@@ -49,8 +49,8 @@ function ChannelRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <Layout>
-                            <MetaListProfiles />
-                        </Layout>
+                                <MetaListProfiles />
+                            </Layout>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
@@ -61,8 +61,8 @@ function ChannelRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <Layout>
-                            <ListAmazonProfiles />
-                        </Layout>
+                                <ListAmazonProfiles />
+                            </Layout>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }

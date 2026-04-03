@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { X } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useAccounts } from "../contexts/AccountsContext";
@@ -324,13 +324,21 @@ function getCreateFormClientErrors(
 export const AccountUsers: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, activeWorkspaceId } = useAuth();
   const { accounts } = useAccounts();
   const { sidebarWidth } = useSidebar();
+  const isWorkspaceUsersPage = location.pathname === "/workspace/users";
   const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
-  const account = accountIdNum
-    ? accounts.find((a) => a.id === accountIdNum)
-    : null;
+  /** Workspace users URL has no brand in path — use first brand for defaults (e.g. create-user context). */
+  const resolvedAccountIdNum = isWorkspaceUsersPage
+    ? (accounts[0]?.id ?? 0)
+    : (accountIdNum ?? 0);
+  const resolvedAccount = isWorkspaceUsersPage
+    ? (accounts[0] ?? null)
+    : accountIdNum
+      ? (accounts.find((a) => a.id === accountIdNum) ?? null)
+      : null;
 
   useEffect(() => {
     setPageTitle("Users");
@@ -338,10 +346,11 @@ export const AccountUsers: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (isWorkspaceUsersPage) return;
     if (!accountIdNum) {
       navigate("/brands");
     }
-  }, [accountIdNum, navigate]);
+  }, [accountIdNum, navigate, isWorkspaceUsersPage]);
 
   const activeRole =
     user?.workspaces?.find((w) => w.id === activeWorkspaceId)?.role ??
@@ -374,8 +383,8 @@ export const AccountUsers: React.FC = () => {
         <AccountsHeader />
         <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white overflow-x-hidden min-w-0">
           <AccountUsersContent
-            accountIdNum={accountIdNum ?? 0}
-            account={account ?? null}
+            accountIdNum={resolvedAccountIdNum}
+            account={resolvedAccount}
             workspaceId={activeWorkspaceId ?? user?.workspace?.id}
           />
         </div>
@@ -1408,7 +1417,9 @@ function AccountUsersContent({
                       <th className="table-header">Role</th>
                       <th className="table-header">Assigned</th>
                       {isManagerOrOwner && (
-                        <th className="table-header text-right">Actions</th>
+                        <th className="table-header whitespace-nowrap min-w-[120px]">
+                          Actions
+                        </th>
                       )}
                     </tr>
                   </thead>
@@ -1544,8 +1555,8 @@ function AccountUsersContent({
                           </span>
                         </td>
                         {isManagerOrOwner && (
-                          <td className="table-cell">
-                            <div className="flex items-center justify-end gap-2">
+                          <td className="table-cell align-top whitespace-nowrap">
+                            <div className="flex flex-nowrap items-center justify-start gap-2">
                               {u.role === "manager" && (
                                 <button
                                   type="button"

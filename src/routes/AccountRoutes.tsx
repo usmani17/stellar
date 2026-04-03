@@ -6,13 +6,12 @@ import { WorkspaceRequiredRoute } from "../components/auth/WorkspaceRequiredRout
 import { Layout } from "../components/layout/Layout";
 import { Accounts } from "../pages/Accounts";
 import { AccountProfiles } from "../pages/AccountProfiles";
-import { AccountUsers } from "../pages/AccountUsers";
 import { Channels } from "../pages/Channels";
 import { ConnectTikTok } from "../pages/ConnectTikTok";
 import { Dashboards } from "../pages/Dashboards";
 import { LogHistory } from "../pages/LogHistory";
 import { Profile } from "../pages/Profile";
-import { WorkspaceSettings } from "../pages/WorkspaceSettings";
+import { AccountUsers } from "../pages/AccountUsers";
 import { Strategies } from "../pages/Strategies";
 import { StrategyDetail } from "../pages/StrategyDetail";
 import { StrategyRunHistory } from "../pages/StrategyRunHistory";
@@ -126,9 +125,11 @@ function AccountRoutes() {
                 element={
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
-                            <Layout>
-                                <PortfolioList />
-                            </Layout>
+                            <AccountRequiredRoute>
+                                <Layout>
+                                    <PortfolioList />
+                                </Layout>
+                            </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
@@ -289,19 +290,7 @@ function AccountRoutes() {
             />
             <Route
                 path="/brands/:accountId/users"
-                element={
-                    <ProtectedRoute>
-                        <WorkspaceRequiredRoute>
-                            <AccountRequiredRoute>
-                                <BrandAccessRoute>
-                                    <Layout>
-                                        <AccountUsers />
-                                    </Layout>
-                                </BrandAccessRoute>
-                            </AccountRequiredRoute>
-                        </WorkspaceRequiredRoute>
-                    </ProtectedRoute>
-                }
+                element={<Navigate to="/workspace/users" replace />}
             />
             <Route
                 path="/brands/:accountId/dashboards/:dashboardId"
@@ -403,11 +392,15 @@ function AccountRoutes() {
             />
             <Route
                 path="/workspace/team"
+                element={<Navigate to="/workspace/users" replace />}
+            />
+            <Route
+                path="/workspace/users"
                 element={
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <Layout>
-                                <WorkspaceSettings />
+                                <AccountUsers />
                             </Layout>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>

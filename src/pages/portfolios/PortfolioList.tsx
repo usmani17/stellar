@@ -1288,7 +1288,7 @@ export const PortfolioList: React.FC = () => {
       >
         <DashboardHeader />
 
-        <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white flex-1 pb-10">
+        <div className="px-4 pt-24 pb-10 sm:px-6 sm:pt-28 lg:px-8 lg:pt-28 lg:pb-10 bg-white flex-1 min-h-0">
           <div className="space-y-6">
             {deleteBannerMsg && (
               <Banner
