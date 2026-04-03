@@ -34,6 +34,7 @@ import { usePortfolios, usePortfolioSummary, usePortfolioLiveMetrics } from "../
 import { useDeletePortfolio } from "../../hooks/mutations/usePortfolioMutations";
 import { useDebouncedSearch } from "../../hooks/useDebouncedSearch";
 import { Sidebar } from "../../components/layout/Sidebar";
+import { DashboardHeader } from "../../components/layout/DashboardHeader";
 
 import { Assistant } from "../../components/layout/Assistant";
 import {
@@ -1294,260 +1295,264 @@ export const PortfolioList: React.FC = () => {
         className="flex-1 w-full min-w-0 flex flex-col"
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
-        <Assistant>
-        <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white flex-1 pb-10">
-          <div className="space-y-6">
-            {deleteBannerMsg && (
-              <Banner
-                type={deleteBannerType}
-                message={deleteBannerMsg}
-                dismissable
-                onDismiss={() => setDeleteBannerMsg("")}
-              />
-            )}
+        <DashboardHeader />
 
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <h1 className="text-[22px] sm:text-[24px] font-medium text-forest-f60 leading-[normal]">
-                Portfolios
-              </h1>
-              <div className="flex items-center gap-2">
-                <div className="search-input-container h-[40px] w-full md:w-[272px] flex items-center gap-2 px-[10px]">
-                  <Search className="w-4 h-4 text-forest-f30 shrink-0" />
-                  <input
-                    type="text"
-                    placeholder="Search portfolios..."
-                    className="bg-transparent border-none outline-none text-[13px] text-forest-f60 w-full placeholder:text-forest-f30/60"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
+        <div className="px-4 pt-24 pb-10 sm:px-6 sm:pt-28 lg:px-8 lg:pt-28 lg:pb-10 bg-white flex-1 min-h-0">
+          <Assistant>
+            <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white flex-1 pb-10">
+              <div className="space-y-6">
+                {deleteBannerMsg && (
+                  <Banner
+                    type={deleteBannerType}
+                    message={deleteBannerMsg}
+                    dismissable
+                    onDismiss={() => setDeleteBannerMsg("")}
                   />
-                </div>
-                <Tooltip description="Refresh">
-                  <button
-                    onClick={handleRefresh}
-                    className="p-2 rounded-lg border border-sandstorm-s40 hover:bg-sandstorm-s10 transition-colors"
-                    aria-label="Refresh"
-                  >
-                    <RefreshCw
-                      className={cn(
-                        "w-4 h-4 text-forest-f30",
-                        isFetching && "animate-spin",
-                      )}
-                    />
-                  </button>
-                </Tooltip>
-              </div>
-            </div>
+                )}
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <KPICard label="Total Portfolios" value={summary?.totalPortfolios ?? 0} />
-              <KPICard label="Live" value={summary?.livePortfolios ?? 0} />
-              <KPICard label="Behind Pacing" value={summary?.behindPacing ?? 0} />
-              <KPICard label="Need Attention" value={summary?.needAttention ?? 0} />
-            </div>
-
-            <div
-              className="bg-sandstorm-s5 border border-sandstorm-s40 rounded-[12px] overflow-hidden relative"
-              style={{ minHeight: isLoading ? "400px" : undefined }}
-            >
-              {(isLoading || isFetching) && (
-                <div className="loading-overlay">
-                  <div className="loading-overlay-content">
-                    <Loader
-                      size="md"
-                      message={isLoading ? "Loading portfolios..." : "Updating..."}
-                    />
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <h1 className="text-[22px] sm:text-[24px] font-medium text-forest-f60 leading-[normal]">
+                    Portfolios
+                  </h1>
+                  <div className="flex items-center gap-2">
+                    <div className="search-input-container h-[40px] w-full md:w-[272px] flex items-center gap-2 px-[10px]">
+                      <Search className="w-4 h-4 text-forest-f30 shrink-0" />
+                      <input
+                        type="text"
+                        placeholder="Search portfolios..."
+                        className="bg-transparent border-none outline-none text-[13px] text-forest-f60 w-full placeholder:text-forest-f30/60"
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                      />
+                    </div>
+                    <Tooltip description="Refresh">
+                      <button
+                        onClick={handleRefresh}
+                        className="p-2 rounded-lg border border-sandstorm-s40 hover:bg-sandstorm-s10 transition-colors"
+                        aria-label="Refresh"
+                      >
+                        <RefreshCw
+                          className={cn(
+                            "w-4 h-4 text-forest-f30",
+                            isFetching && "animate-spin",
+                          )}
+                        />
+                      </button>
+                    </Tooltip>
                   </div>
                 </div>
-              )}
 
-              <div className="overflow-x-auto isolate max-w-full">
-                <table className="min-w-[1100px] w-full border-collapse">
-                  <thead>
-                    <tr className="bg-sandstorm-s0 border-b border-sandstorm-s40">
-                      <th
-                        colSpan={4}
-                        className="table-header !cursor-default text-left sticky left-0 z-30 bg-sandstorm-s10 border-r border-sandstorm-s40 shadow-[2px_0_6px_rgba(7,41,41,0.08)] text-forest-f60 font-semibold"
-                      >
-                        Portfolio
-                      </th>
-                      <th
-                        colSpan={4}
-                        className="table-header !cursor-default text-center bg-sandstorm-s10/90 text-forest-f60 font-semibold border-r border-sandstorm-s40"
-                        title={PORTFOLIO_TRACKING_TIPS.budgetGroup}
-                      >
-                        Budget
-                      </th>
-                      <th
-                        colSpan={7}
-                        className="table-header !cursor-default text-center bg-sandstorm-s0 text-forest-f60 font-semibold"
-                        title={PORTFOLIO_TRACKING_TIPS.performanceGroup}
-                      >
-                        Performance
-                      </th>
-                      <th className="table-header w-11 min-w-[2.75rem] !cursor-default bg-sandstorm-s0 border-l border-sandstorm-s40" />
-                    </tr>
-                    <tr className="border-b border-sandstorm-s40">
-                      <th
-                        className={cn(
-                          "table-header sticky left-0 z-20 bg-sandstorm-s5 border-r border-sandstorm-s40 shadow-[2px_0_6px_rgba(7,41,41,0.06)]",
-                          COL.portfolio,
-                        )}
-                        onClick={() => toggleSort("name")}
-                      >
-                        <span className="inline-flex items-center gap-1">
-                          Portfolio
-                          <ArrowUpDown className="w-3.5 h-3.5 shrink-0 opacity-40" />
-                        </span>
-                      </th>
-                      <th
-                        className={cn(
-                          "table-header sticky z-20 bg-sandstorm-s5 border-r border-sandstorm-s40 shadow-[2px_0_6px_rgba(7,41,41,0.06)]",
-                          COL.brandSticky,
-                          COL.brand,
-                        )}
-                        onClick={() => toggleSort("brand")}
-                      >
-                        <span className="inline-flex items-center gap-1">
-                          Brand
-                          <ArrowUpDown className="w-3.5 h-3.5 shrink-0 opacity-40" />
-                        </span>
-                      </th>
-                      <th className={cn("table-header !cursor-default", COL.tags)}>Tags</th>
-                      <th className={cn("table-header !cursor-default", COL.adAccount)}>Ad account</th>
-                      {colHead("Total", "totalBudget", undefined, PORTFOLIO_TRACKING_TIPS.totalBudget)}
-                      {colHead("Target (FTD)", undefined, undefined, PORTFOLIO_TRACKING_TIPS.targetFtd)}
-                      {colHead("Actual (FTD)", undefined, undefined, PORTFOLIO_TRACKING_TIPS.actualFtd)}
-                      {colHead("Pacing", "pacing", undefined, PORTFOLIO_TRACKING_TIPS.pacing)}
-                      {colHead("FTD conv.", undefined, undefined, PORTFOLIO_TRACKING_TIPS.ftdConv)}
-                      {colHead("FTD rev.", undefined, undefined, PORTFOLIO_TRACKING_TIPS.ftdRev)}
-                      {colHead("Target (KPI)", undefined, undefined, PORTFOLIO_TRACKING_TIPS.targetKpi)}
-                      {colHead("FTD (KPI)", undefined, undefined, PORTFOLIO_TRACKING_TIPS.ftdKpi)}
-                      {colHead("L7D (KPI)", undefined, undefined, PORTFOLIO_TRACKING_TIPS.l7dKpi)}
-                      {colHead("Achieve. %", "achievement", undefined, PORTFOLIO_TRACKING_TIPS.achievement)}
-                      {colHead("Health", undefined, undefined, PORTFOLIO_TRACKING_TIPS.health)}
-                      <th className="table-header w-11 min-w-[2.75rem] !cursor-default" aria-label="Row actions" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {isLoading ? (
-                      Array.from({ length: 5 }).map((_, i) => (
-                        <tr key={`skeleton-${i}`} className="table-row">
-                          {Array.from({ length: 16 }).map((_, j) => (
-                            <td key={j} className="table-cell">
-                              <div className="h-4 bg-sandstorm-s20 rounded animate-pulse w-20" />
-                            </td>
-                          ))}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <KPICard label="Total Portfolios" value={summary?.totalPortfolios ?? 0} />
+                  <KPICard label="Live" value={summary?.livePortfolios ?? 0} />
+                  <KPICard label="Behind Pacing" value={summary?.behindPacing ?? 0} />
+                  <KPICard label="Need Attention" value={summary?.needAttention ?? 0} />
+                </div>
+
+                <div
+                  className="bg-sandstorm-s5 border border-sandstorm-s40 rounded-[12px] overflow-hidden relative"
+                  style={{ minHeight: isLoading ? "400px" : undefined }}
+                >
+                  {(isLoading || isFetching) && (
+                    <div className="loading-overlay">
+                      <div className="loading-overlay-content">
+                        <Loader
+                          size="md"
+                          message={isLoading ? "Loading portfolios..." : "Updating..."}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="overflow-x-auto isolate max-w-full">
+                    <table className="min-w-[1100px] w-full border-collapse">
+                      <thead>
+                        <tr className="bg-sandstorm-s0 border-b border-sandstorm-s40">
+                          <th
+                            colSpan={4}
+                            className="table-header !cursor-default text-left sticky left-0 z-30 bg-sandstorm-s10 border-r border-sandstorm-s40 shadow-[2px_0_6px_rgba(7,41,41,0.08)] text-forest-f60 font-semibold"
+                          >
+                            Portfolio
+                          </th>
+                          <th
+                            colSpan={4}
+                            className="table-header !cursor-default text-center bg-sandstorm-s10/90 text-forest-f60 font-semibold border-r border-sandstorm-s40"
+                            title={PORTFOLIO_TRACKING_TIPS.budgetGroup}
+                          >
+                            Budget
+                          </th>
+                          <th
+                            colSpan={7}
+                            className="table-header !cursor-default text-center bg-sandstorm-s0 text-forest-f60 font-semibold"
+                            title={PORTFOLIO_TRACKING_TIPS.performanceGroup}
+                          >
+                            Performance
+                          </th>
+                          <th className="table-header w-11 min-w-[2.75rem] !cursor-default bg-sandstorm-s0 border-l border-sandstorm-s40" />
                         </tr>
-                      ))
-                    ) : sortedPortfolios.length === 0 ? (
-                      <tr>
-                        <td colSpan={16} className="table-cell text-center py-12">
-                          <p className="text-[14px] text-forest-f30 mb-2">
-                            {searchQuery
-                              ? "No portfolios match your search."
-                              : "No portfolios yet."}
-                          </p>
-                          {!searchQuery && (
-                            <p className="text-[13px] text-forest-f30">
-                              Go to a campaign page, select campaigns, and use
-                              &quot;Create Portfolio&quot; from bulk actions.
-                            </p>
-                          )}
-                        </td>
-                      </tr>
-                    ) : (
-                      sortedPortfolios.map((p) => (
-                        <React.Fragment key={p.id}>
-                          <PortfolioRow
-                            portfolio={p}
-                            metricsLoading={
-                              !p.latestTracking && liveMetricsLoading && needsLiveIds.includes(p.id)
-                            }
-                            expanded={expandedRowId === p.id}
-                            onToggleExpand={() =>
-                              setExpandedRowId((id) => (id === p.id ? null : p.id))
-                            }
-                            onView={() =>
-                              navigate(`/brands/${p.accountId}/portfolios/${p.id}`)
-                            }
-                            onAgents={() =>
-                              navigate(
-                                `/brands/${p.accountId}/portfolios/${p.id}?tab=dashboards`,
-                              )
-                            }
-                            onEdit={() =>
-                              navigate(
-                                `/brands/${p.accountId}/portfolios/${p.id}?edit=true`,
-                              )
-                            }
-                            onDelete={() => setDeletingPortfolio(p)}
-                            menuOpen={menuOpenId === p.id}
-                            onMenuToggle={() =>
-                              setMenuOpenId(menuOpenId === p.id ? null : p.id)
-                            }
-                          />
-                          {expandedRowId === p.id ? (
-                            <tr className="border-t border-forest-f40/20 bg-sandstorm-s20">
-                              <td colSpan={16} className="p-0 align-top sticky left-0">
-                                <div style={{ width: `calc(100vw - ${sidebarWidth}px - 3.5rem)` }}>
-                                  <PortfolioExpandPanel portfolio={p} />
-                                </div>
-                              </td>
+                        <tr className="border-b border-sandstorm-s40">
+                          <th
+                            className={cn(
+                              "table-header sticky left-0 z-20 bg-sandstorm-s5 border-r border-sandstorm-s40 shadow-[2px_0_6px_rgba(7,41,41,0.06)]",
+                              COL.portfolio,
+                            )}
+                            onClick={() => toggleSort("name")}
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              Portfolio
+                              <ArrowUpDown className="w-3.5 h-3.5 shrink-0 opacity-40" />
+                            </span>
+                          </th>
+                          <th
+                            className={cn(
+                              "table-header sticky z-20 bg-sandstorm-s5 border-r border-sandstorm-s40 shadow-[2px_0_6px_rgba(7,41,41,0.06)]",
+                              COL.brandSticky,
+                              COL.brand,
+                            )}
+                            onClick={() => toggleSort("brand")}
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              Brand
+                              <ArrowUpDown className="w-3.5 h-3.5 shrink-0 opacity-40" />
+                            </span>
+                          </th>
+                          <th className={cn("table-header !cursor-default", COL.tags)}>Tags</th>
+                          <th className={cn("table-header !cursor-default", COL.adAccount)}>Ad account</th>
+                          {colHead("Total", "totalBudget", undefined, PORTFOLIO_TRACKING_TIPS.totalBudget)}
+                          {colHead("Target (FTD)", undefined, undefined, PORTFOLIO_TRACKING_TIPS.targetFtd)}
+                          {colHead("Actual (FTD)", undefined, undefined, PORTFOLIO_TRACKING_TIPS.actualFtd)}
+                          {colHead("Pacing", "pacing", undefined, PORTFOLIO_TRACKING_TIPS.pacing)}
+                          {colHead("FTD conv.", undefined, undefined, PORTFOLIO_TRACKING_TIPS.ftdConv)}
+                          {colHead("FTD rev.", undefined, undefined, PORTFOLIO_TRACKING_TIPS.ftdRev)}
+                          {colHead("Target (KPI)", undefined, undefined, PORTFOLIO_TRACKING_TIPS.targetKpi)}
+                          {colHead("FTD (KPI)", undefined, undefined, PORTFOLIO_TRACKING_TIPS.ftdKpi)}
+                          {colHead("L7D (KPI)", undefined, undefined, PORTFOLIO_TRACKING_TIPS.l7dKpi)}
+                          {colHead("Achieve. %", "achievement", undefined, PORTFOLIO_TRACKING_TIPS.achievement)}
+                          {colHead("Health", undefined, undefined, PORTFOLIO_TRACKING_TIPS.health)}
+                          <th className="table-header w-11 min-w-[2.75rem] !cursor-default" aria-label="Row actions" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {isLoading ? (
+                          Array.from({ length: 5 }).map((_, i) => (
+                            <tr key={`skeleton-${i}`} className="table-row">
+                              {Array.from({ length: 16 }).map((_, j) => (
+                                <td key={j} className="table-cell">
+                                  <div className="h-4 bg-sandstorm-s20 rounded animate-pulse w-20" />
+                                </td>
+                              ))}
                             </tr>
-                          ) : null}
-                        </React.Fragment>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                          ))
+                        ) : sortedPortfolios.length === 0 ? (
+                          <tr>
+                            <td colSpan={16} className="table-cell text-center py-12">
+                              <p className="text-[14px] text-forest-f30 mb-2">
+                                {searchQuery
+                                  ? "No portfolios match your search."
+                                  : "No portfolios yet."}
+                              </p>
+                              {!searchQuery && (
+                                <p className="text-[13px] text-forest-f30">
+                                  Go to a campaign page, select campaigns, and use
+                                  &quot;Create Portfolio&quot; from bulk actions.
+                                </p>
+                              )}
+                            </td>
+                          </tr>
+                        ) : (
+                          sortedPortfolios.map((p) => (
+                            <React.Fragment key={p.id}>
+                              <PortfolioRow
+                                portfolio={p}
+                                metricsLoading={
+                                  !p.latestTracking && liveMetricsLoading && needsLiveIds.includes(p.id)
+                                }
+                                expanded={expandedRowId === p.id}
+                                onToggleExpand={() =>
+                                  setExpandedRowId((id) => (id === p.id ? null : p.id))
+                                }
+                                onView={() =>
+                                  navigate(`/brands/${p.accountId}/portfolios/${p.id}`)
+                                }
+                                onAgents={() =>
+                                  navigate(
+                                    `/brands/${p.accountId}/portfolios/${p.id}?tab=dashboards`,
+                                  )
+                                }
+                                onEdit={() =>
+                                  navigate(
+                                    `/brands/${p.accountId}/portfolios/${p.id}?edit=true`,
+                                  )
+                                }
+                                onDelete={() => setDeletingPortfolio(p)}
+                                menuOpen={menuOpenId === p.id}
+                                onMenuToggle={() =>
+                                  setMenuOpenId(menuOpenId === p.id ? null : p.id)
+                                }
+                              />
+                              {expandedRowId === p.id ? (
+                                <tr className="border-t border-forest-f40/20 bg-sandstorm-s20">
+                                  <td colSpan={16} className="p-0 align-top sticky left-0">
+                                    <div style={{ width: `calc(100vw - ${sidebarWidth}px - 3.5rem)` }}>
+                                      <PortfolioExpandPanel portfolio={p} />
+                                    </div>
+                                  </td>
+                                </tr>
+                              ) : null}
+                            </React.Fragment>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-[13px] text-forest-f30">
+                      Showing {(currentPage - 1) * PAGE_SIZE + 1}–
+                      {Math.min(currentPage * PAGE_SIZE, count)} of {count}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="text-[12px] px-3 py-1.5"
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-[13px] text-forest-f30">
+                        {currentPage} / {totalPages}
+                      </span>
+                      <Button
+                        onClick={() =>
+                          setCurrentPage((p) => Math.min(totalPages, p + 1))
+                        }
+                        disabled={currentPage === totalPages}
+                        className="text-[12px] px-3 py-1.5"
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between">
-                <p className="text-[13px] text-forest-f30">
-                  Showing {(currentPage - 1) * PAGE_SIZE + 1}–
-                  {Math.min(currentPage * PAGE_SIZE, count)} of {count}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="text-[12px] px-3 py-1.5"
-                  >
-                    Previous
-                  </Button>
-                  <span className="text-[13px] text-forest-f30">
-                    {currentPage} / {totalPages}
-                  </span>
-                  <Button
-                    onClick={() =>
-                      setCurrentPage((p) => Math.min(totalPages, p + 1))
-                    }
-                    disabled={currentPage === totalPages}
-                    className="text-[12px] px-3 py-1.5"
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+          </Assistant>
         </div>
-        </Assistant>
-      </div>
 
-      <ConfirmationModal
-        isOpen={deletingPortfolio !== null}
-        onClose={() => !deleteMutation.isPending && setDeletingPortfolio(null)}
-        onConfirm={handleDelete}
-        title="Delete Portfolio"
-        message={`Are you sure you want to delete "${deletingPortfolio?.name}"? This action cannot be undone.`}
-        confirmButtonLabel="Delete"
-        isDangerous
-        isLoading={deleteMutation.isPending}
-        loadingLabel="Deleting..."
-      />
+        <ConfirmationModal
+          isOpen={deletingPortfolio !== null}
+          onClose={() => !deleteMutation.isPending && setDeletingPortfolio(null)}
+          onConfirm={handleDelete}
+          title="Delete Portfolio"
+          message={`Are you sure you want to delete "${deletingPortfolio?.name}"? This action cannot be undone.`}
+          confirmButtonLabel="Delete"
+          isDangerous
+          isLoading={deleteMutation.isPending}
+          loadingLabel="Deleting..."
+        />
+      </div>
     </div>
   );
 };
@@ -1565,365 +1570,365 @@ interface PortfolioRowProps {
   onMenuToggle: () => void;
 }
 
-const PortfolioRow: React.FC<PortfolioRowProps> = ({
-  portfolio: p,
-  metricsLoading = false,
-  expanded,
-  onToggleExpand,
-  onView,
-  onAgents,
-  onEdit,
-  onDelete,
-  menuOpen,
-  onMenuToggle,
+      const PortfolioRow: React.FC<PortfolioRowProps> = ({
+        portfolio: p,
+        metricsLoading = false,
+        expanded,
+        onToggleExpand,
+        onView,
+        onAgents,
+        onEdit,
+        onDelete,
+        menuOpen,
+        onMenuToggle,
 }) => {
   const navigate = useNavigate();
-  const t = p.latestTracking;
-  const dashCount = p.dashboardCount ?? 0;
-  const latestDashboardId = p.latestDashboardId ?? null;
+        const t = p.latestTracking;
+        const dashCount = p.dashboardCount ?? 0;
+        const latestDashboardId = p.latestDashboardId ?? null;
 
   const stickyCell = (extra: string) =>
-    cn("table-cell align-top bg-sandstorm-s5", extra);
+        cn("table-cell align-top bg-sandstorm-s5", extra);
 
-  const health = t?.health ?? null;
-  const targetKpiLabel = formatTargetKpiLabel(p.targetType, p.targetValue);
-  const targetKpiSubtitle = formatTargetKpiSubtitle(
-    p.targetType,
-    p.metricType,
-    t?.targetKpiName ?? null,
-    p.primaryConversionMetricName ?? null,
-  );
-  const ftdKpi = formatKpiValue(p.targetType, t?.targetKpiValue);
-  const l7dKpi = formatKpiValue(p.targetType, t?.l7dKpiValue);
+        const health = t?.health ?? null;
+        const targetKpiLabel = formatTargetKpiLabel(p.targetType, p.targetValue);
+        const targetKpiSubtitle = formatTargetKpiSubtitle(
+        p.targetType,
+        p.metricType,
+        t?.targetKpiName ?? null,
+        p.primaryConversionMetricName ?? null,
+        );
+        const ftdKpi = formatKpiValue(p.targetType, t?.targetKpiValue);
+        const l7dKpi = formatKpiValue(p.targetType, t?.l7dKpiValue);
 
-  return (
-    <tr
-      className="table-row cursor-pointer hover:bg-sandstorm-s10/60"
-      onClick={onView}
-    >
-      <td
-        className={cn(
-          stickyCell(
-            cn(
-              "sticky left-0 z-10 border-r border-sandstorm-s40 shadow-[2px_0_6px_rgba(7,41,41,0.06)]",
-              COL.portfolio,
-            ),
-          ),
-        )}
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleExpand();
-        }}
-      >
-        <div className="flex gap-2 items-start">
-          <button
-            type="button"
+        return (
+        <tr
+          className="table-row cursor-pointer hover:bg-sandstorm-s10/60"
+          onClick={onView}
+        >
+          <td
             className={cn(
-              "mt-0.5 shrink-0 rounded-md p-1 text-forest-f30 transition-colors",
-              "border border-transparent hover:border-sandstorm-s40 hover:bg-sandstorm-s10",
-              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest-f40",
+              stickyCell(
+                cn(
+                  "sticky left-0 z-10 border-r border-sandstorm-s40 shadow-[2px_0_6px_rgba(7,41,41,0.06)]",
+                  COL.portfolio,
+                ),
+              ),
             )}
             onClick={(e) => {
               e.stopPropagation();
               onToggleExpand();
             }}
-            aria-expanded={expanded}
-            aria-label={
-              expanded
-                ? `Collapse guardrails and dashboards for ${p.name}`
-                : `Expand guardrails and dashboards for ${p.name}`
-            }
           >
-            {expanded ? (
-              <ChevronDown className="w-4 h-4" aria-hidden />
-            ) : (
-              <ChevronRight className="w-4 h-4" aria-hidden />
-            )}
-          </button>
-          <div className="flex flex-col gap-1.5 py-0.5 min-w-0 flex-1">
-            <span className="text-[13px] font-medium text-forest-f60 leading-snug">{p.name}</span>
-            <span className="text-[12px] text-forest-f30 leading-normal">
-              {p.campaignCount} campaigns · {PLATFORM_LABELS[p.platform] ?? p.platform}
-            </span>
-            {dashCount > 0 && (
+            <div className="flex gap-2 items-start">
               <button
                 type="button"
+                className={cn(
+                  "mt-0.5 shrink-0 rounded-md p-1 text-forest-f30 transition-colors",
+                  "border border-transparent hover:border-sandstorm-s40 hover:bg-sandstorm-s10",
+                  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest-f40",
+                )}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onAgents();
+                  onToggleExpand();
                 }}
-                className="inline-flex items-center gap-1 self-start mt-0.5 text-[11px] font-medium text-forest-f40 hover:text-forest-f50"
-                aria-label={`Open dashboards tab, ${dashCount} dashboards`}
+                aria-expanded={expanded}
+                aria-label={
+                  expanded
+                    ? `Collapse guardrails and dashboards for ${p.name}`
+                    : `Expand guardrails and dashboards for ${p.name}`
+                }
               >
-                <LayoutDashboard className="w-3.5 h-3.5 shrink-0" aria-hidden />
-                {dashCount} dashboard{dashCount === 1 ? "" : "s"}
+                {expanded ? (
+                  <ChevronDown className="w-4 h-4" aria-hidden />
+                ) : (
+                  <ChevronRight className="w-4 h-4" aria-hidden />
+                )}
               </button>
-            )}
-          </div>
-        </div>
-      </td>
-      <td
-        className={cn(
-          stickyCell(
-            cn(
-              "sticky z-10 border-r border-sandstorm-s40 shadow-[2px_0_6px_rgba(7,41,41,0.06)]",
-              COL.brandSticky,
-              COL.brand,
-            ),
-          ),
-        )}
-      >
-        <span className="text-[12px] text-forest-f60 truncate block" title={p.accountName}>
-          {p.accountName}
-        </span>
-      </td>
-      <td className={cn("table-cell align-top", COL.tags)}>
-        <div className="flex flex-wrap gap-1">
-          {(p.tags ?? []).slice(0, 4).map((tag) => (
-            <span
-              key={tag}
-              className="px-1.5 py-0.5 rounded bg-sandstorm-s10 text-[10px] text-forest-f30 truncate max-w-[96px]"
-            >
-              {tag}
-            </span>
-          ))}
-          {(p.tags?.length ?? 0) > 4 && (
-            <span className="text-[10px] text-forest-f30">+{p.tags!.length - 4}</span>
-          )}
-        </div>
-      </td>
-      <td className={cn("table-cell align-top", COL.adAccount)}>
-        <div className="flex flex-col gap-0.5 text-[12px] leading-snug text-forest-f60">
-          <span className="text-forest-f60">{p.channelName}</span>
-          {p.profileName && (
-            <span className="text-forest-f30 line-clamp-2" title={p.profileName}>
-              {p.profileName}
-            </span>
-          )}
-        </div>
-      </td>
-      <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
-        {p.totalBudget != null ? formatCurrency(p.totalBudget) : <EmptyValue />}
-      </td>
-      <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
-        {metricsLoading ? <MetricSkeleton /> : t?.targetSpendFtd != null ? formatCurrency(t.targetSpendFtd) : <EmptyValue />}
-      </td>
-      <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
-        {metricsLoading ? <MetricSkeleton /> : t?.totalSpend != null ? formatCurrency(t.totalSpend) : <EmptyValue />}
-      </td>
-      <td className="table-cell whitespace-nowrap align-middle tabular-nums">
-        {metricsLoading ? (
-          <MetricSkeleton />
-        ) : t?.pacingPercentage != null ? (
-          <span className={cn("text-[12px] font-medium", pacingTextClass(t.pacingPercentage))}>
-            {formatPacing(t.pacingPercentage)}
-          </span>
-        ) : (
-          <EmptyValue />
-        )}
-      </td>
-      <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
-        {metricsLoading ? <MetricSkeleton /> : t?.conversions != null ? formatNumber(t.conversions) : <EmptyValue />}
-      </td>
-      <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
-        {metricsLoading ? <MetricSkeleton /> : t?.revenue != null ? formatCurrency(t.revenue) : <EmptyValue />}
-      </td>
-      <td
-        className={cn(
-          "table-cell align-top min-w-[6.75rem] max-w-[12rem]",
-        )}
-      >
-        <div className="flex flex-col gap-1 py-0.5">
-          {targetKpiLabel !== "—" ? (
-            <>
-              <span className="text-[13px] font-semibold text-forest-f60 tabular-nums leading-tight">
-                {targetKpiLabel}
-              </span>
-              {targetKpiSubtitle ? (
-                <span
-                  className="text-[11px] text-forest-f40 leading-snug break-words"
-                  title={`(${targetKpiSubtitle})`}
-                >
-                  ({targetKpiSubtitle})
+              <div className="flex flex-col gap-1.5 py-0.5 min-w-0 flex-1">
+                <span className="text-[13px] font-medium text-forest-f60 leading-snug">{p.name}</span>
+                <span className="text-[12px] text-forest-f30 leading-normal">
+                  {p.campaignCount} campaigns · {PLATFORM_LABELS[p.platform] ?? p.platform}
                 </span>
-              ) : null}
-            </>
-          ) : (
-            <EmptyValue />
-          )}
-        </div>
-      </td>
-      <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
-        {metricsLoading ? <MetricSkeleton /> : ftdKpi !== "—" ? ftdKpi : <EmptyValue />}
-      </td>
-      <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
-        {metricsLoading ? <MetricSkeleton /> : l7dKpi !== "—" ? l7dKpi : <EmptyValue />}
-      </td>
-      <td className="table-cell whitespace-nowrap align-middle tabular-nums">
-        {metricsLoading ? (
-          <MetricSkeleton />
-        ) : t?.achievementPercentage != null ? (
-          <span
+                {dashCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAgents();
+                    }}
+                    className="inline-flex items-center gap-1 self-start mt-0.5 text-[11px] font-medium text-forest-f40 hover:text-forest-f50"
+                    aria-label={`Open dashboards tab, ${dashCount} dashboards`}
+                  >
+                    <LayoutDashboard className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                    {dashCount} dashboard{dashCount === 1 ? "" : "s"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </td>
+          <td
             className={cn(
-              "text-[12px] font-medium",
-              achievementClass(t.achievementPercentage, p.targetType),
+              stickyCell(
+                cn(
+                  "sticky z-10 border-r border-sandstorm-s40 shadow-[2px_0_6px_rgba(7,41,41,0.06)]",
+                  COL.brandSticky,
+                  COL.brand,
+                ),
+              ),
             )}
           >
-            {t.achievementPercentage.toFixed(1)}%
-          </span>
-        ) : (
-          <EmptyValue />
-        )}
-      </td>
-      <td className="table-cell whitespace-nowrap align-middle">
-        {metricsLoading ? (
-          <MetricSkeleton />
-        ) : health ? (
-          <span
-            className={cn(
-              "inline-flex max-w-[10rem] whitespace-normal px-2 py-0.5 text-center text-[10px] font-medium leading-tight border",
-              healthBadgeClasses(health),
+            <span className="text-[12px] text-forest-f60 truncate block" title={p.accountName}>
+              {p.accountName}
+            </span>
+          </td>
+          <td className={cn("table-cell align-top", COL.tags)}>
+            <div className="flex flex-wrap gap-1">
+              {(p.tags ?? []).slice(0, 4).map((tag) => (
+                <span
+                  key={tag}
+                  className="px-1.5 py-0.5 rounded bg-sandstorm-s10 text-[10px] text-forest-f30 truncate max-w-[96px]"
+                >
+                  {tag}
+                </span>
+              ))}
+              {(p.tags?.length ?? 0) > 4 && (
+                <span className="text-[10px] text-forest-f30">+{p.tags!.length - 4}</span>
+              )}
+            </div>
+          </td>
+          <td className={cn("table-cell align-top", COL.adAccount)}>
+            <div className="flex flex-col gap-0.5 text-[12px] leading-snug text-forest-f60">
+              <span className="text-forest-f60">{p.channelName}</span>
+              {p.profileName && (
+                <span className="text-forest-f30 line-clamp-2" title={p.profileName}>
+                  {p.profileName}
+                </span>
+              )}
+            </div>
+          </td>
+          <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
+            {p.totalBudget != null ? formatCurrency(p.totalBudget) : <EmptyValue />}
+          </td>
+          <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
+            {metricsLoading ? <MetricSkeleton /> : t?.targetSpendFtd != null ? formatCurrency(t.targetSpendFtd) : <EmptyValue />}
+          </td>
+          <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
+            {metricsLoading ? <MetricSkeleton /> : t?.totalSpend != null ? formatCurrency(t.totalSpend) : <EmptyValue />}
+          </td>
+          <td className="table-cell whitespace-nowrap align-middle tabular-nums">
+            {metricsLoading ? (
+              <MetricSkeleton />
+            ) : t?.pacingPercentage != null ? (
+              <span className={cn("text-[12px] font-medium", pacingTextClass(t.pacingPercentage))}>
+                {formatPacing(t.pacingPercentage)}
+              </span>
+            ) : (
+              <EmptyValue />
             )}
-            title={health}
+          </td>
+          <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
+            {metricsLoading ? <MetricSkeleton /> : t?.conversions != null ? formatNumber(t.conversions) : <EmptyValue />}
+          </td>
+          <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
+            {metricsLoading ? <MetricSkeleton /> : t?.revenue != null ? formatCurrency(t.revenue) : <EmptyValue />}
+          </td>
+          <td
+            className={cn(
+              "table-cell align-top min-w-[6.75rem] max-w-[12rem]",
+            )}
           >
-            {health}
-          </span>
-        ) : (
-          <EmptyValue />
-        )}
-      </td>
-      <td
-        className="table-cell relative z-20 w-11 min-w-[2.75rem] align-middle bg-sandstorm-s5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onMenuToggle();
-          }}
-          className="p-1 rounded hover:bg-sandstorm-s20 transition-colors"
-          aria-label="Actions"
-        >
-          <MoreVertical className="w-4 h-4 text-forest-f30" />
-        </button>
-        {menuOpen && (
-          <div
-            className={cn(
-              "absolute right-0 top-full z-[100] mt-1 min-w-[168px] rounded-lg border border-sandstorm-s40 bg-white py-1 shadow-lg",
+            <div className="flex flex-col gap-1 py-0.5">
+              {targetKpiLabel !== "—" ? (
+                <>
+                  <span className="text-[13px] font-semibold text-forest-f60 tabular-nums leading-tight">
+                    {targetKpiLabel}
+                  </span>
+                  {targetKpiSubtitle ? (
+                    <span
+                      className="text-[11px] text-forest-f40 leading-snug break-words"
+                      title={`(${targetKpiSubtitle})`}
+                    >
+                      ({targetKpiSubtitle})
+                    </span>
+                  ) : null}
+                </>
+              ) : (
+                <EmptyValue />
+              )}
+            </div>
+          </td>
+          <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
+            {metricsLoading ? <MetricSkeleton /> : ftdKpi !== "—" ? ftdKpi : <EmptyValue />}
+          </td>
+          <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
+            {metricsLoading ? <MetricSkeleton /> : l7dKpi !== "—" ? l7dKpi : <EmptyValue />}
+          </td>
+          <td className="table-cell whitespace-nowrap align-middle tabular-nums">
+            {metricsLoading ? (
+              <MetricSkeleton />
+            ) : t?.achievementPercentage != null ? (
+              <span
+                className={cn(
+                  "text-[12px] font-medium",
+                  achievementClass(t.achievementPercentage, p.targetType),
+                )}
+              >
+                {t.achievementPercentage.toFixed(1)}%
+              </span>
+            ) : (
+              <EmptyValue />
             )}
+          </td>
+          <td className="table-cell whitespace-nowrap align-middle">
+            {metricsLoading ? (
+              <MetricSkeleton />
+            ) : health ? (
+              <span
+                className={cn(
+                  "inline-flex max-w-[10rem] whitespace-normal px-2 py-0.5 text-center text-[10px] font-medium leading-tight border",
+                  healthBadgeClasses(health),
+                )}
+                title={health}
+              >
+                {health}
+              </span>
+            ) : (
+              <EmptyValue />
+            )}
+          </td>
+          <td
+            className="table-cell relative z-20 w-11 min-w-[2.75rem] align-middle bg-sandstorm-s5"
             onClick={(e) => e.stopPropagation()}
           >
-            {latestDashboardId != null ? (
-              <button
-                onClick={() => {
-                  navigate(`/brands/${p.accountId}/dashboards/${latestDashboardId}`);
-                  onMenuToggle();
-                }}
-                className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-forest-f60 hover:bg-sandstorm-s5 transition-colors"
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onMenuToggle();
+              }}
+              className="p-1 rounded hover:bg-sandstorm-s20 transition-colors"
+              aria-label="Actions"
+            >
+              <MoreVertical className="w-4 h-4 text-forest-f30" />
+            </button>
+            {menuOpen && (
+              <div
+                className={cn(
+                  "absolute right-0 top-full z-[100] mt-1 min-w-[168px] rounded-lg border border-sandstorm-s40 bg-white py-1 shadow-lg",
+                )}
+                onClick={(e) => e.stopPropagation()}
               >
-                <ExternalLink className="w-4 h-4 shrink-0 text-forest-f40" />
-                Open dashboard
-              </button>
-            ) : null}
-            <button
-              onClick={() => {
-                onView();
-                onMenuToggle();
-              }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-forest-f60 hover:bg-sandstorm-s5 transition-colors"
-            >
-              <Eye className="w-4 h-4" />
-              View
-            </button>
-            <button
-              onClick={() => {
-                onEdit();
-                onMenuToggle();
-              }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-forest-f60 hover:bg-sandstorm-s5 transition-colors"
-            >
-              <Pencil className="w-4 h-4" />
-              Edit
-            </button>
-            <button
-              onClick={() => {
-                onDelete();
-                onMenuToggle();
-              }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-red-r30 hover:bg-red-r0 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete
-            </button>
-          </div>
-        )}
-      </td>
-    </tr>
-  );
+                {latestDashboardId != null ? (
+                  <button
+                    onClick={() => {
+                      navigate(`/brands/${p.accountId}/dashboards/${latestDashboardId}`);
+                      onMenuToggle();
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-forest-f60 hover:bg-sandstorm-s5 transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4 shrink-0 text-forest-f40" />
+                    Open dashboard
+                  </button>
+                ) : null}
+                <button
+                  onClick={() => {
+                    onView();
+                    onMenuToggle();
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-forest-f60 hover:bg-sandstorm-s5 transition-colors"
+                >
+                  <Eye className="w-4 h-4" />
+                  View
+                </button>
+                <button
+                  onClick={() => {
+                    onEdit();
+                    onMenuToggle();
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-forest-f60 hover:bg-sandstorm-s5 transition-colors"
+                >
+                  <Pencil className="w-4 h-4" />
+                  Edit
+                </button>
+                <button
+                  onClick={() => {
+                    onDelete();
+                    onMenuToggle();
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-red-r30 hover:bg-red-r0 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
+              </div>
+            )}
+          </td>
+        </tr>
+        );
 };
 
-// ── Strategic Context Card ────────────────────────────────────────────────
+        // ── Strategic Context Card ────────────────────────────────────────────────
 
-const StrategicContextCard: React.FC<{ content: string }> = ({ content }) => (
-  <div
-    className={cn(
-      "mt-3 rounded-[10px] w-full min-w-0",
-      "border border-sandstorm-s40/70 border-l-[3px] border-l-forest-f40/30",
-      "bg-gradient-to-br from-[#f6f9f8] to-sandstorm-s5",
-      "shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
-      "px-3.5 pt-2.5 pb-2.5",
-    )}
-  >
-    <div className="flex items-center gap-1.5 mb-2">
-      <div className="flex items-center justify-center w-4 h-4 rounded bg-forest-f40/[0.08]">
-        <Sparkles className="w-2.5 h-2.5 text-forest-f40/70" />
-      </div>
-      <span className="text-[9px] font-bold text-forest-f30/70 uppercase tracking-[0.08em]">
-        Strategic context
-      </span>
-    </div>
-    <div className="text-[11.5px] text-forest-f50 leading-[1.75] break-words [&>*:last-child]:mb-0">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          p: ({ children }) => (
-            <p className="m-0 mb-2 last:mb-0">{children}</p>
-          ),
-          strong: ({ children }) => (
-            <strong className="font-semibold text-forest-f60">{children}</strong>
-          ),
-          em: ({ children }) => <em className="italic">{children}</em>,
-          ul: ({ children }) => (
-            <ul className="m-0 mb-2 pl-4 list-disc last:mb-0 space-y-0.5 [&_li::marker]:text-forest-f30/40">{children}</ul>
-          ),
-          ol: ({ children }) => (
-            <ol className="m-0 mb-2 pl-4 list-decimal last:mb-0 space-y-0.5 [&_li::marker]:text-forest-f30/40 [&_li::marker]:text-[11px]">{children}</ol>
-          ),
-          li: ({ children }) => (
-            <li className="m-0 pl-0.5">{children}</li>
-          ),
-          h1: ({ children }) => (
-            <p className="m-0 mb-1.5 text-[12px] font-semibold text-forest-f60">{children}</p>
-          ),
-          h2: ({ children }) => (
-            <p className="m-0 mb-1.5 text-[12px] font-semibold text-forest-f60">{children}</p>
-          ),
-          h3: ({ children }) => (
-            <p className="m-0 mb-1 text-[11.5px] font-semibold text-forest-f60">{children}</p>
-          ),
-          a: ({ href, children }) => (
-            <a href={href} target="_blank" rel="noopener noreferrer" className="text-forest-f40 underline decoration-forest-f40/30 hover:decoration-forest-f40/60 transition-colors">{children}</a>
-          ),
-          code: ({ children }) => (
-            <code className="px-1 py-px rounded bg-forest-f40/[0.06] text-[10.5px] font-mono text-forest-f50">{children}</code>
-          ),
-          blockquote: ({ children }) => (
-            <blockquote className="m-0 mb-2 pl-2.5 border-l-2 border-forest-f40/15 text-forest-f30 italic last:mb-0">{children}</blockquote>
-          ),
-        }}
-      >
-        {content}
-      </ReactMarkdown>
-    </div>
-  </div>
-);
+        const StrategicContextCard: React.FC<{ content: string }> = ({content}) => (
+        <div
+          className={cn(
+            "mt-3 rounded-[10px] w-full min-w-0",
+            "border border-sandstorm-s40/70 border-l-[3px] border-l-forest-f40/30",
+            "bg-gradient-to-br from-[#f6f9f8] to-sandstorm-s5",
+            "shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
+            "px-3.5 pt-2.5 pb-2.5",
+          )}
+        >
+          <div className="flex items-center gap-1.5 mb-2">
+            <div className="flex items-center justify-center w-4 h-4 rounded bg-forest-f40/[0.08]">
+              <Sparkles className="w-2.5 h-2.5 text-forest-f40/70" />
+            </div>
+            <span className="text-[9px] font-bold text-forest-f30/70 uppercase tracking-[0.08em]">
+              Strategic context
+            </span>
+          </div>
+          <div className="text-[11.5px] text-forest-f50 leading-[1.75] break-words [&>*:last-child]:mb-0">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                p: ({ children }) => (
+                  <p className="m-0 mb-2 last:mb-0">{children}</p>
+                ),
+                strong: ({ children }) => (
+                  <strong className="font-semibold text-forest-f60">{children}</strong>
+                ),
+                em: ({ children }) => <em className="italic">{children}</em>,
+                ul: ({ children }) => (
+                  <ul className="m-0 mb-2 pl-4 list-disc last:mb-0 space-y-0.5 [&_li::marker]:text-forest-f30/40">{children}</ul>
+                ),
+                ol: ({ children }) => (
+                  <ol className="m-0 mb-2 pl-4 list-decimal last:mb-0 space-y-0.5 [&_li::marker]:text-forest-f30/40 [&_li::marker]:text-[11px]">{children}</ol>
+                ),
+                li: ({ children }) => (
+                  <li className="m-0 pl-0.5">{children}</li>
+                ),
+                h1: ({ children }) => (
+                  <p className="m-0 mb-1.5 text-[12px] font-semibold text-forest-f60">{children}</p>
+                ),
+                h2: ({ children }) => (
+                  <p className="m-0 mb-1.5 text-[12px] font-semibold text-forest-f60">{children}</p>
+                ),
+                h3: ({ children }) => (
+                  <p className="m-0 mb-1 text-[11.5px] font-semibold text-forest-f60">{children}</p>
+                ),
+                a: ({ href, children }) => (
+                  <a href={href} target="_blank" rel="noopener noreferrer" className="text-forest-f40 underline decoration-forest-f40/30 hover:decoration-forest-f40/60 transition-colors">{children}</a>
+                ),
+                code: ({ children }) => (
+                  <code className="px-1 py-px rounded bg-forest-f40/[0.06] text-[10.5px] font-mono text-forest-f50">{children}</code>
+                ),
+                blockquote: ({ children }) => (
+                  <blockquote className="m-0 mb-2 pl-2.5 border-l-2 border-forest-f40/15 text-forest-f30 italic last:mb-0">{children}</blockquote>
+                ),
+              }}
+            >
+              {content}
+            </ReactMarkdown>
+          </div>
+        </div>
+        );

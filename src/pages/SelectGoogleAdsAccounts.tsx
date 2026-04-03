@@ -9,6 +9,7 @@ import { Button } from "../components/ui";
 import { useGoogleProfiles } from "../hooks/queries/useGoogleProfiles";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../hooks/queries/queryKeys";
+import { X } from "lucide-react";
 
 interface GoogleAdsAccount {
   customer_id: string;
@@ -587,8 +588,8 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
         {/* Header */}
         <DashboardHeader />
 
-        {/* Main Content Area */}
-        <div className="p-8 bg-white">
+        {/* Main Content Area — pt clears fixed DashboardHeader (h-20) */}
+        <div className="px-8 pb-8 pt-24 sm:pt-28 bg-white">
           <div className="max-w-4xl mx-auto">
             <div className="mb-6 flex items-start justify-between">
               <div>
@@ -633,27 +634,41 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
                     : "Loading Google Ads accounts..."}
                 </p>
               </div>
-            ) : filteredAccounts.length === 0 ? (
-              <div className="text-center py-12 bg-[#FEFEFB] border border-[#E8E8E3] rounded-2xl">
-                <p className="text-[14px] text-[#556179] mb-4">
-                  {searchQuery.trim()
-                    ? "No accounts match your search. Try a different search term."
-                    : "No accounts found. Please check your Google Ads account connection."}
-                </p>
-              </div>
             ) : (
               <>
-                {/* Search Input */}
-                <div className="mb-4">
+                {/* Search — always visible when loaded so users can fix a bad query without refreshing */}
+                <div className="mb-4 relative">
                   <input
                     type="text"
                     placeholder="Search accounts by name or customer ID..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-4 py-2 border border-[#E8E8E3] rounded-lg focus:ring-2 focus:ring-[#072929] focus:border-[#072929] text-[14px] outline-none"
+                    className="w-full px-4 py-2 pr-10 border border-[#E8E8E3] rounded-lg focus:ring-2 focus:ring-[#072929] focus:border-[#072929] text-[14px] outline-none"
+                    aria-label="Search accounts by name or customer ID"
                   />
+                  {searchQuery.trim() ? (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-[#556179] hover:bg-gray-100 hover:text-[#072929] transition-colors"
+                      aria-label="Clear search"
+                      title="Clear search"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  ) : null}
                 </div>
 
+                {filteredAccounts.length === 0 ? (
+                  <div className="text-center py-12 bg-[#FEFEFB] border border-[#E8E8E3] rounded-2xl">
+                    <p className="text-[14px] text-[#556179] mb-4">
+                      {searchQuery.trim()
+                        ? "No accounts match your search. Try a different search term."
+                        : "No accounts found. Please check your Google Ads account connection."}
+                    </p>
+                  </div>
+                ) : (
+                  <>
                 {/* Select All + selected count + Save/Cancel in one compact bar */}
                 <div className="mb-4 flex items-center justify-between flex-wrap gap-3 py-3 px-4 rounded-xl bg-[#F5F5F5] border border-[#E8E8E3]">
                   <div className="flex items-center gap-4 flex-wrap">
@@ -932,6 +947,8 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
                         }`}
                   </Button>
                 </div>
+                  </>
+                )}
               </>
             )}
           </div>

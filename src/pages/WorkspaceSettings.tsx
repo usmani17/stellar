@@ -29,9 +29,9 @@ export const WorkspaceSettings: React.FC = () => {
   const workspace =
     workspaceId != null
       ? {
-          id: workspaceId,
-          name: activeWs?.name ?? user?.workspace?.name ?? "",
-        }
+        id: workspaceId,
+        name: activeWs?.name ?? user?.workspace?.name ?? "",
+      }
       : undefined;
 
   const [users, setUsers] = useState<WorkspaceUser[]>([]);
@@ -679,9 +679,9 @@ function AssignChannelsModal({
   const q = searchQuery.trim().toLowerCase();
   const filtered = q
     ? channels.filter((ch) => {
-        const label = `${ch.channel_name ?? ""} ${ch.channel_type ?? ""} ${ch.account_name ?? ""}`.toLowerCase();
-        return label.includes(q);
-      })
+      const label = `${ch.channel_name ?? ""} ${ch.channel_type ?? ""} ${ch.account_name ?? ""}`.toLowerCase();
+      return label.includes(q);
+    })
     : channels;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
