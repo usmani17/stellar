@@ -22,14 +22,12 @@ import { useSidebar } from "../../contexts/SidebarContext";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { Button, DraftToggle } from "../../components/ui";
 import { Dropdown } from "../../components/ui/Dropdown";
-import { Banner } from "../../components/ui/Banner";
 import {
   DynamicFilterPanel,
   type FilterValues,
 } from "../../components/filters/DynamicFilterPanel";
 import { campaignsService } from "../../services/campaigns";
 import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
-import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
 import { useChartCollapse } from "../../hooks/useChartCollapse";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import { GoogleCampaignsTable } from "./components/GoogleCampaignsTable";
@@ -48,9 +46,7 @@ import {
   type BulkUpdateActionDetails,
   type BulkUpdateStatusDetails,
 } from "./components/BulkUpdateConfirmationModal";
-import { BulkBiddingStrategyPanel } from "./components/BulkBiddingStrategyPanel";
 import { CreatePortfolioWizard } from "../portfolios/components/CreatePortfolioWizard";
-import { BulkConversionActionsPanel } from "./components/BulkConversionActionsPanel";
 // import { CustomizeColumns } from "../../components/ui/CustomizeColumns";
 import type { IGoogleCampaign, IGoogleCampaignsSummary } from "../../types/google/campaign";
 import { useQuery } from "@tanstack/react-query";
@@ -94,26 +90,13 @@ export const GoogleCampaigns: React.FC = () => {
   >([]);
   const [loading, setLoading] = useState(true);
   const [sorting, setSorting] = useState(false);
-  const [syncMessage, setSyncMessage] = useState<string | null>(null);
-  const [analyticsSyncMessage, setAnalyticsSyncMessage] = useState<
-    string | null
-  >(null);
   const [currentPage, setCurrentPage] = useState(1);
-  // Page size with localStorage persistence
-  const [itemsPerPage, setItemsPerPage] = useState<number>(() => {
+  const [itemsPerPage] = useState<number>(() => {
     const saved = localStorage.getItem('google_campaigns_page_size');
     return saved ? parseInt(saved, 10) : 10;
   });
   const [totalPages, setTotalPages] = useState(0);
   
-  // Handle page size change
-  const handlePageSizeChange = useCallback((newPageSize: number) => {
-    setItemsPerPage(newPageSize);
-    setCurrentPage(1); // Reset to first page when page size changes
-    localStorage.setItem('google_campaigns_page_size', newPageSize.toString());
-    // Clear the request params ref to force a reload in useEffect
-    lastRequestParamsRef.current = "";
-  }, []);
   const [sortBy, setSortBy] = useState<string>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -645,13 +628,6 @@ export const GoogleCampaigns: React.FC = () => {
   // Campaigns are already filtered by backend using debouncedSearchValue; no extra client-side filter needed
   const filteredCampaigns = campaigns;
 
-  // Wrapper function for useGoogleSyncStatus hook (it expects only accountId)
-  const loadCampaignsWrapper = useCallback(async (accountId: number) => {
-    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-    if (channelIdNum && !isNaN(channelIdNum)) {
-      await loadCampaigns(accountId, channelIdNum);
-    }
-  }, [channelId, loadCampaigns]);
 
 
   useEffect(() => {
@@ -691,11 +667,9 @@ export const GoogleCampaigns: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId, channelId, currentPage, itemsPerPage, filters, startDate, endDate, sorting, debouncedSearchValue, showDraftsOnly]);
 
-  // Reset to first page and clear selections when search term changes (after debounce)
+  // Reset to first page when search term changes (after debounce)
   useEffect(() => {
     setCurrentPage(1);
-    setSelectedCampaigns(new Set());
-    selectedCampaignDetailsRef.current.clear();
   }, [debouncedSearchValue]);
 
   const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData, options?: { saveAsDraft?: boolean }) => {
@@ -799,9 +773,6 @@ export const GoogleCampaigns: React.FC = () => {
           video_asset_ids,
           sitelink_asset_ids,
           callout_asset_ids,
-          // Keep business_name and logo_url for Brand Guidelines
-          // business_name, logo_url, business_name_asset_id, business_name_asset_resource_name,
-          // logo_asset_id, logo_asset_resource_name are NOT destructured, so they stay in rest
           ...rest
         } = payload;
 
@@ -1475,7 +1446,7 @@ export const GoogleCampaigns: React.FC = () => {
         }
 
         // If only PMAX assets changed, include them; for drafts with no other changes send campaign payload (may only have campaignIds)
-        let payloadToSend = hasCampaignChanges || isDraftCampaign ? campaignUpdatePayload : updatePayload;
+        const payloadToSend = hasCampaignChanges || isDraftCampaign ? campaignUpdatePayload : updatePayload;
 
         console.log("Making bulkUpdateGoogleCampaigns call with:", {
           hasCampaignChanges,
@@ -3512,7 +3483,6 @@ export const GoogleCampaigns: React.FC = () => {
                     })) as FilterValues;
                     setFilters(convertedFilters);
                     setCurrentPage(1);
-                    clearAllSelections();
                   }}
                   initialFilters={filters.map((f) => ({
                     id: f.id,
@@ -3562,7 +3532,6 @@ export const GoogleCampaigns: React.FC = () => {
                           return next;
                         });
                         setCurrentPage(1);
-                        clearAllSelections();
                       }}
                     />
                   </div>
