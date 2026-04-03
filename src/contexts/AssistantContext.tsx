@@ -99,7 +99,7 @@ interface AssistantContextType {
    *  stream starts, before onResult fires and currentSessionId is set. Cleared on onResult / startNewSession. */
   streamingNewSessionId: string | null;
 
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, options?: { sessionType?: string }) => Promise<void>;
   cancelRun: () => Promise<void>;
   selectSession: (sessionId: string) => Promise<void>;
   startNewSession: () => void;
@@ -843,7 +843,7 @@ export const AssistantProvider: React.FC<{
   );
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, options?: { sessionType?: string }) => {
       const token = await getAccessToken();
       if (!token || !user?.id) return;
 
@@ -1039,6 +1039,7 @@ export const AssistantProvider: React.FC<{
             platform: platformForReq as PixisChatParams["platform"],
             ...(platformsForReq && platformsForReq.length > 0 ? { platforms: platformsForReq } : {}),
             ...(assistantScope.portfolioId ? { portfolio_id: assistantScope.portfolioId } : {}),
+            ...(options?.sessionType ? { session_type: options.sessionType } : {}),
             ...(OUTPUT_FORMAT_FOR_TESTING ? { output_format: OUTPUT_FORMAT_FOR_TESTING } : {}),
             ...(assistantScope.selectedGoogleSheetsIntegrations?.length
               ? {

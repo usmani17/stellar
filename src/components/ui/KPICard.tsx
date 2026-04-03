@@ -6,6 +6,7 @@ interface KPICardProps {
   change?: string;
   isPositive?: boolean;
   className?: string;
+  labelIcon?: React.ReactNode;
 }
 
 export const KPICard: React.FC<KPICardProps> = ({
@@ -14,6 +15,7 @@ export const KPICard: React.FC<KPICardProps> = ({
   change,
   isPositive,
   className = "",
+  labelIcon,
 }) => {
   return (
     <div
@@ -34,8 +36,9 @@ export const KPICard: React.FC<KPICardProps> = ({
       }}
     >
       <p
-        className="text-[#072929] text-[14px] leading-[100%] break-words mb-0"
+        className="text-[#072929] text-[14px] leading-[100%] break-words mb-0 flex items-center gap-1.5"
       >
+        {labelIcon}
         {label}
       </p>
       <div className="flex items-center justify-between w-full">

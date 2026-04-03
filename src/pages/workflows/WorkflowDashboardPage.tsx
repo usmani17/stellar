@@ -1,17 +1,21 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useCallback, useMemo } from "react";
 import { flushSync } from "react-dom";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Share2, Moon, Sun, RotateCw, Copy, X } from "lucide-react";
+import { ArrowLeft, Share2, Moon, Sun, RotateCw, Copy, X, Sparkles, LayoutDashboard, Zap } from "lucide-react";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useSidebar } from "../../contexts/SidebarContext";
+import { useAssistant } from "../../contexts/AssistantContext";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { DashboardGrid } from "./components/dashboard/DashboardGrid";
-import { getDashboardDetail, updateDashboardConfig, updateDashboardComponent, createDashboardShare } from "../../services/dashboard";
+import { getDashboardDetail, updateDashboardConfig, updateDashboardComponent, createDashboardShare, type DashboardResponse } from "../../services/dashboard";
 import { DashboardThemeProvider, useDashboardTheme } from "./contexts/DashboardThemeContext";
 import { Assistant } from "../../components/layout/Assistant";
 import { BaseModal, Loader } from "../../components/ui";
+import { ActionsListPanel } from "../../components/actions/ActionsListPanel";
+import type { ActionItem } from "../../components/actions/ActionsListPanel";
+import { cn } from "../../lib/cn";
 
 export const WorkflowDashboardPage: React.FC = () => {
   const { accountId, dashboardId } = useParams<{ accountId: string; dashboardId: string }>();
@@ -68,6 +72,7 @@ export const WorkflowDashboardPage: React.FC = () => {
         config={dashboard?.config}
         accountIdNum={accountIdNum}
         dashboardId={dashboard?.id}
+        dashboard={dashboard}
         refetchDashboard={refetchDashboard}
         shareModalOpen={shareModalOpen}
         shareLink={shareLink}
@@ -87,6 +92,7 @@ function WorkflowDashboardContent({
   config,
   accountIdNum,
   dashboardId,
+  dashboard,
   refetchDashboard,
   shareModalOpen,
   shareLink,
@@ -101,6 +107,7 @@ function WorkflowDashboardContent({
   config: import("./types/dashboard").DashboardConfig | undefined;
   accountIdNum: number | undefined;
   dashboardId: number | undefined;
+  dashboard?: DashboardResponse;
   refetchDashboard: () => void;
   shareModalOpen: boolean;
   shareLink: string;
@@ -112,6 +119,63 @@ function WorkflowDashboardContent({
   const [copySuccess, setCopySuccess] = React.useState(false);
   const queryClient = useQueryClient();
   const [hardRefreshTrigger, setHardRefreshTrigger] = React.useState(0);
+  const { startNewSession, openAssistant, sendMessage, isLoading: isAssistantLoading } = useAssistant();
+  const [isReanalyzing, setIsReanalyzing] = React.useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  type DashTab = "dashboard" | "actions";
+  const [activeTab, setActiveTab] = React.useState<DashTab>(() => {
+    const t = searchParams.get("tab");
+    return t === "actions" ? "actions" : "dashboard";
+  });
+
+  const handleTabChange = (tab: DashTab) => {
+    setActiveTab(tab);
+    setSearchParams(tab === "dashboard" ? {} : { tab });
+  };
+
+  const allActions: ActionItem[] = useMemo(() => {
+    if (!config?.components) return [];
+    const items: ActionItem[] = [];
+    for (const comp of config.components) {
+      if (!comp.actions) continue;
+      for (const rule of comp.actions) {
+        items.push({
+          id: rule.id,
+          action_slug: rule.id,
+          action_id: rule.action_id ?? 0,
+          dashboard_id: dashboardId ?? 0,
+          component_id: String(comp.id),
+          type: rule.type,
+          platform: rule.platform,
+          entity_type: rule.entity_type,
+          status: rule.status,
+          description: rule.description,
+          condition: rule.condition as Record<string, unknown> | undefined,
+          params: rule.params as Record<string, unknown> | undefined,
+          guardrails: rule.guardrails,
+          schedule: rule.schedule,
+        });
+      }
+    }
+    return items;
+  }, [config, dashboardId]);
+
+  const hasActions = allActions.length > 0;
+
+  const handleReanalyze = useCallback(async () => {
+    if (!dashboard || !accountIdNum || !dashboardId) return;
+    setIsReanalyzing(true);
+    try {
+      startNewSession();
+      openAssistant();
+      await new Promise((r) => setTimeout(r, 100));
+      const prompt = `/reanalyze-dashboard-actions\n\nRe-analyze dashboard ID: ${dashboardId}, account ID: ${accountIdNum}, name: "${dashboard.name}".`;
+      await sendMessage(prompt, { sessionType: "reanalyze" });
+    } finally {
+      setIsReanalyzing(false);
+      refetchDashboard();
+    }
+  }, [dashboard, accountIdNum, dashboardId, startNewSession, openAssistant, sendMessage, refetchDashboard]);
 
   const updateConfigMutation = useMutation({
     mutationFn: (newConfig: import("./types/dashboard").DashboardConfig) =>
@@ -266,6 +330,19 @@ function WorkflowDashboardContent({
                 </button>
                 <button
                   type="button"
+                  onClick={handleReanalyze}
+                  disabled={!dashboardId || isReanalyzing || isAssistantLoading}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-medium border transition-colors ${isDark
+                      ? "border-forest-f40 bg-forest-f40/10 text-forest-f40 hover:bg-forest-f40/20"
+                      : "border-forest-f40 bg-forest-f40 text-white hover:bg-forest-f50"
+                    } disabled:opacity-50`}
+                  aria-label="Re-analyze actions"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {isReanalyzing ? "Analyzing..." : "Re-analyze Actions"}
+                </button>
+                <button
+                  type="button"
                   onClick={handleShare}
                   disabled={!dashboardId}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-medium border transition-colors ${isDark
@@ -354,25 +431,92 @@ function WorkflowDashboardContent({
                   )}
                 </div>
               </BaseModal>
+
+              {/* Tabs */}
+              {hasActions && (
+                <div className={cn(
+                  "flex gap-1 border-b",
+                  isDark ? "border-neutral-700" : "border-sandstorm-s40"
+                )}>
+                  {([
+                    { id: "dashboard" as DashTab, label: "Dashboard", icon: LayoutDashboard },
+                    { id: "actions" as DashTab, label: "Actions", icon: Zap, count: allActions.filter(a => a.status !== "deleted" && a.status !== "disabled").length },
+                  ]).map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => handleTabChange(tab.id)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-4 py-2.5 text-[12px] font-medium border-b-2 -mb-px transition-colors",
+                        activeTab === tab.id
+                          ? isDark
+                            ? "border-forest-f40 text-forest-f40"
+                            : "border-forest-f40 text-forest-f60"
+                          : isDark
+                            ? "border-transparent text-neutral-400 hover:text-neutral-200"
+                            : "border-transparent text-forest-f20 hover:text-forest-f40"
+                      )}
+                    >
+                      <tab.icon className="w-3.5 h-3.5" />
+                      {tab.label}
+                      {tab.count != null && (
+                        <span className={cn(
+                          "ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold",
+                          activeTab === tab.id
+                            ? isDark ? "bg-forest-f40/20 text-forest-f40" : "bg-forest-f40/10 text-forest-f40"
+                            : isDark ? "bg-neutral-700 text-neutral-300" : "bg-sandstorm-s10 text-forest-f20"
+                        )}>
+                          {tab.count}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Tab content */}
               {isLoadingDashboard && (
                 <div className="flex items-center justify-center py-20">
                   <Loader size="lg" variant={isDark ? "white" : "default"} />
                 </div>
               )}
-              {config ? (
-                <DashboardGrid
-                  config={config}
-                  accountId={accountIdNum}
-                  dashboardId={dashboardId}
-                  showQueryDetails
-                  editable
-                  onConfigChange={handleConfigChange}
-                  onComponentChange={handleComponentChange}
-                  hardRefreshTrigger={hardRefreshTrigger}
-                />
-              ) : (
-                <div className={`p-12 text-center rounded-xl border border-dashed ${isDark ? "border-neutral-700 text-neutral-400" : "border-sandstorm-s40 text-forest-f30"}`}>
-                  <p>No dashboard configuration found.</p>
+              {activeTab === "dashboard" && (
+                <>
+                  {config ? (
+                    <DashboardGrid
+                      config={config}
+                      accountId={accountIdNum}
+                      dashboardId={dashboardId}
+                      showQueryDetails
+                      editable
+                      onConfigChange={handleConfigChange}
+                      onComponentChange={handleComponentChange}
+                      hardRefreshTrigger={hardRefreshTrigger}
+                    />
+                  ) : (
+                    !isLoadingDashboard && (
+                      <div className={`p-12 text-center rounded-xl border border-dashed ${isDark ? "border-neutral-700 text-neutral-400" : "border-sandstorm-s40 text-forest-f30"}`}>
+                        <p>No dashboard configuration found.</p>
+                      </div>
+                    )
+                  )}
+                </>
+              )}
+              {activeTab === "actions" && accountIdNum && dashboardId && (
+                <div className={cn(
+                  "rounded-xl border p-4",
+                  isDark ? "border-neutral-700 bg-neutral-800/50" : "border-sandstorm-s40 bg-white"
+                )}>
+                  <ActionsListPanel
+                    actions={allActions}
+                    accountId={accountIdNum}
+                    groupBy="component"
+                    showDashboardLink={false}
+                    onRefresh={() => {
+                      setHardRefreshTrigger((prev) => prev + 1);
+                      refetchDashboard();
+                    }}
+                    onActionStatusChange={() => refetchDashboard()}
+                  />
                 </div>
               )}
             </div>

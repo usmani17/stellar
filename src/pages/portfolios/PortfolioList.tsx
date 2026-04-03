@@ -1226,6 +1226,22 @@ export const PortfolioList: React.FC = () => {
     return list;
   }, [portfolios, sort, liveMetrics]);
 
+  const computedSummary = useMemo(() => {
+    let behindPacing = 0;
+    let needAttention = 0;
+    for (const p of sortedPortfolios) {
+      const t = p.latestTracking;
+      if (t?.pacingPercentage != null && (t.pacingPercentage < 80 || t.pacingPercentage > 120)) {
+        behindPacing++;
+      }
+      const h = t?.health?.toLowerCase();
+      if (h && (h.includes("critical") || h.includes("warning"))) {
+        needAttention++;
+      }
+    }
+    return { behindPacing, needAttention };
+  }, [sortedPortfolios]);
+
   const toggleSort = (key: SortKey) => {
     setSort((s) =>
       s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" },
@@ -1344,9 +1360,30 @@ export const PortfolioList: React.FC = () => {
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <KPICard label="Total Portfolios" value={summary?.totalPortfolios ?? 0} />
-                  <KPICard label="Live" value={summary?.livePortfolios ?? 0} />
-                  <KPICard label="Behind Pacing" value={summary?.behindPacing ?? 0} />
-                  <KPICard label="Need Attention" value={summary?.needAttention ?? 0} />
+                  <KPICard
+                    label="Live"
+                    value={summary?.livePortfolios ?? 0}
+                    labelIcon={
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-forest-f40 opacity-60" />
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-forest-f40" />
+                      </span>
+                    }
+                  />
+                  <KPICard
+                    label="Behind Pacing"
+                    value={computedSummary.behindPacing}
+                    labelIcon={
+                      <span className="inline-flex h-2.5 w-2.5 rounded-full bg-yellow-y10" />
+                    }
+                  />
+                  <KPICard
+                    label="Need Attention"
+                    value={computedSummary.needAttention}
+                    labelIcon={
+                      <span className="inline-flex h-2.5 w-2.5 rounded-full bg-red-r30" />
+                    }
+                  />
                 </div>
 
                 <div

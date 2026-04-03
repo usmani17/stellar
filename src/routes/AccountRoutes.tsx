@@ -125,11 +125,9 @@ function AccountRoutes() {
                 element={
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
-                            <AccountRequiredRoute>
-                                <Layout>
-                                    <PortfolioList />
-                                </Layout>
-                            </AccountRequiredRoute>
+                            <Layout>
+                                <PortfolioList />
+                            </Layout>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }

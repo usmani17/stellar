@@ -6,9 +6,11 @@ import {
   LayoutDashboard,
   Bot,
   AlertTriangle,
+  History,
   Pencil,
   RefreshCw,
   Trash2,
+  Zap,
 } from "lucide-react";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { useSidebar } from "../../contexts/SidebarContext";
@@ -26,8 +28,10 @@ import { Assistant } from "../../components/layout/Assistant";
 import { Banner, Button, ConfirmationModal, KPICard, Loader } from "../../components/ui";
 import { cn } from "../../lib/cn";
 import { CreatePortfolioWizard } from "./components/CreatePortfolioWizard";
+import { AnalysisHistoryModal } from "./components/AnalysisHistoryModal";
+import { PortfolioActionsTab } from "./components/PortfolioActionsTab";
 
-type Tab = "campaigns" | "dashboards";
+type Tab = "campaigns" | "dashboards" | "actions";
 
 function fmt(val: number | null | undefined, prefix = ""): string {
   if (val == null) return "—";
@@ -126,6 +130,8 @@ export const PortfolioDetail: React.FC = () => {
     const tab = searchParams.get("tab");
     if (tab === "dashboards" || tab === "agents") {
       setActiveTab("dashboards");
+    } else if (tab === "actions") {
+      setActiveTab("actions");
     } else if (tab === "dashboard" || tab === "campaigns") {
       setActiveTab("campaigns");
     }
@@ -207,6 +213,7 @@ export const PortfolioDetail: React.FC = () => {
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "campaigns", label: "Campaigns", icon: <Settings className="w-4 h-4" /> },
     { id: "dashboards", label: "Dashboards", icon: <LayoutDashboard className="w-4 h-4" /> },
+    { id: "actions", label: "Actions", icon: <Zap className="w-4 h-4" /> },
   ];
 
   return (
@@ -367,6 +374,9 @@ export const PortfolioDetail: React.FC = () => {
             {activeTab === "dashboards" && (
               <PortfolioDashboardsTab accountId={accountId} portfolioId={portfolioId} />
             )}
+            {activeTab === "actions" && (
+              <PortfolioActionsTab accountId={accountId} portfolioId={portfolioId} />
+            )}
           </div>
         </div>
         </Assistant>
@@ -422,6 +432,7 @@ const PortfolioDashboardsTab: React.FC<{ accountId: number; portfolioId: number 
   const [dashboards, setDashboards] = useState<Array<{ id: number; name: string; updatedAt: string | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const fetchDashboards = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -450,15 +461,27 @@ const PortfolioDashboardsTab: React.FC<{ accountId: number; portfolioId: number 
         <p className="text-[13px] text-forest-f30">
           {loading ? "" : `${dashboards.length} dashboard${dashboards.length !== 1 ? "s" : ""}`}
         </p>
-        <button
-          onClick={() => fetchDashboards(true)}
-          disabled={refreshing || loading}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-forest-f40 border border-sandstorm-s40 rounded-lg hover:bg-sandstorm-s5 transition-colors disabled:opacity-50"
-          aria-label="Refresh dashboards"
-        >
-          <RefreshCw className={cn("w-3.5 h-3.5", (refreshing || loading) && "animate-spin")} />
-          {refreshing ? "Refreshing..." : "Refresh"}
-        </button>
+        <div className="flex items-center gap-2">
+          {dashboards.length > 0 && (
+            <button
+              onClick={() => setHistoryOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-forest-f40 border border-sandstorm-s40 rounded-lg hover:bg-sandstorm-s5 transition-colors"
+              aria-label="View analysis history"
+            >
+              <History className="w-3.5 h-3.5" />
+              Analysis History
+            </button>
+          )}
+          <button
+            onClick={() => fetchDashboards(true)}
+            disabled={refreshing || loading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-forest-f40 border border-sandstorm-s40 rounded-lg hover:bg-sandstorm-s5 transition-colors disabled:opacity-50"
+            aria-label="Refresh dashboards"
+          >
+            <RefreshCw className={cn("w-3.5 h-3.5", (refreshing || loading) && "animate-spin")} />
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {(loading || refreshing) && (
@@ -507,6 +530,13 @@ const PortfolioDashboardsTab: React.FC<{ accountId: number; portfolioId: number 
           </div>
         </div>
       ))}
+
+      <AnalysisHistoryModal
+        isOpen={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        accountId={accountId}
+        dashboards={dashboards}
+      />
     </div>
   );
 };

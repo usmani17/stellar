@@ -36,7 +36,7 @@ import {
   snapTimeToHour,
 } from "./dashboardConstants";
 import { toWeekdaysArray, toMonthDaysArray } from "../../utils/scheduleUtils";
-import { Dropdown } from "../../../../components/ui";
+import { Dropdown, Tooltip } from "../../../../components/ui";
 
 /**
  * When false, condition values in the "If …" row are read-only (no pencil / inline save).
@@ -291,6 +291,30 @@ function clampDayToMonth(year: number, monthIndex: number, day: number): number 
   return Math.min(Math.max(day, 1), maxDay);
 }
 
+function formatScheduleDate(raw?: string): string {
+  if (!raw) return "No date set";
+  const [y, m, d] = raw.split("-").map(Number);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return raw;
+  const date = new Date(y, m - 1, d);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+}
+
+function formatTimezone(tz: string): string {
+  const short: Record<string, string> = {
+    "America/New_York": "ET",
+    "America/Chicago": "CT",
+    "America/Denver": "MT",
+    "America/Los_Angeles": "PT",
+    "Europe/London": "GMT",
+    "Europe/Paris": "CET",
+    "Asia/Tokyo": "JST",
+    "Asia/Kolkata": "IST",
+    "Australia/Sydney": "AEST",
+  };
+  return short[tz] ?? tz;
+}
+
 function getScheduleLabel(schedule?: ActionSchedule): string {
   const frequency = effectiveScheduleFrequency(schedule);
   if (!frequency || !schedule) {
@@ -298,10 +322,11 @@ function getScheduleLabel(schedule?: ActionSchedule): string {
   }
   const normalized: ActionSchedule = { ...DEFAULT_ACTION_SCHEDULE, ...schedule, frequency };
   const timezone = normalized.timezone || "UTC";
+  const tzLabel = formatTimezone(timezone);
   const t = snapTimeToHour(normalized.time);
 
   if (normalized.frequency === "hourly") {
-    return `Execution Schedule: Hourly (${timezone})`;
+    return `Execution Schedule: Hourly (${tzLabel})`;
   }
 
   if (normalized.frequency === "weekly") {
@@ -312,21 +337,21 @@ function getScheduleLabel(schedule?: ActionSchedule): string {
         : normalized.day_of_week != null
           ? WEEKDAY_SHORT[((Number(normalized.day_of_week) + 6) % 7)] ?? "Mon"
           : "Mon";
-    return `Execution Schedule: Weekly ${daysLabel} ${t} (${timezone})`;
+    return `Execution Schedule: Weekly ${daysLabel} at ${t} (${tzLabel})`;
   }
 
   if (normalized.frequency === "monthly") {
     const md = toMonthDaysArray(normalized.monthDays);
     const daysPart = md.length > 0 ? md.sort((a, b) => a - b).join(", ") : "1";
-    return `Execution Schedule: Monthly ${daysPart} @ ${t} (${timezone})`;
+    return `Execution Schedule: Monthly on day ${daysPart} at ${t} (${tzLabel})`;
   }
 
   if (normalized.frequency === "once") {
-    const date = normalized.date || "No date set";
-    return `Execution Schedule: Once on ${date} ${t} (${timezone})`;
+    const date = formatScheduleDate(normalized.date);
+    return `Execution Schedule: ${date} at ${t} (${tzLabel})`;
   }
 
-  return `Execution Schedule: Daily ${t} (${timezone})`;
+  return `Execution Schedule: Daily at ${t} (${tzLabel})`;
 }
 
 const GUARDRAIL_LABELS: Record<string, string> = {
@@ -347,6 +372,24 @@ const GUARDRAIL_LABELS: Record<string, string> = {
   max_values_per_action: "Max values",
 };
 
+const GUARDRAIL_DESCRIPTIONS: Record<string, string> = {
+  limit: "Maximum number of changes this action can make in a single run",
+  max_entities_per_action: "Maximum campaigns, ad sets, or ads affected per execution",
+  warn_threshold: "When this many entities are affected, a warning is shown before execution",
+  max_decrease_percent: "Largest allowed percentage decrease per change (e.g. budget cut)",
+  max_increase_percent: "Largest allowed percentage increase per change (e.g. budget raise)",
+  min_budget_amount: "Floor budget — the action will never set budget below this amount",
+  min_bid_amount: "Floor bid — the action will never set a bid below this amount",
+  min_cpa: "Minimum CPA threshold — action only triggers when CPA is at or above this",
+  min_roas: "Minimum ROAS threshold — action only triggers when ROAS is at or above this",
+  min_modifier_percent: "Smallest allowed bid modifier adjustment",
+  max_modifier_percent: "Largest allowed bid modifier adjustment",
+  max_keywords_per_action: "Maximum keywords added or negated in a single execution",
+  max_placements_per_action: "Maximum placements excluded in a single execution",
+  max_targets_per_action: "Maximum targets added or negated in a single execution",
+  max_values_per_action: "Maximum values changed in a single execution",
+};
+
 function formatGuardrailValue(key: string, value: unknown): string {
   if (typeof value === "number") {
     if (key.includes("percent") || key.includes("modifier")) {
@@ -363,7 +406,7 @@ function formatGuardrailValue(key: string, value: unknown): string {
   return JSON.stringify(value);
 }
 
-function getFormattedGuardrails(guardrails?: Record<string, unknown>): Array<{ label: string; value: string }> {
+function getFormattedGuardrails(guardrails?: Record<string, unknown>): Array<{ label: string; value: string; description: string }> {
   if (!guardrails || typeof guardrails !== "object") {
     return [];
   }
@@ -372,8 +415,21 @@ function getFormattedGuardrails(guardrails?: Record<string, unknown>): Array<{ l
     .map(([key, value]) => ({
       label: GUARDRAIL_LABELS[key] || formatMetricLabel(key),
       value: formatGuardrailValue(key, value),
+      description: GUARDRAIL_DESCRIPTIONS[key] || `Safety limit for ${(GUARDRAIL_LABELS[key] || key).toLowerCase()}`,
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/** Extract display text from mixed arrays (strings or {text: "..."} objects). */
+function toStringList(items: unknown[] | undefined): string[] {
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => {
+    if (typeof item === "string") return item;
+    if (item != null && typeof item === "object" && "text" in item) return String((item as Record<string, unknown>).text);
+    if (item != null && typeof item === "object" && "value" in item) return String((item as Record<string, unknown>).value);
+    if (item != null && typeof item === "object" && "keyword" in item) return String((item as Record<string, unknown>).keyword);
+    return String(item);
+  });
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
@@ -414,7 +470,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
   const [editingSchedule, setEditingSchedule] = useState<string | null>(null);
   /** Snapshot of `rule.schedule` when the editor opened; used to revert on Cancel / Escape / click-outside. */
   const scheduleEditorBaselineRef = useRef<Map<string, ActionSchedule | undefined>>(new Map());
-  const scheduleEditorAnchorRef = useRef<HTMLSpanElement | null>(null);
+  const scheduleEditorAnchorRef = useRef<HTMLDivElement | null>(null);
   const schedulePopoverPanelRef = useRef<HTMLDivElement | null>(null);
   const [schedulePopoverLayout, setSchedulePopoverLayout] = useState<{
     top: number;
@@ -1069,12 +1125,12 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                       />
                     </div>
 
-                    <div className={cn("flex items-center gap-3 text-[10px] flex-wrap", isDark ? "text-neutral-400" : "text-forest-f30")}>
+                    <div className={cn("flex items-center gap-3 text-[11px] flex-wrap", isDark ? "text-neutral-300" : "text-forest-f50")}>
                       {rule.condition && !isCompound(rule.condition) && (
                         <span className="flex items-center gap-1">
-                          <span className="opacity-60">If</span>
-                          <span className="font-medium">{formatMetricLabel(rule.condition.field)}</span>
-                          <span className="opacity-60">
+                          <span className={cn("font-medium", isDark ? "text-neutral-400" : "text-forest-f30")}>If</span>
+                          <span className="font-semibold">{formatMetricLabel(rule.condition.field)}</span>
+                          <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>
                             {({lt: "<", gt: ">", eq: "=", lte: "<=", gte: ">=", in: "in", not_in: "not in"} as Record<string, string>)[rule.condition.operator]}
                           </span>
                           <InlineEdit
@@ -1091,19 +1147,19 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                       )}
                       {rule.condition && isCompound(rule.condition) && (
                         <span className="flex items-center gap-1 flex-wrap">
-                          <span className="opacity-60">If</span>
+                          <span className={cn("font-medium", isDark ? "text-neutral-400" : "text-forest-f30")}>If</span>
                           {rule.condition.conditions.map((sc, idx) => (
                             <React.Fragment key={idx}>
                               {idx > 0 && (
                                 <span className={cn(
-                                  "font-semibold px-1",
+                                  "font-bold px-1",
                                   isDark ? "text-[#2DD4BF]" : "text-forest-f40"
                                 )}>
                                   {(rule.condition as CompoundActionCondition).logic.toUpperCase()}
                                 </span>
                               )}
-                              <span className="font-medium">{formatMetricLabel(sc.field)}</span>
-                              <span className="opacity-60">
+                              <span className="font-semibold">{formatMetricLabel(sc.field)}</span>
+                              <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>
                                 {({lt: "<", gt: ">", eq: "=", lte: "<=", gte: ">=", in: "in", not_in: "not in"} as Record<string, string>)[sc.operator]}
                               </span>
                               <InlineEdit
@@ -1118,22 +1174,22 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                       )}
                       {(rule.type === "adjust_budget" || rule.type === "adjust_bid") && (
                         <span className="flex items-center gap-1">
-                          <span className="opacity-60">{rule.params.change_type as string}:</span>
+                          <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>{rule.params.change_type as string}:</span>
                           <InlineEdit
                             value={rule.params.value as number}
                             onSave={(v) => updateParamValue(rule.id, "value", v)}
                             isDark={isDark}
                           />
-                          <span className="opacity-60">{(rule.params.unit as string) === "amount" ? "$" : "%"}</span>
+                          <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>{(rule.params.unit as string) === "amount" ? "$" : "%"}</span>
                         </span>
                       )}
                       {rule.type === "change_bid_strategy" && (
                         <span className="flex items-center gap-1">
-                          <span className="opacity-60">Strategy:</span>
-                          <span className="font-mono">{rule.params.strategy as string}</span>
+                          <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>Strategy:</span>
+                          <span className="font-mono font-semibold">{rule.params.strategy as string}</span>
                           {Boolean(rule.params.target_cpa) && (
                             <>
-                              <span className="opacity-60">tCPA:</span>
+                              <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>tCPA:</span>
                               <InlineEdit
                                 value={rule.params.target_cpa as number}
                                 onSave={(v) => updateParamValue(rule.id, "target_cpa", v)}
@@ -1143,7 +1199,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                           )}
                           {Boolean(rule.params.target_roas) && (
                             <>
-                              <span className="opacity-60">tROAS:</span>
+                              <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>tROAS:</span>
                               <InlineEdit
                                 value={rule.params.target_roas as number}
                                 onSave={(v) => updateParamValue(rule.id, "target_roas", v)}
@@ -1155,7 +1211,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                       )}
                       {rule.type === "adjust_target" && (
                         <span className="flex items-center gap-1">
-                          <span className="opacity-60">
+                          <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>
                             {(rule.params.target_type as string)?.toUpperCase()} {rule.params.change_type as string}:
                           </span>
                           <InlineEdit
@@ -1163,70 +1219,117 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                             onSave={(v) => updateParamValue(rule.id, "value", v)}
                             isDark={isDark}
                           />
-                          <span className="opacity-60">{(rule.params.unit as string) === "amount" ? "$" : "%"}</span>
+                          <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>{(rule.params.unit as string) === "amount" ? "$" : "%"}</span>
                         </span>
                       )}
-                      {(rule.type === "add_keyword" || rule.type === "add_negative_keyword") && (
-                        <span className="flex items-center gap-1">
-                          <span className="opacity-60">
-                            {(rule.params.match_type as string) || "EXACT"} match,{" "}
-                            {(rule.params.keywords as string[])?.length || 0} keywords
-                          </span>
-                        </span>
-                      )}
+                      {(rule.type === "add_keyword" || rule.type === "add_negative_keyword") && (() => {
+                        const rawKws = (rule.params.keywords as unknown[]) ?? [];
+                        const kws = toStringList(rawKws);
+                        const matchType = (rule.params.match_type as string) || "EXACT";
+                        const shown = kws.slice(0, 15);
+                        const preview = kws.length > 0
+                          ? shown.map((k, i) => `${i + 1}. ${k}`).join("\n") + (kws.length > 15 ? `\n… +${kws.length - 15} more` : "")
+                          : "No keywords listed";
+                        return (
+                          <Tooltip
+                            heading={`${matchType} match keywords (${kws.length})`}
+                            description={preview}
+                            position="topMiddle"
+                            portal
+                          >
+                            <span className="flex items-center gap-1 cursor-help">
+                              <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>
+                                {matchType} match,{" "}
+                                <span className="font-semibold">{kws.length} keywords</span>
+                              </span>
+                            </span>
+                          </Tooltip>
+                        );
+                      })()}
                       {rule.type === "adjust_device_bid" && (
                         <span className="flex items-center gap-1">
-                          <span className="opacity-60">Device:</span>
-                          <span className="font-mono">{(rule.params.device as string) || "—"}</span>
-                          <span className="opacity-60">{rule.params.change_type as string}:</span>
+                          <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>Device:</span>
+                          <span className="font-mono font-semibold">{(rule.params.device as string) || "—"}</span>
+                          <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>{rule.params.change_type as string}:</span>
                           <InlineEdit
                             value={rule.params.value as number}
                             onSave={(v) => updateParamValue(rule.id, "value", v)}
                             isDark={isDark}
                           />
-                          <span className="opacity-60">%</span>
+                          <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>%</span>
                         </span>
                       )}
                       {rule.type === "adjust_demographic_bid" && (
                         <span className="flex items-center gap-1">
-                          <span className="opacity-60">
+                          <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>
                             {(rule.params.demographic_type as string) || "—"}:
                           </span>
-                          <span className="font-mono">{(rule.params.segment as string) || "—"}</span>
+                          <span className="font-mono font-semibold">{(rule.params.segment as string) || "—"}</span>
                           {(rule.params.change_type as string) !== "exclude" ? (
                             <>
-                              <span className="opacity-60">{rule.params.change_type as string}:</span>
+                              <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>{rule.params.change_type as string}:</span>
                               <InlineEdit
                                 value={rule.params.value as number}
                                 onSave={(v) => updateParamValue(rule.id, "value", v)}
                                 isDark={isDark}
                               />
-                              <span className="opacity-60">%</span>
+                              <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>%</span>
                             </>
                           ) : (
-                            <span className="opacity-60 font-semibold text-red-500">exclude</span>
+                            <span className="font-semibold text-red-500">exclude</span>
                           )}
                         </span>
                       )}
-                      {rule.type === "exclude_placement" && (
-                        <span className="flex items-center gap-1">
-                          <span className="opacity-60">
-                            {(rule.params.placement_type as string) || "SITE"},{" "}
-                            {(rule.params.placements as string[])?.length || 0} exclusions
-                          </span>
-                        </span>
-                      )}
-                      {rule.type === "update_targeting" && (
-                        <span className="flex items-center gap-1">
-                          <span className="opacity-60">
-                            {rule.params.action as string} {rule.params.targeting_type as string}:{" "}
-                            {(rule.params.values as string[])?.length || 0} values
-                          </span>
-                        </span>
-                      )}
+                      {rule.type === "exclude_placement" && (() => {
+                        const placements = toStringList(rule.params.placements as unknown[]);
+                        const placementType = (rule.params.placement_type as string) || "SITE";
+                        const shown = placements.slice(0, 10);
+                        const preview = placements.length > 0
+                          ? shown.map((p, i) => `${i + 1}. ${p}`).join("\n") + (placements.length > 10 ? `\n… +${placements.length - 10} more` : "")
+                          : "No placements listed";
+                        return (
+                          <Tooltip
+                            heading={`${placementType} exclusions (${placements.length})`}
+                            description={preview}
+                            position="topMiddle"
+                            portal
+                          >
+                            <span className="flex items-center gap-1 cursor-help">
+                              <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>
+                                {placementType},{" "}
+                                <span className="font-semibold">{placements.length} exclusions</span>
+                              </span>
+                            </span>
+                          </Tooltip>
+                        );
+                      })()}
+                      {rule.type === "update_targeting" && (() => {
+                        const values = toStringList(rule.params.values as unknown[]);
+                        const action = (rule.params.action as string) || "";
+                        const targetingType = (rule.params.targeting_type as string) || "";
+                        const shown = values.slice(0, 10);
+                        const preview = values.length > 0
+                          ? shown.map((v, i) => `${i + 1}. ${v}`).join("\n") + (values.length > 10 ? `\n… +${values.length - 10} more` : "")
+                          : "No values listed";
+                        return (
+                          <Tooltip
+                            heading={`${action} ${targetingType} (${values.length})`}
+                            description={preview}
+                            position="topMiddle"
+                            portal
+                          >
+                            <span className="flex items-center gap-1 cursor-help">
+                              <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>
+                                {action} {targetingType}:{" "}
+                                <span className="font-semibold">{values.length} values</span>
+                              </span>
+                            </span>
+                          </Tooltip>
+                        );
+                      })()}
                       {rule.type === "set_ad_schedule" && (
                         <span className="flex items-center gap-1">
-                          <span className="opacity-60">
+                          <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>
                             {((rule.params.schedule as Record<string, unknown>)?.days as string[])
                               ?.map((d: string) => d.slice(0, 3))
                               .join(", ") || "—"}{" "}
@@ -1235,61 +1338,102 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                           </span>
                         </span>
                       )}
-                      {rule.type === "add_negative_target" && (
-                        <span className="flex items-center gap-1">
-                          <span className="opacity-60">
-                            {(rule.params.target_type as string) || "asin"},{" "}
-                            {(rule.params.targets as string[])?.length || 0} negatives
-                          </span>
-                        </span>
-                      )}
+                      {rule.type === "add_negative_target" && (() => {
+                        const targets = toStringList(rule.params.targets as unknown[]);
+                        const targetType = (rule.params.target_type as string) || "asin";
+                        const shown = targets.slice(0, 10);
+                        const preview = targets.length > 0
+                          ? shown.map((t, i) => `${i + 1}. ${t}`).join("\n") + (targets.length > 10 ? `\n… +${targets.length - 10} more` : "")
+                          : "No targets listed";
+                        return (
+                          <Tooltip
+                            heading={`Negative ${targetType} targets (${targets.length})`}
+                            description={preview}
+                            position="topMiddle"
+                            portal
+                          >
+                            <span className="flex items-center gap-1 cursor-help">
+                              <span className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>
+                                {targetType},{" "}
+                                <span className="font-semibold">{targets.length} negatives</span>
+                              </span>
+                            </span>
+                          </Tooltip>
+                        );
+                      })()}
                       <span
-                        className="relative inline-flex shrink-0"
-                        ref={editingSchedule === rule.id ? scheduleEditorAnchorRef : null}
+                        className="relative basis-full mt-1.5"
                       >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (editingSchedule === rule.id) {
-                              commitScheduleEditClose(rule.id);
-                              return;
-                            }
-                            const prev = rule.schedule;
-                            scheduleEditorBaselineRef.current.set(
-                              rule.id,
-                              prev
-                                ? (JSON.parse(JSON.stringify(prev)) as ActionSchedule)
-                                : undefined
-                            );
-                            if (!effectiveScheduleFrequency(rule.schedule)) {
-                              updateSchedule(rule.id, { ...DEFAULT_ACTION_SCHEDULE });
-                            } else if (rule.schedule?.frequency === "hourly") {
-                              updateSchedule(rule.id, {
-                                ...DEFAULT_ACTION_SCHEDULE,
-                                ...rule.schedule,
-                                frequency: "daily",
-                                timezone: rule.schedule.timezone ?? "UTC",
-                                auto_execute: rule.schedule.auto_execute ?? true,
-                              });
-                            }
-                            setEditingSchedule(rule.id);
-                          }}
+                        <div
+                          ref={editingSchedule === rule.id ? scheduleEditorAnchorRef : null}
                           className={cn(
-                            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border transition-colors",
+                            "inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-colors",
                             isScheduleSet
                               ? isDark
-                                ? "border-neutral-600 hover:bg-neutral-700/40 text-neutral-300"
-                                : "border-sandstorm-s40 hover:bg-sandstorm-s10 text-forest-f40"
+                                ? "border-neutral-600 bg-neutral-700/25"
+                                : "border-sandstorm-s40 bg-sandstorm-s5/80"
                               : isDark
-                                ? "border-yellow-y10/40 text-yellow-y10 hover:bg-yellow-y10/10"
-                                : "border-yellow-y10/40 text-yellow-y10 hover:bg-yellow-y10/10"
+                                ? "border-yellow-y10/25 bg-yellow-y10/5"
+                                : "border-yellow-y10/25 bg-yellow-y10/[0.04]"
                           )}
-                          title="Edit execution schedule"
-                          aria-expanded={editingSchedule === rule.id}
                         >
-                          <Clock className={cn("w-3 h-3", isDark ? "text-neutral-400" : "text-forest-f30")} />
-                          <span className="opacity-80">{getScheduleLabel(rule.schedule)}</span>
-                        </button>
+                          <Clock className={cn(
+                            "w-3.5 h-3.5 shrink-0",
+                            isScheduleSet
+                              ? isDark ? "text-neutral-300" : "text-forest-f40"
+                              : "text-yellow-y10"
+                          )} />
+                          <span className={cn(
+                            "text-[11px] font-medium leading-snug",
+                            isScheduleSet
+                              ? isDark ? "text-neutral-200" : "text-forest-f60"
+                              : isDark ? "text-yellow-y10" : "text-yellow-y10"
+                          )}>
+                            {isScheduleSet
+                              ? getScheduleLabel(rule.schedule).replace("Execution Schedule: ", "")
+                              : "No schedule set"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (editingSchedule === rule.id) {
+                                commitScheduleEditClose(rule.id);
+                                return;
+                              }
+                              const prev = rule.schedule;
+                              scheduleEditorBaselineRef.current.set(
+                                rule.id,
+                                prev
+                                  ? (JSON.parse(JSON.stringify(prev)) as ActionSchedule)
+                                  : undefined
+                              );
+                              if (!effectiveScheduleFrequency(rule.schedule)) {
+                                updateSchedule(rule.id, { ...DEFAULT_ACTION_SCHEDULE });
+                              } else if (rule.schedule?.frequency === "hourly") {
+                                updateSchedule(rule.id, {
+                                  ...DEFAULT_ACTION_SCHEDULE,
+                                  ...rule.schedule,
+                                  frequency: "daily",
+                                  timezone: rule.schedule.timezone ?? "UTC",
+                                  auto_execute: rule.schedule.auto_execute ?? true,
+                                });
+                              }
+                              setEditingSchedule(rule.id);
+                            }}
+                            className={cn(
+                              "shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium border transition-colors",
+                              isDark
+                                ? "border-neutral-500 text-neutral-300 hover:bg-neutral-600 hover:text-neutral-100"
+                                : "border-sandstorm-s40 text-forest-f40 hover:bg-sandstorm-s10 hover:text-forest-f60"
+                            )}
+                            title="Edit execution schedule"
+                            aria-expanded={editingSchedule === rule.id}
+                            aria-label="Edit execution schedule"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            Edit
+                          </button>
+                        </div>
                         {editingSchedule === rule.id && schedulePopoverLayout
                           ? createPortal(
                               <div
@@ -1669,21 +1813,36 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                     </div>
 
                     {formattedGuardrails.length > 0 && (
-                      <div className={cn("flex items-center gap-2 text-[10px] flex-wrap", isDark ? "text-neutral-400" : "text-forest-f30")}>
-                        <span className="opacity-60">Guardrails:</span>
+                      <div className={cn("flex items-center gap-1.5 text-[10px] flex-wrap mt-1", isDark ? "text-neutral-400" : "text-forest-f30")}>
+                        <span className={cn(
+                          "text-[10px] font-semibold uppercase tracking-wide mr-0.5",
+                          isDark ? "text-neutral-400" : "text-forest-f30"
+                        )}>
+                          Guardrails:
+                        </span>
                         {formattedGuardrails.map((item) => (
-                          <span
+                          <Tooltip
                             key={`${rule.id}-${item.label}`}
-                            className={cn(
-                              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border",
-                              isDark
-                                ? "border-neutral-600 bg-neutral-700/40 text-neutral-300"
-                                : "border-sandstorm-s40 bg-sandstorm-s5 text-forest-f50"
-                            )}
+                            heading={item.label}
+                            description={item.description}
+                            position="topMiddle"
+                            portal
                           >
-                            <span className="opacity-70">{item.label}:</span>
-                            <span className="font-medium">{item.value}</span>
-                          </span>
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1.5 px-2 py-1 rounded-md border cursor-help transition-colors",
+                                isDark
+                                  ? "border-neutral-500 bg-neutral-700/60 text-neutral-200 hover:bg-neutral-600/80"
+                                  : "border-sandstorm-s40 bg-white text-forest-f60 shadow-[0_1px_2px_rgba(7,41,41,0.06)] hover:border-forest-f40/30"
+                              )}
+                            >
+                              <span className={cn(
+                                "font-medium",
+                                isDark ? "text-neutral-400" : "text-forest-f30"
+                              )}>{item.label}:</span>
+                              <span className="font-bold tabular-nums">{item.value}</span>
+                            </span>
+                          </Tooltip>
                         ))}
                       </div>
                     )}
