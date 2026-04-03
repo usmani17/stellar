@@ -428,13 +428,12 @@ export const GoogleCampaigns: React.FC = () => {
 
   // Removed buildFilterParams - now passing filters array directly to service
 
-  const loadCampaigns = useCallback(async (accountId: number, channelId: number) => {
-    // Prevent duplicate concurrent calls
+  const loadCampaigns = useCallback(async (accountId: number, channelId: number, page?: number) => {
+    const pageToFetch = page ?? currentPage;
     if (isLoadingRef.current) {
       return;
     }
 
-    // Validate channelId before making the call
     if (!channelId || isNaN(channelId)) {
       console.error("loadCampaigns: channelId is required and must be a valid number", { accountId, channelId });
       setLoading(false);
@@ -447,7 +446,7 @@ export const GoogleCampaigns: React.FC = () => {
       const params: any = {
         sort_by: sortBy,
         order: sortOrder,
-        page: currentPage,
+        page: pageToFetch,
         page_size: itemsPerPage,
         start_date: startDate
           ? startDateStr
@@ -471,51 +470,20 @@ export const GoogleCampaigns: React.FC = () => {
         draft_only: showDraftsOnly,
       };
 
-      console.log("🔍 [FILTERS DEBUG] Sending filters to service:", {
-        filters,
-        filtersType: Array.isArray(filters) ? "array" : typeof filters,
-        filtersLength: Array.isArray(filters) ? filters.length : "N/A",
-        params,
-      });
-
       const response = await googleAdwordsCampaignsService.getGoogleCampaigns(
         accountId,
         channelId,
         params
       );
-      console.log("Google campaigns API response:", response);
-      console.log("Campaigns array:", response.campaigns);
-      console.log("Campaigns length:", response.campaigns?.length);
-      if (response.campaigns && response.campaigns.length > 0) {
-        console.log(
-          "First campaign:",
-          JSON.stringify(response.campaigns[0], null, 2)
-        );
-        console.log("First campaign id:", response.campaigns[0].id);
-        console.log(
-          "First campaign campaign_id:",
-          response.campaigns[0].campaign_id
-        );
-      }
       const campaignsArray = Array.isArray(response.campaigns)
         ? response.campaigns
         : [];
-      console.log("Setting campaigns array, length:", campaignsArray.length);
       setCampaigns(campaignsArray);
       setTotalPages(response.total_pages || 0);
       if (response.summary) {
         setSummary(response.summary);
       }
-      // Store chart data from API if available
       const responseWithChart = response as any;
-      console.log("🔍 [CHART DEBUG] Checking for chart_data in response:", {
-        hasChartData: !!responseWithChart.chart_data,
-        chartDataType: typeof responseWithChart.chart_data,
-        isArray: Array.isArray(responseWithChart.chart_data),
-        chartDataLength: responseWithChart.chart_data?.length,
-        chartDataPreview: responseWithChart.chart_data?.slice(0, 3),
-        fullResponseKeys: Object.keys(responseWithChart),
-      });
       if (
         responseWithChart.chart_data &&
         Array.isArray(responseWithChart.chart_data)
@@ -631,14 +599,11 @@ export const GoogleCampaigns: React.FC = () => {
 
 
   useEffect(() => {
-    // Don't reload if we're currently sorting (handleSort will handle the reload)
-    // Also don't reload when sortBy/sortOrder changes (handleSort handles that)
     if (sorting) return;
 
     if (accountId) {
       const accountIdNum = parseInt(accountId, 10);
       if (!isNaN(accountIdNum)) {
-        // Create a unique key for this request to prevent duplicate calls
         const requestKey = JSON.stringify({
           accountId: accountIdNum,
           currentPage,
@@ -650,12 +615,11 @@ export const GoogleCampaigns: React.FC = () => {
           showDraftsOnly,
         });
 
-        // Only call loadCampaigns if the request parameters have actually changed
         if (lastRequestParamsRef.current !== requestKey) {
           lastRequestParamsRef.current = requestKey;
           const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
           if (channelIdNum && !isNaN(channelIdNum)) {
-            loadCampaigns(accountIdNum, channelIdNum);
+            loadCampaigns(accountIdNum, channelIdNum, currentPage);
           }
         }
       } else {
@@ -4474,7 +4438,7 @@ export const GoogleCampaigns: React.FC = () => {
                             key={pageNum}
                             onClick={() => setCurrentPage(pageNum)}
                             className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
-                              ? "bg-white text-[#136D6D] font-semibold"
+                              ? "bg-forest-f40 text-white font-semibold"
                               : "text-black hover:bg-gray-50"
                               }`}
                           >
@@ -4491,7 +4455,7 @@ export const GoogleCampaigns: React.FC = () => {
                         <button
                           onClick={() => setCurrentPage(totalPages)}
                           className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
-                            ? "bg-white text-[#136D6D] font-semibold"
+                            ? "bg-forest-f40 text-white font-semibold"
                             : "text-black hover:bg-gray-50"
                             }`}
                         >

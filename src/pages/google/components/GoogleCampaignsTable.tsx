@@ -189,9 +189,10 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       width: "w-[140px]",
       maxWidth: "max-w-[140px]",
       editable: (row: IGoogleCampaign) => {
-        // Don't allow editing status if campaign is REMOVED or DRAFT (use Publish for drafts)
         const status = getStatusWithDefault(row.status).toUpperCase();
-        return status !== "REMOVED" && status !== CAMPAIGN_STATUS_SAVED_DRAFT && status !== "DRAFT";
+        if (status === "REMOVED" || status === CAMPAIGN_STATUS_SAVED_DRAFT || status === "DRAFT") return false;
+        if (status === "ENABLED" && row.serving_status?.toUpperCase() === "ENDED") return false;
+        return true;
       },
       statusOptions: [
         { value: "ENABLED", label: "Enabled" },
@@ -199,7 +200,13 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
         { value: "REMOVED", label: "Remove" },
         { value: CAMPAIGN_STATUS_SAVED_DRAFT, label: "Draft" },
       ],
-      getValue: (row: IGoogleCampaign) => getStatusWithDefault(row.status),
+      getValue: (row: IGoogleCampaign) => {
+        const status = getStatusWithDefault(row.status);
+        if (status.toUpperCase() === "ENABLED" && row.serving_status?.toUpperCase() === "ENDED") {
+          return "ENDED";
+        }
+        return status;
+      },
     },
     {
       key: "budget",

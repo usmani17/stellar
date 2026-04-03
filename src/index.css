@@ -550,6 +550,12 @@ body input[type="submit"]:disabled {
   color: #a3a8b3;
 }
 
+/* Ended state */
+.status-badge-ended {
+  background-color: rgba(163, 168, 179, 0.15);
+  color: #6b7280;
+}
+
 /* Common text styling - used for table cells, spans, and divs */
 .table-text {
   font-size: 13.3px;

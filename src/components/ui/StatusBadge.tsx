@@ -93,6 +93,18 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
         class: "status-badge-archived",
         label: "Deleted",
       },
+      Ended: {
+        class: "status-badge-ended",
+        label: "Ended",
+      },
+      ended: {
+        class: "status-badge-ended",
+        label: "Ended",
+      },
+      ENDED: {
+        class: "status-badge-ended",
+        label: "Ended",
+      },
     };
 
   const statusInfo =
