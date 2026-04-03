@@ -8,9 +8,10 @@ import { useAccounts } from "../contexts/AccountsContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { queryKeys } from "../hooks/queries/queryKeys";
 import { Sidebar } from "../components/layout/Sidebar";
+import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { Button, BaseModal, Loader, DeleteConfirmationModal, Banner } from "../components/ui";
 import { cn } from "../lib/cn";
-import { Plus, Pencil, Trash2, BookOpen, ChevronRight, X, Globe, Sparkles, Eye } from "lucide-react";
+import { Pencil, Trash2, BookOpen, ChevronRight, X, Globe, Sparkles, Eye } from "lucide-react";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { MarkdownPromptEditor } from "./workflows/components/MarkdownPromptEditor";
 import { listGoogleSheetsIntegrations } from "../features/brands/google-sheets/api";
@@ -358,9 +359,11 @@ export const BrandKnowledge: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-sandstorm-s0">
       <Sidebar />
-      <div className="flex-1 transition-all duration-300" style={{ marginLeft: sidebarWidth }}>
-        <div className="p-6 max-w-6xl mx-auto">
-          {/* Header */}
+      <div className="flex-1 transition-all duration-300" style={{ marginLeft: `${sidebarWidth}px` }}>
+        <DashboardHeader />
+        <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 bg-sandstorm-s0">
+          <div className="max-w-6xl mx-auto">
+          {/* Page title row */}
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-2xl font-agrandir font-bold text-forest-f60">Brand Knowledge</h1>
@@ -368,10 +371,7 @@ export const BrandKnowledge: React.FC = () => {
                 Enhance Prism's capabilities to help it understand the nuances of your brand.
               </p>
             </div>
-            <Button onClick={() => openCreate()} className="gap-1.5">
-              <Plus className="w-4 h-4" />
-              Create Knowledge
-            </Button>
+            <Button onClick={() => openCreate()}>Create Knowledge</Button>
           </div>
 
           {successMsg && (
@@ -474,6 +474,7 @@ export const BrandKnowledge: React.FC = () => {
               </div>
             </>
           ) : null}
+          </div>
         </div>
       </div>
 
