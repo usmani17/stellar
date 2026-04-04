@@ -24,7 +24,6 @@ import type {
   DashboardComponent,
   DashboardLayout,
   VisualizationType,
-  ActionRule,
 } from "../../types/dashboard";
 
 const STAGGER_DELAY_MS = 0;
@@ -75,7 +74,6 @@ function SortableWidgetWrapper({
   onCustomColumnsChange,
   onManageColumnsApply,
   onWidgetDelete,
-  onActionsChange,
   hardRefreshTrigger,
 }: {
   component: DashboardComponent;
@@ -100,7 +98,6 @@ function SortableWidgetWrapper({
     columnOrder?: string[]
   ) => void;
   onWidgetDelete?: (componentId: string) => void;
-  onActionsChange?: (componentId: string, actions: ActionRule[]) => void | Promise<void>;
   hardRefreshTrigger?: number;
 }) {
   const {
@@ -166,7 +163,6 @@ function SortableWidgetWrapper({
         onCustomColumnsChange={onCustomColumnsChange}
         onManageColumnsApply={onManageColumnsApply}
         onWidgetDelete={onWidgetDelete}
-        onActionsChange={onActionsChange}
         hardRefreshTrigger={hardRefreshTrigger}
       />
     </div>
@@ -407,20 +403,6 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     [config, onConfigChange, onComponentChange, accountId, dashboardId]
   );
 
-  const handleActionsChange = useCallback(
-    (componentId: string, actions: ActionRule[]): void | Promise<void> => {
-      if (!config) return;
-      const comp = config.components.find((c) => String(c.id) === componentId);
-      if (!comp) return;
-      if (onComponentChange && accountId && dashboardId) {
-        return onComponentChange({
-          layout: config.layout,
-          component: { ...componentForPayload(comp), actions },
-        });
-      }
-    },
-    [config, onComponentChange, accountId, dashboardId]
-  );
 
   const orderedComponents = orderedIds
     .map((id) => components.find((c) => String(c.id) === id))
@@ -558,7 +540,6 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
             onCustomColumnsChange={onComponentChange ? handleCustomColumnsChange : undefined}
             onManageColumnsApply={onComponentChange ? handleManageColumnsApply : undefined}
             onWidgetDelete={editable && onConfigChange ? handleWidgetDelete : undefined}
-            onActionsChange={onComponentChange ? handleActionsChange : undefined}
             hardRefreshTrigger={hardRefreshTrigger}
           />
         ) : (

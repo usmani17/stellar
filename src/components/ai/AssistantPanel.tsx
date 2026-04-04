@@ -5,7 +5,7 @@ import { useAssistant, type SessionWithMessages } from "../../contexts/Assistant
 import { useAccounts, type AccountProfileOption } from "../../contexts/AccountsContext";
 import { useAuth } from "../../contexts/AuthContext";
 import type { PixisTimelineItem } from "../../services/ai/pixisChat";
-import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search, Share2, Copy, Check, RefreshCw, Clipboard, Loader2, Briefcase } from "lucide-react";
+import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search, Share2, Copy, Check, RefreshCw, Clipboard, Loader2, Briefcase, LayoutDashboard } from "lucide-react";
 import { cn } from "../../lib/cn";
 import PrismLogo from "../../assets/images/prism-logo-mini.svg";
 import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
@@ -46,7 +46,7 @@ const SLASH_COMMANDS = [
   { cmd: "/pdf", label: "Generate PDF report" },
   { cmd: "/docx", label: "Generate Word report" },
   { cmd: "/custom-dashboard", label: "Create custom dashboard" },
-  { cmd: "/dashboard-actions", label: "Create dashboard with optimization actions" },
+  { cmd: "/portfolio-actions", label: "Create optimization actions for portfolio" },
 ] as const;
 
 /** Profile item from GET /accounts/:accountId/profiles/ (channel_id, channel_name, profile name) */
@@ -250,12 +250,12 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         }
     }, [currentSessionId, selectedProfilesCount]);
 
-    // When portfolio scope pre-selects profiles programmatically, auto-apply
+    // When portfolio or dashboard scope pre-selects profiles programmatically, auto-apply
     useEffect(() => {
-        if (assistantScope.portfolioId && selectedProfilesCount > 0 && !hasAppliedProfileSelection) {
+        if ((assistantScope.portfolioId || assistantScope.dashboardId) && selectedProfilesCount > 0 && !hasAppliedProfileSelection) {
             setHasAppliedProfileSelection(true);
         }
-    }, [assistantScope.portfolioId, selectedProfilesCount, hasAppliedProfileSelection]);
+    }, [assistantScope.portfolioId, assistantScope.dashboardId, selectedProfilesCount, hasAppliedProfileSelection]);
 
     // Auto-select first account when only one exists (enables session list API call on /chat)
     useEffect(() => {
@@ -1625,10 +1625,10 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         </h3>
 
                         {!canChat ? (
-                            assistantScope.portfolioId ? (
+                            (assistantScope.portfolioId || assistantScope.dashboardId) ? (
                                 <div className="flex items-center gap-2 text-sm text-forest-f30">
                                     <Loader2 className="w-4 h-4 animate-spin text-forest-f40" />
-                                    <span>Setting up portfolio context…</span>
+                                    <span>Setting up context…</span>
                                 </div>
                             ) : (
                                 <p className="text-sm text-forest-f30 text-center px-4">
@@ -1638,10 +1638,10 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 </p>
                             )
                         ) : !hasAppliedProfileSelection ? (
-                            assistantScope.portfolioId ? (
+                            (assistantScope.portfolioId || assistantScope.dashboardId) ? (
                                 <div className="flex items-center gap-2 text-sm text-forest-f30">
                                     <Loader2 className="w-4 h-4 animate-spin text-forest-f40" />
-                                    <span>Loading portfolio profiles…</span>
+                                    <span>Loading profiles…</span>
                                 </div>
                             ) : (
                                 <p className="text-sm text-forest-f30 text-center px-4">
@@ -1701,7 +1701,49 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             </div>
                         ) : (
                             <div className="w-full max-w-sm">
-                                {assistantScope.portfolioId && assistantScope.portfolioName && (() => {
+                                {assistantScope.dashboardId && assistantScope.dashboardName && (() => {
+                                    const dd = assistantScope.dashboardDetail;
+                                    return (
+                                    <div className="mb-5 rounded-[12px] border border-sandstorm-s40 bg-sandstorm-s5 overflow-hidden">
+                                        <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-2">
+                                            <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-forest-f40/10">
+                                                <LayoutDashboard className="w-3.5 h-3.5 text-forest-f40" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-[13px] font-medium text-forest-f60 leading-tight truncate">{assistantScope.dashboardName}</p>
+                                                {dd?.platform && (
+                                                    <p className="text-[11px] text-forest-f30 capitalize leading-tight mt-0.5">{dd.platform}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {dd && (
+                                            <div className="px-4 pb-3.5 pt-1">
+                                                <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                                                    {dd.profileName && (
+                                                        <div>
+                                                            <p className="text-[10px] uppercase tracking-wide text-forest-f30/70 mb-0.5">Profile</p>
+                                                            <p className="text-[13px] font-medium text-forest-f60">{dd.profileName}</p>
+                                                        </div>
+                                                    )}
+                                                    {dd.widgetCount != null && (
+                                                        <div>
+                                                            <p className="text-[10px] uppercase tracking-wide text-forest-f30/70 mb-0.5">Widgets</p>
+                                                            <p className="text-[13px] font-medium text-forest-f60">{dd.widgetCount}</p>
+                                                        </div>
+                                                    )}
+                                                    {dd.portfolioName && (
+                                                        <div className="col-span-2">
+                                                            <p className="text-[10px] uppercase tracking-wide text-forest-f30/70 mb-0.5">Portfolio</p>
+                                                            <p className="text-[13px] font-medium text-forest-f40">{dd.portfolioName}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    );
+                                })()}
+                                {!assistantScope.dashboardId && assistantScope.portfolioId && assistantScope.portfolioName && (() => {
                                     const d = assistantScope.portfolioDetail;
                                     const fmtDate = (iso?: string) => {
                                         if (!iso) return null;

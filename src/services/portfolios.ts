@@ -79,6 +79,7 @@ export interface Portfolio {
 export interface PortfolioListItem extends Portfolio {
   campaignCount: number;
   dashboardCount?: number;
+  actionCount?: number;
   /** Most recently updated dashboard linked to this portfolio, if any. */
   latestDashboardId?: number | null;
   /** First conversion metric name from portfolio setup (for KPI subtitle in list). */

@@ -1,15 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import type {
-  ActionCondition,
-  ActionRule,
-  ActionType,
-  CompoundActionCondition,
-  DashboardComponent,
-} from "../workflows/types/dashboard";
-import { formatMetricLabel } from "../workflows/utils/formatDashboardValue";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
@@ -24,7 +14,7 @@ import {
   ChevronRight,
   Shield,
   ExternalLink,
-  Sparkles,
+  Zap,
   Bot,
 } from "lucide-react";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
@@ -47,11 +37,7 @@ import {
 } from "../../components/ui";
 import { cn } from "../../lib/cn";
 import { queryKeys } from "../../hooks/queries/queryKeys";
-import {
-  getDashboardsByPortfolio,
-  getDashboardDetail,
-  type DashboardResponse,
-} from "../../services/dashboard";
+import { getPortfolioActions } from "../../services/dashboard";
 import { portfoliosService, type PortfolioListItem } from "../../services/portfolios";
 
 const PAGE_SIZE = 25;
@@ -538,11 +524,7 @@ function GuardrailsDetailPanel({ guardrails }: { guardrails: unknown }) {
   );
 }
 
-function openDashboardPath(accountId: number, dashboardId: number): string {
-  return `/brands/${accountId}/dashboards/${dashboardId}`;
-}
-
-const ACTION_TYPE_LABELS: Record<ActionType, string> = {
+const ACTION_TYPE_LABELS: Record<string, string> = {
   change_state: "Change state",
   adjust_budget: "Adjust budget",
   adjust_bid: "Adjust bid",
@@ -559,438 +541,125 @@ const ACTION_TYPE_LABELS: Record<ActionType, string> = {
   adjust_age_targeting: "Adjust age targeting",
 };
 
-const CONDITION_OP_LABEL: Record<ActionCondition["operator"], string> = {
-  lt: "<",
-  gt: ">",
-  eq: "=",
-  lte: "≤",
-  gte: "≥",
-  in: "in",
-  not_in: "not in",
-};
-
-function isCompoundActionCondition(
-  c: ActionCondition | CompoundActionCondition,
-): c is CompoundActionCondition {
-  return (
-    c != null &&
-    typeof c === "object" &&
-    "logic" in c &&
-    Array.isArray((c as CompoundActionCondition).conditions)
-  );
+function statusBadge(status: string) {
+  const s = status.toLowerCase();
+  if (s === "active" || s === "pending_review")
+    return s === "active"
+      ? "text-forest-f40 bg-forest-f0 border-forest-f40/25"
+      : "text-yellow-y10 bg-yellow-y10/10 border-yellow-y10/30";
+  if (s === "paused" || s === "disabled")
+    return "text-forest-f30 bg-sandstorm-s10 border-sandstorm-s40";
+  return "text-forest-f30 bg-sandstorm-s10 border-sandstorm-s40";
 }
 
-function formatConditionValue(value: ActionCondition["value"]): string {
-  if (Array.isArray(value)) return value.map((v) => String(v)).join(", ");
-  return String(value);
-}
-
-/** Human-readable row filter (tooltip / aria). */
-function formatActionRuleCondition(cond: ActionCondition | CompoundActionCondition | undefined): string | null {
-  if (!cond) return null;
-  if (isCompoundActionCondition(cond)) {
-    const parts = cond.conditions
-      .filter((sc) => sc && typeof sc.field === "string")
-      .map((sc) => {
-        const field = formatMetricLabel(sc.field);
-        const op = CONDITION_OP_LABEL[sc.operator] ?? sc.operator;
-        return `${field} ${op} ${formatConditionValue(sc.value)}`;
-      });
-    if (parts.length === 0) return null;
-    const joiner = cond.logic === "or" ? " OR " : " AND ";
-    return parts.join(joiner);
-  }
-  if (!cond.field) return null;
-  const field = formatMetricLabel(cond.field);
-  const op = CONDITION_OP_LABEL[cond.operator] ?? cond.operator;
-  return `${field} ${op} ${formatConditionValue(cond.value)}`;
-}
-
-type ConditionClauseRow = { field: string; op: string; value: string };
-
-function actionConditionClauses(
-  cond: ActionCondition | CompoundActionCondition | undefined,
-): { logic: "and" | "or" | null; clauses: ConditionClauseRow[] } {
-  if (!cond) return { logic: null, clauses: [] };
-  if (isCompoundActionCondition(cond)) {
-    const clauses = cond.conditions
-      .filter((sc) => sc && typeof sc.field === "string")
-      .map((sc) => ({
-        field: formatMetricLabel(sc.field),
-        op: CONDITION_OP_LABEL[sc.operator] ?? sc.operator,
-        value: formatConditionValue(sc.value),
-      }));
-    const logic = cond.logic === "or" ? "or" : "and";
-    return { logic: clauses.length > 1 ? logic : null, clauses };
-  }
-  if (!cond.field) return { logic: null, clauses: [] };
-  return {
-    logic: null,
-    clauses: [
-      {
-        field: formatMetricLabel(cond.field),
-        op: CONDITION_OP_LABEL[cond.operator] ?? cond.operator,
-        value: formatConditionValue(cond.value),
-      },
-    ],
-  };
-}
-
-function ExpandPanelActionConditionChips({
-  cond,
-}: {
-  cond: ActionCondition | CompoundActionCondition | undefined;
-}) {
-  const { logic, clauses } = actionConditionClauses(cond);
-  const condText = formatActionRuleCondition(cond);
-  if (clauses.length === 0) return null;
-
-  return (
-    <div
-      className="mt-2 rounded-md border border-sandstorm-s40/90 bg-white/90 px-2 py-1.5"
-      title={condText ?? undefined}
-    >
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <span className="text-[9px] font-semibold text-forest-f30 uppercase tracking-wide shrink-0">
-          Conditions
-        </span>
-        {logic === "or" ? (
-          <span className="text-[9px] font-medium text-forest-f40 bg-forest-f0/80 px-1.5 py-0.5 rounded border border-forest-f40/20">
-            Any match
-          </span>
-        ) : clauses.length > 1 ? (
-          <span className="text-[9px] font-medium text-forest-f30">All must match</span>
-        ) : null}
-      </div>
-      <ul className="m-0 mt-1.5 p-0 list-none flex flex-wrap gap-1.5">
-        {clauses.map((c, idx) => (
-          <li key={`${c.field}-${idx}`}>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-sandstorm-s40 bg-sandstorm-s5 text-[10px] text-forest-f60 leading-tight max-w-full">
-              <span className="font-medium text-forest-f50 whitespace-nowrap">{c.field}</span>
-              <span className="text-forest-f30 shrink-0">{c.op}</span>
-              <span className="font-mono text-[10px] text-forest-f60 break-all min-w-0">{c.value}</span>
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function visualizationLabel(viz: string): string {
-  return viz
-    .split("_")
-    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
-    .join(" ");
-}
-
-function activeDashboardComponents(config: DashboardResponse["config"] | undefined): DashboardComponent[] {
-  const raw = config?.components;
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((c) => c != null && !c.deleted_at);
-}
-
-function activeActionsForComponent(c: DashboardComponent): ActionRule[] {
-  return (c.actions ?? []).filter((a) => a.status !== "deleted");
-}
-
-/** Widgets that have at least one non-deleted action (for compact expand preview). */
-function dashboardComponentsWithActions(components: DashboardComponent[]): DashboardComponent[] {
-  return components.filter((c) => activeActionsForComponent(c).length > 0);
-}
-
-function ExpandPanelDashboardSummaryCard({
-  d,
-  onOpen,
-}: {
-  d: DashboardResponse;
-  onOpen: (id: number) => void;
-}) {
-  const meta = dashboardMetaLine(d);
-  const updated =
-    d.updatedAt != null
-      ? `Updated ${new Date(d.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`
-      : null;
-  const metaLine = [meta, updated].filter(Boolean).join(" · ") || null;
-  const desc = d.description?.trim() || null;
-  const strategicSummary = typeof d.summary === "string" ? d.summary.trim() : "";
-  const platformLabel = PLATFORM_LABELS[d.platform] ?? d.platform ?? null;
-  const components = activeDashboardComponents(d.config);
-  const actionComponents = dashboardComponentsWithActions(components);
-  const maxWidgets = 8;
-  const shown = actionComponents.slice(0, maxWidgets);
-  const restWidgets = Math.max(0, actionComponents.length - maxWidgets);
-  const totalActionCount = actionComponents.reduce((n, c) => n + activeActionsForComponent(c).length, 0);
-
-  return (
-    <div
-      className={cn(
-        "w-full max-w-none rounded-xl border border-sandstorm-s40 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(7,41,41,0.04)]",
-      )}
-    >
-      <div className="flex gap-2 min-w-0 w-full">
-        <LayoutDashboard className="w-4 h-4 text-forest-f40 shrink-0 mt-0.5" aria-hidden />
-        <div className="min-w-0 flex-1">
-          <button
-            type="button"
-            className="text-[13px] font-semibold text-forest-f40 hover:text-forest-f50 m-0 leading-snug break-words text-left transition-colors inline-flex items-center gap-1.5 group"
-            title={d.name ?? undefined}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpen(d.id);
-            }}
-          >
-            {d.name?.trim() || `Dashboard ${d.id}`}
-            <ExternalLink className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden />
-          </button>
-          {metaLine ? (
-            <p className="text-[11px] text-forest-f30 m-0 mt-0.5 leading-snug">{metaLine}</p>
-          ) : null}
-          <div className="flex flex-wrap gap-1.5 mt-1.5">
-            {platformLabel ? (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium border border-sandstorm-s40 bg-sandstorm-s5 text-forest-f60">
-                {platformLabel}
-              </span>
-            ) : null}
-            {components.length > 0 ? (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium border border-forest-f40/20 bg-forest-f0 text-forest-f50">
-                {totalActionCount > 0
-                  ? `${totalActionCount} action${totalActionCount === 1 ? "" : "s"} across ${actionComponents.length} widget${actionComponents.length === 1 ? "" : "s"}`
-                  : `${components.length} widget${components.length === 1 ? "" : "s"} · no actions yet`}
-              </span>
-            ) : null}
-          </div>
-        </div>
-      </div>
-
-      {strategicSummary ? (
-        <StrategicContextCard content={strategicSummary} />
-      ) : null}
-
-      {desc ? (
-        <p className="text-[11px] text-forest-f30 m-0 mt-2 leading-snug line-clamp-2">{desc}</p>
-      ) : null}
-
-      {shown.length > 0 ? (
-        <div className="mt-3 pt-3 border-t border-sandstorm-s40/80 w-full min-w-0">
-          <p className="text-[10px] font-semibold text-forest-f30 uppercase tracking-wide m-0 mb-2">
-            Actions by widget
-          </p>
-          <ul className="m-0 p-0 list-none space-y-2">
-            {shown.map((c) => {
-              const actions = activeActionsForComponent(c);
-              const maxActions = 6;
-              const showActions = actions.slice(0, maxActions);
-              const restActions = Math.max(0, actions.length - maxActions);
-              return (
-                <li
-                  key={c.id}
-                  className="rounded-lg border border-sandstorm-s40/90 bg-sandstorm-s5/60 px-3 py-2 min-w-0 w-full"
-                >
-                  <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
-                    <span className="text-[12px] font-medium text-forest-f60">{c.title || "Untitled widget"}</span>
-                    <span className="text-[10px] text-forest-f30 shrink-0">
-                      {visualizationLabel(c.visualization_type)}
-                    </span>
-                  </div>
-                  <ol className="m-0 mt-2 p-0 list-none space-y-2.5">
-                    {showActions.map((a: ActionRule, ai: number) => {
-                      const n = ai + 1;
-                      return (
-                        <li
-                          key={a.id}
-                          className="rounded-lg border border-sandstorm-s40/80 bg-white/95 px-2.5 py-2 min-w-0 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.6)]"
-                        >
-                          <div className="flex gap-2 min-w-0">
-                            <span
-                              className={cn(
-                                "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-[11px] font-bold tabular-nums",
-                                "border-forest-f40/25 bg-forest-f0 text-forest-f50",
-                              )}
-                              aria-hidden
-                            >
-                              {n}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                                <span className="text-[12px] font-semibold text-forest-f60 leading-snug">
-                                  {ACTION_TYPE_LABELS[a.type] ?? a.type}
-                                </span>
-                                <span className="text-[10px] text-forest-f30 uppercase tracking-wide px-1.5 py-px rounded border border-sandstorm-s40 bg-sandstorm-s5 whitespace-nowrap">
-                                  {a.platform}
-                                </span>
-                                <span className="text-[10px] text-forest-f30">{a.entity_type}</span>
-                                {a.status !== "active" ? (
-                                  <span className="text-[10px] font-medium text-yellow-y10 bg-yellow-y10/10 px-1.5 py-px rounded border border-yellow-y10/30">
-                                    {a.status}
-                                  </span>
-                                ) : null}
-                              </div>
-                              <ExpandPanelActionConditionChips cond={a.condition} />
-                              {a.description ? (
-                                <p
-                                  className="text-[11px] text-forest-f30 m-0 mt-2 leading-relaxed line-clamp-3"
-                                  title={a.description}
-                                >
-                                  {a.description}
-                                </p>
-                              ) : null}
-                            </div>
-                          </div>
-                        </li>
-                      );
-                    })}
-                    {restActions > 0 ? (
-                      <li className="text-[10px] text-forest-f30 italic pl-1 py-0.5">
-                        +{restActions} more for this widget — open dashboard
-                      </li>
-                    ) : null}
-                  </ol>
-                </li>
-              );
-            })}
-          </ul>
-          {restWidgets > 0 ? (
-            <p className="text-[11px] text-forest-f30 m-0 mt-2 mb-0">
-              +{restWidgets} more widget{restWidgets === 1 ? "" : "s"} with actions — open dashboard for the full list.
-            </p>
-          ) : null}
-        </div>
-      ) : components.length > 0 ? (
-        <p className="text-[11px] text-forest-f30 m-0 mt-3 pt-3 border-t border-sandstorm-s40/80 w-full">
-          No action rules on widgets yet — open the dashboard to add or sync actions.
-        </p>
-      ) : (
-        <p className="text-[11px] text-forest-f30 m-0 mt-3 pt-3 border-t border-sandstorm-s40/80 w-full">
-          No widgets in this dashboard config yet — open to build the layout.
-        </p>
-      )}
-    </div>
-  );
-}
-
-function dashboardMetaLine(d: DashboardResponse): string | null {
-  const parts = [d.channelName, d.profileName].filter(Boolean) as string[];
-  if (parts.length === 0) return null;
-  return parts.join(" · ");
-}
-
-function PortfolioExpandDashboards({
-  portfolio: p,
-  dashboards,
-  latestDashboardId,
-  dashboardCount,
-  dashLoading,
-  dashError,
-}: {
-  portfolio: PortfolioListItem;
-  dashboards: DashboardResponse[];
-  latestDashboardId: number | null | undefined;
-  dashboardCount: number;
-  dashLoading: boolean;
-  dashError: boolean;
-}) {
+function PortfolioExpandActions({ portfolio: p }: { portfolio: PortfolioListItem }) {
   const navigate = useNavigate();
   const { openAssistant, startNewSession, setInputValue, setPortfolioScope } = useAssistant();
   const accountId = p.accountId;
   const portfolioId = p.id;
   const portfolioName = p.name;
 
-  const manageHref = `/brands/${accountId}/portfolios/${portfolioId}?tab=dashboards`;
-
-  const needLatestDetail =
-    dashboards.length === 0 && latestDashboardId != null && typeof latestDashboardId === "number";
-
-  const { data: latestDetail, isLoading: latestDetailLoading } = useQuery({
-    queryKey: ["assistant", "dashboards", "detail", accountId, latestDashboardId],
-    queryFn: () => getDashboardDetail(accountId, latestDashboardId!),
-    enabled: needLatestDetail,
+  const {
+    data: actionsRaw,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["assistant", "portfolio-actions", accountId, portfolioId],
+    queryFn: () => getPortfolioActions(accountId, portfolioId),
     staleTime: 60_000,
   });
 
-  const listLoading = dashLoading || (needLatestDetail && latestDetailLoading);
-
-  const openDash = (id: number) => window.open(openDashboardPath(accountId, id), "_blank");
-
-  const countLabel =
-    dashboards.length > 0
-      ? `${dashboards.length} linked`
-      : (dashboardCount ?? 0) > 0
-        ? `${dashboardCount} in portfolio`
-        : "None linked";
-
-  const renderSummary = (d: DashboardResponse) => (
-    <ExpandPanelDashboardSummaryCard
-      key={d.id}
-      d={d}
-      onOpen={openDash}
-    />
+  const actions = (actionsRaw ?? []).filter(
+    (a) => a.status !== "deleted" && a.status !== "disabled",
   );
+  const viewAllHref = `/brands/${accountId}/portfolios/${portfolioId}?tab=actions`;
+  const maxPreview = 5;
+  const shown = actions.slice(0, maxPreview);
+  const rest = Math.max(0, actions.length - maxPreview);
 
   return (
     <div className="w-full min-w-0">
       <h4 className="text-[13px] font-semibold text-forest-f60 m-0 mb-2 flex items-center gap-2 flex-wrap">
-        <LayoutDashboard className="w-4 h-4 text-forest-f40 shrink-0" aria-hidden />
-        Dashboards
+        <Zap className="w-4 h-4 text-forest-f40 shrink-0" aria-hidden />
+        Actions
         <span
           className={cn(
             "text-[11px] font-medium normal-case px-2 py-0.5 rounded border",
-            dashboards.length > 0 || (dashboardCount ?? 0) > 0
+            actions.length > 0
               ? "text-forest-f40 bg-forest-f0 border-forest-f40/25"
               : "text-forest-f30 border-transparent",
           )}
         >
-          {countLabel}
+          {actions.length > 0 ? `${actions.length} active` : "None"}
         </span>
       </h4>
 
-      {dashError ? (
+      {isError ? (
         <p className="text-[12px] text-forest-f30 m-0 mb-2">
-          Could not load the dashboard list. You can still open the portfolio Dashboards tab below.
+          Could not load actions. Open the portfolio to see details.
         </p>
       ) : null}
 
-      {listLoading ? (
-        <div className="w-full rounded-xl border border-sandstorm-s40 h-32 animate-pulse bg-sandstorm-s20" />
-      ) : dashboards.length > 0 ? (
-        <div className="space-y-3 w-full">{dashboards.map((d) => renderSummary(d))}</div>
-      ) : needLatestDetail && latestDetail ? (
-        <div className="space-y-3 w-full">{renderSummary(latestDetail)}</div>
-      ) : needLatestDetail && !latestDetail && !latestDetailLoading ? (
+      {isLoading ? (
+        <div className="w-full rounded-xl border border-sandstorm-s40 h-24 animate-pulse bg-sandstorm-s20" />
+      ) : shown.length > 0 ? (
         <div className="w-full rounded-xl border border-sandstorm-s40 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(7,41,41,0.04)]">
-          <button
-            type="button"
-            className="text-[12px] font-medium text-forest-f40 hover:text-forest-f50 m-0 text-left transition-colors inline-flex items-center gap-1.5 group"
-            onClick={() => openDash(latestDashboardId!)}
-          >
-            Dashboard #{latestDashboardId}
-            <ExternalLink className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden />
-          </button>
-          <p className="text-[11px] text-forest-f30 m-0 mt-1">
-            Full details could not be loaded. Click the name above to open.
-          </p>
+          <ul className="m-0 p-0 list-none space-y-2">
+            {shown.map((a, idx) => (
+              <li
+                key={a.id ?? idx}
+                className="rounded-lg border border-sandstorm-s40/80 bg-sandstorm-s5/60 px-3 py-2"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-forest-f40/25 bg-forest-f0 text-[10px] font-bold tabular-nums text-forest-f50"
+                    aria-hidden
+                  >
+                    {idx + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                      <span className="text-[12px] font-semibold text-forest-f60 leading-snug">
+                        {ACTION_TYPE_LABELS[a.type] ?? a.type}
+                      </span>
+                      <span className="text-[10px] text-forest-f30 uppercase tracking-wide px-1.5 py-px rounded border border-sandstorm-s40 bg-sandstorm-s5 whitespace-nowrap">
+                        {a.platform}
+                      </span>
+                      <span className="text-[10px] text-forest-f30">{a.entity_type}</span>
+                      <span className={cn("text-[10px] font-medium px-1.5 py-px rounded border", statusBadge(a.status))}>
+                        {a.status.replace("_", " ")}
+                      </span>
+                    </div>
+                    {a.description ? (
+                      <p className="text-[11px] text-forest-f30 m-0 mt-1 leading-relaxed line-clamp-2" title={a.description}>
+                        {a.description}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+          {rest > 0 ? (
+            <p className="text-[11px] text-forest-f30 m-0 mt-2">
+              +{rest} more action{rest === 1 ? "" : "s"}
+            </p>
+          ) : null}
+          <div className="mt-3 pt-2 border-t border-sandstorm-s40/80">
+            <button
+              type="button"
+              className="text-[12px] font-medium text-forest-f40 hover:text-forest-f50 transition-colors inline-flex items-center gap-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(viewAllHref);
+              }}
+            >
+              View all actions
+              <ExternalLink className="w-3 h-3" aria-hidden />
+            </button>
+          </div>
         </div>
-      ) : (dashboardCount ?? 0) > 0 ? (
-        <div className="w-full rounded-xl border border-sandstorm-s40 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(7,41,41,0.04)]">
-          <p className="text-[12px] text-forest-f30 m-0 mb-3 leading-snug">
-            {dashError
-              ? "Dashboard list failed to load, but this portfolio has linked dashboards."
-              : "Linked dashboards exist. Open the portfolio Dashboards tab to see details."}
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="text-[12px]"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(manageHref);
-            }}
-          >
-            Open portfolio · Dashboards
-          </Button>
-        </div>
-      ) : (dashboardCount ?? 0) === 0 ? (
+      ) : (
         <div className="w-full rounded-xl border border-sandstorm-s40 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(7,41,41,0.04)]">
           <div className="flex items-start gap-3">
             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-forest-f40/[0.07] shrink-0 mt-0.5">
@@ -998,10 +667,10 @@ function PortfolioExpandDashboards({
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[12.5px] text-forest-f60 font-medium m-0 mb-1">
-                No dashboards linked yet
+                No actions yet
               </p>
               <p className="text-[11.5px] text-forest-f30 m-0 mb-3 leading-relaxed">
-                Use the Assistant to create a dashboard with actions for this portfolio.
+                Use the Assistant to create optimization actions for this portfolio.
               </p>
               <div className="flex items-center gap-2">
                 <Button
@@ -1028,13 +697,13 @@ function PortfolioExpandDashboards({
                       },
                     });
                     setInputValue(
-                      `Create a dashboard for portfolio "${portfolioName}" (ID: ${portfolioId}). Analyze the campaigns, set up relevant KPI widgets, and suggest actions.`,
+                      "Create optimization actions for this portfolio",
                     );
                     openAssistant();
                   }}
                 >
                   <Bot className="w-3.5 h-3.5" />
-                  Create Dashboard
+                  Create Actions
                 </Button>
                 <Button
                   type="button"
@@ -1043,7 +712,7 @@ function PortfolioExpandDashboards({
                   className="text-[12px]"
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(manageHref);
+                    navigate(viewAllHref);
                   }}
                 >
                   Go to portfolio
@@ -1052,12 +721,11 @@ function PortfolioExpandDashboards({
             </div>
           </div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
 
-/** Fetches full portfolio + dashboards when row is expanded so guardrails and links match the API. */
 function PortfolioExpandPanel({ portfolio: p }: { portfolio: PortfolioListItem }) {
   const {
     data: detail,
@@ -1066,16 +734,6 @@ function PortfolioExpandPanel({ portfolio: p }: { portfolio: PortfolioListItem }
   } = useQuery({
     queryKey: queryKeys.portfolios.expandRow(p.accountId, p.id),
     queryFn: () => portfoliosService.getPortfolio(p.accountId, p.id),
-    staleTime: 60_000,
-  });
-
-  const {
-    data: dashboardRows,
-    isLoading: dashLoading,
-    isError: dashError,
-  } = useQuery({
-    queryKey: ["assistant", "dashboards", "byPortfolio", p.accountId, p.id],
-    queryFn: () => getDashboardsByPortfolio(p.accountId, p.id),
     staleTime: 60_000,
   });
 
@@ -1090,8 +748,6 @@ function PortfolioExpandPanel({ portfolio: p }: { portfolio: PortfolioListItem }
     return null;
   }, [detail, p.guardrails]);
 
-  const dashboards = dashboardRows ?? [];
-
   return (
     <div
       className={cn(
@@ -1102,8 +758,8 @@ function PortfolioExpandPanel({ portfolio: p }: { portfolio: PortfolioListItem }
       role="region"
       aria-label={`Details for ${p.name}`}
     >
-      {(detailLoading || dashLoading) && (
-        <p className="text-[12px] text-forest-f30 mb-3 m-0">Loading latest portfolio and dashboard data…</p>
+      {detailLoading && (
+        <p className="text-[12px] text-forest-f30 mb-3 m-0">Loading latest portfolio data…</p>
       )}
       {detailError && (
         <p className="text-[12px] text-red-r30 mb-3 m-0">
@@ -1129,14 +785,7 @@ function PortfolioExpandPanel({ portfolio: p }: { portfolio: PortfolioListItem }
           </div>
         </div>
 
-        <PortfolioExpandDashboards
-          portfolio={p}
-          dashboards={dashboards}
-          latestDashboardId={p.latestDashboardId}
-          dashboardCount={p.dashboardCount ?? 0}
-          dashLoading={dashLoading}
-          dashError={dashError}
-        />
+        <PortfolioExpandActions portfolio={p} />
       </div>
     </div>
   );
@@ -1687,20 +1336,36 @@ interface PortfolioRowProps {
                 <span className="text-[12px] text-forest-f30 leading-normal">
                   {p.campaignCount} campaigns · {PLATFORM_LABELS[p.platform] ?? p.platform}
                 </span>
-                {dashCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAgents();
-                    }}
-                    className="inline-flex items-center gap-1 self-start mt-0.5 text-[11px] font-medium text-forest-f40 hover:text-forest-f50"
-                    aria-label={`Open dashboards tab, ${dashCount} dashboards`}
-                  >
-                    <LayoutDashboard className="w-3.5 h-3.5 shrink-0" aria-hidden />
-                    {dashCount} dashboard{dashCount === 1 ? "" : "s"}
-                  </button>
-                )}
+                <div className="flex items-center gap-3 flex-wrap mt-0.5">
+                  {dashCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAgents();
+                      }}
+                      className="inline-flex items-center gap-1 self-start text-[11px] font-medium text-forest-f40 hover:text-forest-f50"
+                      aria-label={`Open dashboards tab, ${dashCount} dashboards`}
+                    >
+                      <LayoutDashboard className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                      {dashCount} dashboard{dashCount === 1 ? "" : "s"}
+                    </button>
+                  )}
+                  {(p.actionCount ?? 0) > 0 && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/brands/${p.accountId}/portfolios/${p.id}?tab=actions`);
+                      }}
+                      className="inline-flex items-center gap-1 self-start text-[11px] font-medium text-forest-f40 hover:text-forest-f50"
+                      aria-label={`${p.actionCount} actions`}
+                    >
+                      <Zap className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                      {p.actionCount} action{p.actionCount === 1 ? "" : "s"}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </td>
@@ -1858,7 +1523,7 @@ interface PortfolioRowProps {
                 {latestDashboardId != null ? (
                   <button
                     onClick={() => {
-                      navigate(`/brands/${p.accountId}/dashboards/${latestDashboardId}`);
+                      navigate(`/brands/${p.accountId}/dashboards/${latestDashboardId}?portfolioId=${p.id}`);
                       onMenuToggle();
                     }}
                     className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-forest-f60 hover:bg-sandstorm-s5 transition-colors"
@@ -1904,68 +1569,3 @@ interface PortfolioRowProps {
         );
 };
 
-        // ── Strategic Context Card ────────────────────────────────────────────────
-
-        const StrategicContextCard: React.FC<{ content: string }> = ({content}) => (
-        <div
-          className={cn(
-            "mt-3 rounded-[10px] w-full min-w-0",
-            "border border-sandstorm-s40/70 border-l-[3px] border-l-forest-f40/30",
-            "bg-gradient-to-br from-[#f6f9f8] to-sandstorm-s5",
-            "shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
-            "px-3.5 pt-2.5 pb-2.5",
-          )}
-        >
-          <div className="flex items-center gap-1.5 mb-2">
-            <div className="flex items-center justify-center w-4 h-4 rounded bg-forest-f40/[0.08]">
-              <Sparkles className="w-2.5 h-2.5 text-forest-f40/70" />
-            </div>
-            <span className="text-[9px] font-bold text-forest-f30/70 uppercase tracking-[0.08em]">
-              Strategic context
-            </span>
-          </div>
-          <div className="text-[11.5px] text-forest-f50 leading-[1.75] break-words [&>*:last-child]:mb-0">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                p: ({ children }) => (
-                  <p className="m-0 mb-2 last:mb-0">{children}</p>
-                ),
-                strong: ({ children }) => (
-                  <strong className="font-semibold text-forest-f60">{children}</strong>
-                ),
-                em: ({ children }) => <em className="italic">{children}</em>,
-                ul: ({ children }) => (
-                  <ul className="m-0 mb-2 pl-4 list-disc last:mb-0 space-y-0.5 [&_li::marker]:text-forest-f30/40">{children}</ul>
-                ),
-                ol: ({ children }) => (
-                  <ol className="m-0 mb-2 pl-4 list-decimal last:mb-0 space-y-0.5 [&_li::marker]:text-forest-f30/40 [&_li::marker]:text-[11px]">{children}</ol>
-                ),
-                li: ({ children }) => (
-                  <li className="m-0 pl-0.5">{children}</li>
-                ),
-                h1: ({ children }) => (
-                  <p className="m-0 mb-1.5 text-[12px] font-semibold text-forest-f60">{children}</p>
-                ),
-                h2: ({ children }) => (
-                  <p className="m-0 mb-1.5 text-[12px] font-semibold text-forest-f60">{children}</p>
-                ),
-                h3: ({ children }) => (
-                  <p className="m-0 mb-1 text-[11.5px] font-semibold text-forest-f60">{children}</p>
-                ),
-                a: ({ href, children }) => (
-                  <a href={href} target="_blank" rel="noopener noreferrer" className="text-forest-f40 underline decoration-forest-f40/30 hover:decoration-forest-f40/60 transition-colors">{children}</a>
-                ),
-                code: ({ children }) => (
-                  <code className="px-1 py-px rounded bg-forest-f40/[0.06] text-[10.5px] font-mono text-forest-f50">{children}</code>
-                ),
-                blockquote: ({ children }) => (
-                  <blockquote className="m-0 mb-2 pl-2.5 border-l-2 border-forest-f40/15 text-forest-f30 italic last:mb-0">{children}</blockquote>
-                ),
-              }}
-            >
-              {content}
-            </ReactMarkdown>
-          </div>
-        </div>
-        );

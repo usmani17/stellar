@@ -79,7 +79,7 @@ export const PortfolioDetail: React.FC = () => {
   const { setPortfolioScope, clearPortfolioScope } = useAssistant();
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<Tab>("campaigns");
+  const [activeTab, setActiveTab] = useState<Tab>("actions");
   const [successMsg, setSuccessMsg] = useState("");
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [showRunConfirm, setShowRunConfirm] = useState(false);
@@ -128,12 +128,12 @@ export const PortfolioDetail: React.FC = () => {
 
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab === "dashboards" || tab === "agents") {
+    if (tab === "dashboards" || tab === "agents" || tab === "dashboard") {
       setActiveTab("dashboards");
-    } else if (tab === "actions") {
-      setActiveTab("actions");
-    } else if (tab === "dashboard" || tab === "campaigns") {
+    } else if (tab === "campaigns") {
       setActiveTab("campaigns");
+    } else {
+      setActiveTab("actions");
     }
   }, [searchParams]);
 
@@ -211,9 +211,9 @@ export const PortfolioDetail: React.FC = () => {
   }
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+    { id: "actions", label: "Actions", icon: <Zap className="w-4 h-4" /> },
     { id: "campaigns", label: "Campaigns", icon: <Settings className="w-4 h-4" /> },
     { id: "dashboards", label: "Dashboards", icon: <LayoutDashboard className="w-4 h-4" /> },
-    { id: "actions", label: "Actions", icon: <Zap className="w-4 h-4" /> },
   ];
 
   return (
@@ -375,7 +375,7 @@ export const PortfolioDetail: React.FC = () => {
               <PortfolioDashboardsTab accountId={accountId} portfolioId={portfolioId} />
             )}
             {activeTab === "actions" && (
-              <PortfolioActionsTab accountId={accountId} portfolioId={portfolioId} />
+              <PortfolioActionsTab accountId={accountId} portfolioId={portfolioId} portfolioName={portfolio?.name} />
             )}
           </div>
         </div>
@@ -511,7 +511,7 @@ const PortfolioDashboardsTab: React.FC<{ accountId: number; portfolioId: number 
       {!loading && dashboards.length > 0 && dashboards.map((d) => (
         <div
           key={d.id}
-          onClick={() => window.open(`/brands/${accountId}/dashboards/${d.id}`, "_blank")}
+          onClick={() => window.open(`/brands/${accountId}/dashboards/${d.id}?portfolioId=${portfolioId}`, "_blank")}
           className={cn(
             "flex items-center justify-between p-4 border border-sandstorm-s40 rounded-lg hover:bg-sandstorm-s5 cursor-pointer transition-colors",
             refreshing && "opacity-50 pointer-events-none",

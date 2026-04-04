@@ -21,6 +21,7 @@ export interface DashboardResponse {
   channelId?: number;
   profileId?: number;
   workflowId?: number;
+  portfolioId?: number;
   channelName?: string;
   profileName?: string;
   config: DashboardConfig;
@@ -83,19 +84,36 @@ export interface PortfolioAction {
   id: string;
   action_slug: string;
   action_id: number;
-  dashboard_id: number;
-  dashboard_name: string;
+  portfolio_id?: number;
+  dashboard_id?: number;
+  dashboard_name?: string;
   component_id?: string;
   type: string;
   platform: string;
   entity_type: string;
-  entity_id_column: string;
+  entity_id_column?: string;
   entity_name_column?: string;
   status: string;
   description: string;
   condition?: Record<string, unknown>;
   params?: Record<string, unknown>;
   guardrails?: Record<string, unknown>;
+  query?: {
+    source: "database" | "api";
+    sql?: string;
+    params?: unknown[] | Record<string, unknown>;
+    platform?: string;
+    endpoint?: string;
+  };
+  reasoning?: {
+    detected: string;
+    why_it_matters: string;
+    conclusion: string;
+  };
+  learning?: {
+    patterns?: unknown[];
+    strategy_adjustments?: unknown[];
+  };
   schedule?: {
     frequency: string;
     time?: string;
@@ -106,6 +124,23 @@ export interface PortfolioAction {
     auto_execute: boolean;
     next_run_at?: string;
   };
+}
+
+export interface ActionStatusLogEntry {
+  id: number;
+  action_id: number;
+  portfolio_id: number;
+  account_id: number;
+  old_status: string | null;
+  new_status: string;
+  event_type: string;
+  changed_by: number | null;
+  session_id: string | null;
+  note: string | null;
+  created_at: string;
+  action_slug?: string;
+  action_type?: string;
+  action_description?: string;
 }
 
 /**
