@@ -174,6 +174,35 @@ export async function getPortfolioAnalysisHistory(
   return data.chats;
 }
 
+export interface PortfolioTrailEntry {
+  id: number;
+  action_id: number;
+  portfolio_id: number;
+  account_id: number;
+  old_status: string | null;
+  new_status: string;
+  event_type: string;
+  changed_by: number | null;
+  session_id: string | null;
+  note: string | null;
+  created_at: string;
+  action_slug: string;
+  action_type: string;
+  action_description: string;
+}
+
+export async function getPortfolioTrail(
+  accountId: number,
+  portfolioId: number,
+  params?: { limit?: number; offset?: number },
+): Promise<PortfolioTrailEntry[]> {
+  const { data } = await api.get<{ trail: PortfolioTrailEntry[] }>(
+    `${API_BASE}/${accountId}/portfolios/${portfolioId}/trail/`,
+    { params },
+  );
+  return data.trail;
+}
+
 export interface RefreshSettings {
   actionRefreshEnabled: boolean;
   actionRefreshFrequency: string;

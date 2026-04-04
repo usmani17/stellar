@@ -4,10 +4,11 @@ import remarkGfm from "remark-gfm";
 import {
   listPortfolioActions,
   getPortfolioAnalysisHistory,
+  getPortfolioTrail,
   updatePortfolioRefreshSettings,
   getPortfolioRefreshSettings,
 } from "../../../services/portfolioActions";
-import type { PortfolioChatEntry } from "../../../services/portfolioActions";
+import type { PortfolioChatEntry, PortfolioTrailEntry } from "../../../services/portfolioActions";
 import type { PortfolioAction } from "../../../services/dashboard";
 import { ActionsListPanel } from "../../../components/actions/ActionsListPanel";
 import type { ActionItem } from "../../../components/actions/ActionsListPanel";
@@ -19,6 +20,14 @@ import {
   RefreshCw,
   Bot,
   X,
+  Activity,
+  ArrowRight,
+  CheckCircle2,
+  XCircle,
+  PauseCircle,
+  PlayCircle,
+  AlertCircle,
+  Zap,
 } from "lucide-react";
 import { cn } from "../../../lib/cn";
 import { useAssistant } from "../../../contexts/AssistantContext";
@@ -496,12 +505,138 @@ function PortfolioAnalysisHistoryModal({
   );
 }
 
+const EVENT_ICON: Record<string, React.ReactNode> = {
+  created: <Zap className="w-3.5 h-3.5 text-forest-f40" />,
+  approved: <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />,
+  declined: <XCircle className="w-3.5 h-3.5 text-red-500" />,
+  paused: <PauseCircle className="w-3.5 h-3.5 text-amber-500" />,
+  resumed: <PlayCircle className="w-3.5 h-3.5 text-green-500" />,
+  disabled: <XCircle className="w-3.5 h-3.5 text-forest-f20" />,
+  executed: <CheckCircle2 className="w-3.5 h-3.5 text-forest-f40" />,
+  reanalyzed: <RefreshCw className="w-3.5 h-3.5 text-blue-500" />,
+  status_changed: <ArrowRight className="w-3.5 h-3.5 text-forest-f30" />,
+  evaluated: <AlertCircle className="w-3.5 h-3.5 text-amber-500" />,
+};
+
+const EVENT_LABEL: Record<string, string> = {
+  created: "Created",
+  approved: "Approved",
+  declined: "Declined",
+  paused: "Paused",
+  resumed: "Resumed",
+  disabled: "Disabled",
+  executed: "Executed",
+  reanalyzed: "Re-analyzed",
+  status_changed: "Status Changed",
+  evaluated: "Evaluated",
+};
+
+function PortfolioExecutionHistoryModal({
+  isOpen,
+  onClose,
+  accountId,
+  portfolioId,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  accountId: number;
+  portfolioId: number;
+}) {
+  const [trail, setTrail] = useState<PortfolioTrailEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setLoading(true);
+    getPortfolioTrail(accountId, portfolioId, { limit: 200 })
+      .then(setTrail)
+      .catch(() => setTrail([]))
+      .finally(() => setLoading(false));
+  }, [isOpen, accountId, portfolioId]);
+
+  return (
+    <BaseModal isOpen={isOpen} onClose={onClose} size="2xl" padding="p-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-sandstorm-s40">
+        <div className="flex items-center gap-2.5">
+          <Activity className="w-5 h-5 text-forest-f40" />
+          <div>
+            <h2 className="text-[16px] font-semibold text-forest-f60 font-agrandir">
+              Activity Trail
+            </h2>
+            <p className="text-[12px] text-forest-f20 mt-0.5">
+              {loading ? "Loading..." : `${trail.length} event${trail.length !== 1 ? "s" : ""} recorded`}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1.5 rounded-lg text-forest-f20 hover:bg-sandstorm-s5 hover:text-forest-f60 transition-colors"
+          aria-label="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="px-6 py-4 max-h-[65vh] overflow-y-auto">
+        {loading ? (
+          <div className="flex justify-center py-8"><Loader className="w-5 h-5" /></div>
+        ) : trail.length === 0 ? (
+          <p className="text-center text-forest-f20 text-sm py-8">No activity recorded yet</p>
+        ) : (
+          <div className="relative pl-2">
+            <div className="absolute left-[19px] top-4 bottom-4 w-px bg-sandstorm-s40" />
+            {trail.map((entry) => (
+              <div key={entry.id} className="relative flex gap-3 pb-5">
+                <div className="relative z-10 flex-shrink-0 w-10 h-10 rounded-full bg-white border border-sandstorm-s40 flex items-center justify-center shadow-sm">
+                  {EVENT_ICON[entry.event_type] || <Activity className="w-3.5 h-3.5 text-forest-f30" />}
+                </div>
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[12px] font-semibold text-forest-f60">
+                      {EVENT_LABEL[entry.event_type] || entry.event_type}
+                    </span>
+                    {entry.old_status && entry.new_status && entry.old_status !== entry.new_status && (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-forest-f30">
+                        <span className="px-1.5 py-0.5 rounded bg-sandstorm-s10 text-forest-f20">{entry.old_status}</span>
+                        <ArrowRight className="w-3 h-3" />
+                        <span className="px-1.5 py-0.5 rounded bg-forest-f40/10 text-forest-f40 font-medium">{entry.new_status}</span>
+                      </span>
+                    )}
+                    <span className="text-[10px] text-forest-f20 ml-auto flex-shrink-0">
+                      {formatDate(entry.created_at)}
+                    </span>
+                  </div>
+                  <p className="text-[12px] text-forest-f40 font-medium mt-0.5 truncate">
+                    {entry.action_description || entry.action_slug}
+                  </p>
+                  {entry.note && (
+                    <p className="text-[11px] text-forest-f30 mt-1 leading-relaxed">{entry.note}</p>
+                  )}
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-sandstorm-s10 text-forest-f20 font-mono">
+                      {entry.action_type}
+                    </span>
+                    <span className="text-[10px] text-forest-f20">
+                      #{entry.action_id}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </BaseModal>
+  );
+}
+
 export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, portfolioName: _portfolioName }) => {
   const [actions, setActions] = useState<PortfolioAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [trailOpen, setTrailOpen] = useState(false);
   const { openAssistant, startNewSession, setInputValue } = useAssistant();
 
   const handleCreateActions = useCallback(() => {
@@ -568,6 +703,15 @@ export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, p
             )}
             <button
               type="button"
+              onClick={() => setTrailOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-forest-f40 hover:text-forest-f50 border border-sandstorm-s40 hover:border-forest-f40/30 rounded-lg transition-colors bg-white"
+              aria-label="View activity trail"
+            >
+              <Activity className="w-3.5 h-3.5" />
+              Activity Trail
+            </button>
+            <button
+              type="button"
               onClick={() => setHistoryOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-forest-f40 hover:text-forest-f50 border border-sandstorm-s40 hover:border-forest-f40/30 rounded-lg transition-colors bg-white"
               aria-label="View analysis history"
@@ -597,6 +741,12 @@ export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, p
       <PortfolioAnalysisHistoryModal
         isOpen={historyOpen}
         onClose={() => setHistoryOpen(false)}
+        accountId={accountId}
+        portfolioId={portfolioId}
+      />
+      <PortfolioExecutionHistoryModal
+        isOpen={trailOpen}
+        onClose={() => setTrailOpen(false)}
         accountId={accountId}
         portfolioId={portfolioId}
       />
