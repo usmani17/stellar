@@ -5,6 +5,7 @@ import {
   listPortfolioActions,
   getPortfolioAnalysisHistory,
   getPortfolioTrail,
+  getPortfolioActionHistory,
   updatePortfolioRefreshSettings,
   getPortfolioRefreshSettings,
 } from "../../../services/portfolioActions";
@@ -56,7 +57,8 @@ function toActionItems(actions: PortfolioAction[]): ActionItem[] {
     guardrails: a.guardrails,
     reasoning: a.reasoning,
     learning: a.learning,
-    query: a.query ? { source: a.query.source, sql: a.query.sql } : undefined,
+    has_query: a.has_query ?? false,
+    query_source: a.query_source ?? null,
     schedule: a.schedule,
   }));
 }
@@ -531,6 +533,8 @@ const EVENT_LABEL: Record<string, string> = {
   evaluated: "Evaluated",
 };
 
+type TrailTab = "trail" | "executions";
+
 function PortfolioExecutionHistoryModal({
   isOpen,
   onClose,
@@ -542,17 +546,27 @@ function PortfolioExecutionHistoryModal({
   accountId: number;
   portfolioId: number;
 }) {
+  const [activeSubTab, setActiveSubTab] = useState<TrailTab>("trail");
   const [trail, setTrail] = useState<PortfolioTrailEntry[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [executions, setExecutions] = useState<Array<Record<string, unknown>>>([]);
+  const [loadingTrail, setLoadingTrail] = useState(false);
+  const [loadingExec, setLoadingExec] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
-    setLoading(true);
+    setLoadingTrail(true);
+    setLoadingExec(true);
     getPortfolioTrail(accountId, portfolioId, { limit: 200 })
       .then(setTrail)
       .catch(() => setTrail([]))
-      .finally(() => setLoading(false));
+      .finally(() => setLoadingTrail(false));
+    getPortfolioActionHistory(accountId, portfolioId, { limit: 100 })
+      .then((r) => setExecutions(r.executions))
+      .catch(() => setExecutions([]))
+      .finally(() => setLoadingExec(false));
   }, [isOpen, accountId, portfolioId]);
+
+  const loading = activeSubTab === "trail" ? loadingTrail : loadingExec;
 
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} size="2xl" padding="p-0">
@@ -561,10 +575,12 @@ function PortfolioExecutionHistoryModal({
           <Activity className="w-5 h-5 text-forest-f40" />
           <div>
             <h2 className="text-[16px] font-semibold text-forest-f60 font-agrandir">
-              Activity Trail
+              Portfolio Activity
             </h2>
             <p className="text-[12px] text-forest-f20 mt-0.5">
-              {loading ? "Loading..." : `${trail.length} event${trail.length !== 1 ? "s" : ""} recorded`}
+              {loading ? "Loading..." : activeSubTab === "trail"
+                ? `${trail.length} event${trail.length !== 1 ? "s" : ""}`
+                : `${executions.length} execution${executions.length !== 1 ? "s" : ""}`}
             </p>
           </div>
         </div>
@@ -577,53 +593,172 @@ function PortfolioExecutionHistoryModal({
         </button>
       </div>
 
-      <div className="px-6 py-4 max-h-[65vh] overflow-y-auto">
-        {loading ? (
-          <div className="flex justify-center py-8"><Loader className="w-5 h-5" /></div>
-        ) : trail.length === 0 ? (
-          <p className="text-center text-forest-f20 text-sm py-8">No activity recorded yet</p>
-        ) : (
-          <div className="relative pl-2">
-            <div className="absolute left-[19px] top-4 bottom-4 w-px bg-sandstorm-s40" />
-            {trail.map((entry) => (
-              <div key={entry.id} className="relative flex gap-3 pb-5">
-                <div className="relative z-10 flex-shrink-0 w-10 h-10 rounded-full bg-white border border-sandstorm-s40 flex items-center justify-center shadow-sm">
-                  {EVENT_ICON[entry.event_type] || <Activity className="w-3.5 h-3.5 text-forest-f30" />}
-                </div>
-                <div className="flex-1 min-w-0 pt-0.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[12px] font-semibold text-forest-f60">
-                      {EVENT_LABEL[entry.event_type] || entry.event_type}
-                    </span>
-                    {entry.old_status && entry.new_status && entry.old_status !== entry.new_status && (
-                      <span className="inline-flex items-center gap-1 text-[11px] text-forest-f30">
-                        <span className="px-1.5 py-0.5 rounded bg-sandstorm-s10 text-forest-f20">{entry.old_status}</span>
-                        <ArrowRight className="w-3 h-3" />
-                        <span className="px-1.5 py-0.5 rounded bg-forest-f40/10 text-forest-f40 font-medium">{entry.new_status}</span>
-                      </span>
-                    )}
-                    <span className="text-[10px] text-forest-f20 ml-auto flex-shrink-0">
-                      {formatDate(entry.created_at)}
-                    </span>
+      {/* Sub-tabs */}
+      <div className="flex border-b border-sandstorm-s40 px-6">
+        <button
+          onClick={() => setActiveSubTab("trail")}
+          className={cn(
+            "px-4 py-2.5 text-[12px] font-medium border-b-2 -mb-px transition-colors",
+            activeSubTab === "trail"
+              ? "border-forest-f40 text-forest-f60"
+              : "border-transparent text-forest-f30 hover:text-forest-f60",
+          )}
+        >
+          Activity Trail ({trail.length})
+        </button>
+        <button
+          onClick={() => setActiveSubTab("executions")}
+          className={cn(
+            "px-4 py-2.5 text-[12px] font-medium border-b-2 -mb-px transition-colors",
+            activeSubTab === "executions"
+              ? "border-forest-f40 text-forest-f60"
+              : "border-transparent text-forest-f30 hover:text-forest-f60",
+          )}
+        >
+          Execution History ({executions.length})
+        </button>
+      </div>
+
+      <div className="px-6 py-4 max-h-[60vh] overflow-y-auto">
+        {activeSubTab === "trail" && (
+          <>
+            {loadingTrail ? (
+              <div className="flex justify-center py-8"><Loader size="sm" /></div>
+            ) : trail.length === 0 ? (
+              <p className="text-center text-forest-f20 text-sm py-8">No activity recorded yet</p>
+            ) : (
+              <div className="relative pl-2">
+                <div className="absolute left-[19px] top-4 bottom-4 w-px bg-sandstorm-s40" />
+                {trail.map((entry) => (
+                  <div key={entry.id} className="relative flex gap-3 pb-5">
+                    <div className="relative z-10 flex-shrink-0 w-10 h-10 rounded-full bg-white border border-sandstorm-s40 flex items-center justify-center shadow-sm">
+                      {EVENT_ICON[entry.event_type] || <Activity className="w-3.5 h-3.5 text-forest-f30" />}
+                    </div>
+                    <div className="flex-1 min-w-0 pt-0.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[12px] font-semibold text-forest-f60">
+                          {EVENT_LABEL[entry.event_type] || entry.event_type}
+                        </span>
+                        {entry.old_status && entry.new_status && entry.old_status !== entry.new_status && (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-forest-f30">
+                            <span className="px-1.5 py-0.5 rounded bg-sandstorm-s10 text-forest-f20">{entry.old_status}</span>
+                            <ArrowRight className="w-3 h-3" />
+                            <span className="px-1.5 py-0.5 rounded bg-forest-f40/10 text-forest-f40 font-medium">{entry.new_status}</span>
+                          </span>
+                        )}
+                        <span className="text-[10px] text-forest-f20 ml-auto flex-shrink-0">
+                          {formatDate(entry.created_at)}
+                        </span>
+                      </div>
+                      <p className="text-[12px] text-forest-f40 font-medium mt-0.5 truncate">
+                        {entry.action_description || entry.action_slug}
+                      </p>
+                      {entry.note && (
+                        <p className="text-[11px] text-forest-f30 mt-1 leading-relaxed">{entry.note}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-sandstorm-s10 text-forest-f20 font-mono">
+                          {entry.action_type}
+                        </span>
+                        <span className="text-[10px] text-forest-f20">#{entry.action_id}</span>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-[12px] text-forest-f40 font-medium mt-0.5 truncate">
-                    {entry.action_description || entry.action_slug}
-                  </p>
-                  {entry.note && (
-                    <p className="text-[11px] text-forest-f30 mt-1 leading-relaxed">{entry.note}</p>
-                  )}
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-sandstorm-s10 text-forest-f20 font-mono">
-                      {entry.action_type}
-                    </span>
-                    <span className="text-[10px] text-forest-f20">
-                      #{entry.action_id}
-                    </span>
-                  </div>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </>
+        )}
+
+        {activeSubTab === "executions" && (
+          <>
+            {loadingExec ? (
+              <div className="flex justify-center py-8"><Loader size="sm" /></div>
+            ) : executions.length === 0 ? (
+              <p className="text-center text-forest-f20 text-sm py-8">No executions recorded yet</p>
+            ) : (
+              <div className="space-y-3">
+                {executions.map((exec) => {
+                  const execStatus = String(exec.status ?? "unknown");
+                  const isSuccess = execStatus === "success";
+                  const isFailed = execStatus === "failed" || execStatus === "error";
+                  const entityIds = Array.isArray(exec.entity_ids) ? exec.entity_ids as string[] : [];
+                  const result = exec.result as Record<string, unknown> | null | undefined;
+                  const error = exec.error as string | null | undefined;
+
+                  return (
+                    <div
+                      key={String(exec.id)}
+                      className={cn(
+                        "border rounded-lg p-4 space-y-2",
+                        isSuccess ? "border-green-200 bg-green-50/30" : isFailed ? "border-red-200 bg-red-50/30" : "border-sandstorm-s40",
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {isSuccess ? (
+                            <CheckCircle2 className="w-4 h-4 text-green-600" />
+                          ) : isFailed ? (
+                            <XCircle className="w-4 h-4 text-red-500" />
+                          ) : (
+                            <Clock className="w-4 h-4 text-amber-500" />
+                          )}
+                          <span className={cn(
+                            "text-[12px] font-semibold",
+                            isSuccess ? "text-green-700" : isFailed ? "text-red-600" : "text-forest-f60",
+                          )}>
+                            {execStatus.charAt(0).toUpperCase() + execStatus.slice(1)}
+                          </span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-sandstorm-s10 text-forest-f20 font-mono">
+                            {String(exec.action_type ?? "")}
+                          </span>
+                          <span className="text-[10px] text-forest-f20">
+                            {String(exec.platform ?? "")} / {String(exec.entity_type ?? "")}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-forest-f20">
+                          {exec.executed_at ? formatDate(String(exec.executed_at)) : exec.proposed_at ? formatDate(String(exec.proposed_at)) : ""}
+                        </span>
+                      </div>
+
+                      {exec.action_rule_id != null && (
+                        <p className="text-[12px] text-forest-f40 font-medium">
+                          {String(exec.action_rule_id)}
+                        </p>
+                      )}
+
+                      {entityIds.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          <span className="text-[10px] text-forest-f30 font-medium">Entities:</span>
+                          {entityIds.slice(0, 8).map((eid, i) => (
+                            <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-forest-f40/10 text-forest-f40 font-mono">
+                              {String(eid)}
+                            </span>
+                          ))}
+                          {entityIds.length > 8 && (
+                            <span className="text-[10px] text-forest-f20">+{entityIds.length - 8} more</span>
+                          )}
+                        </div>
+                      )}
+
+                      {result && typeof result === "object" && Object.keys(result).length > 0 && (
+                        <div className="text-[11px] text-forest-f30 bg-white rounded p-2 border border-sandstorm-s40">
+                          <span className="font-medium text-forest-f40">Result: </span>
+                          {JSON.stringify(result).slice(0, 300)}
+                        </div>
+                      )}
+
+                      {error && (
+                        <div className="text-[11px] text-red-600 bg-red-50 rounded p-2 border border-red-200">
+                          <span className="font-medium">Error: </span>{String(error)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
     </BaseModal>

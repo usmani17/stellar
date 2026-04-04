@@ -30,8 +30,9 @@ import { cn } from "../../lib/cn";
 import { CreatePortfolioWizard } from "./components/CreatePortfolioWizard";
 import { AnalysisHistoryModal } from "./components/AnalysisHistoryModal";
 import { PortfolioActionsTab } from "./components/PortfolioActionsTab";
+import { PortfolioExecutionHistoryTab } from "./components/PortfolioExecutionHistoryTab";
 
-type Tab = "campaigns" | "dashboards" | "actions";
+type Tab = "campaigns" | "dashboards" | "actions" | "history";
 
 function fmt(val: number | null | undefined, prefix = ""): string {
   if (val == null) return "—";
@@ -132,6 +133,8 @@ export const PortfolioDetail: React.FC = () => {
       setActiveTab("dashboards");
     } else if (tab === "campaigns") {
       setActiveTab("campaigns");
+    } else if (tab === "history") {
+      setActiveTab("history");
     } else {
       setActiveTab("actions");
     }
@@ -212,6 +215,7 @@ export const PortfolioDetail: React.FC = () => {
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "actions", label: "Actions", icon: <Zap className="w-4 h-4" /> },
+    { id: "history", label: "Execution History", icon: <History className="w-4 h-4" /> },
     { id: "campaigns", label: "Campaigns", icon: <Settings className="w-4 h-4" /> },
     { id: "dashboards", label: "Dashboards", icon: <LayoutDashboard className="w-4 h-4" /> },
   ];
@@ -376,6 +380,9 @@ export const PortfolioDetail: React.FC = () => {
             )}
             {activeTab === "actions" && (
               <PortfolioActionsTab accountId={accountId} portfolioId={portfolioId} portfolioName={portfolio?.name} />
+            )}
+            {activeTab === "history" && (
+              <PortfolioExecutionHistoryTab accountId={accountId} portfolioId={portfolioId} />
             )}
           </div>
         </div>

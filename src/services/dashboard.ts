@@ -98,13 +98,8 @@ export interface PortfolioAction {
   condition?: Record<string, unknown>;
   params?: Record<string, unknown>;
   guardrails?: Record<string, unknown>;
-  query?: {
-    source: "database" | "api";
-    sql?: string;
-    params?: unknown[] | Record<string, unknown>;
-    platform?: string;
-    endpoint?: string;
-  };
+  has_query?: boolean;
+  query_source?: string | null;
   reasoning?: {
     detected: string;
     why_it_matters: string;

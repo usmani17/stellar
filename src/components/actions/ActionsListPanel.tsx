@@ -34,6 +34,7 @@ import { updateActionStatus } from "../../services/dashboardActions";
 import {
   getPortfolioActionTrail,
   updatePortfolioAction,
+  updatePortfolioActionStatus,
   previewPortfolioAction,
   executePortfolioAction,
 } from "../../services/portfolioActions";
@@ -87,10 +88,8 @@ export interface ActionItem {
     patterns?: unknown[];
     strategy_adjustments?: unknown[];
   };
-  query?: {
-    source: string;
-    sql?: string;
-  };
+  has_query?: boolean;
+  query_source?: string | null;
   schedule?: {
     frequency: string;
     time?: string;
@@ -1019,7 +1018,7 @@ const ScheduleEditorPopover: React.FC<{
   );
 };
 
-const InlineConfirm: React.FC<{
+const PopoverConfirm: React.FC<{
   message: string;
   onConfirm: () => void;
   onCancel: () => void;
@@ -1027,32 +1026,36 @@ const InlineConfirm: React.FC<{
 }> = ({ message, onConfirm, onCancel, variant = "warning" }) => (
   <div
     className={cn(
-      "flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-[11px]",
+      "absolute right-0 top-full mt-1.5 z-50 min-w-[180px] rounded-lg border shadow-lg p-2.5 text-[11px] animate-in fade-in slide-in-from-top-1 duration-150",
       variant === "danger"
-        ? "border-red-200 bg-red-50 text-red-800"
-        : "border-amber-200 bg-amber-50 text-amber-800"
+        ? "border-red-200 bg-white text-red-800"
+        : "border-amber-200 bg-white text-amber-800"
     )}
   >
-    <span className="font-medium">{message}</span>
-    <div className="flex items-center gap-1.5 shrink-0">
+    <p className="font-medium mb-2">{message}</p>
+    <div className="flex items-center gap-1.5 justify-end">
+      <button
+        type="button"
+        onClick={onCancel}
+        className="px-2.5 py-1 rounded-md text-[10px] font-semibold bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+      >
+        Cancel
+      </button>
       <button
         type="button"
         onClick={onConfirm}
         className={cn(
-          "px-2 py-0.5 rounded text-[10px] font-semibold text-white",
-          variant === "danger" ? "bg-red-600 hover:bg-red-700" : "bg-amber-600 hover:bg-amber-700"
+          "px-2.5 py-1 rounded-md text-[10px] font-semibold text-white transition-colors",
+          variant === "danger" ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"
         )}
       >
-        Yes
-      </button>
-      <button
-        type="button"
-        onClick={onCancel}
-        className="px-2 py-0.5 rounded text-[10px] font-semibold bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-      >
-        No
+        Confirm
       </button>
     </div>
+    <div className={cn(
+      "absolute -top-1.5 right-4 w-3 h-3 rotate-45 border-l border-t",
+      variant === "danger" ? "bg-white border-red-200" : "bg-white border-amber-200"
+    )} />
   </div>
 );
 
@@ -1078,6 +1081,7 @@ export const ActionsListPanel: React.FC<ActionsListPanelProps> = ({
   const [confirmingDecline, setConfirmingDecline] = useState<string | null>(null);
   const [confirmingPause, setConfirmingPause] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+  const [confirmingBulk, setConfirmingBulk] = useState<"approve" | "decline" | null>(null);
 
   React.useEffect(() => {
     setLocalActions(externalActions);
@@ -1157,10 +1161,14 @@ export const ActionsListPanel: React.FC<ActionsListPanelProps> = ({
       if (!action.action_id) return;
       setStatusUpdating((prev) => new Set([...prev, action.id]));
       try {
-        await updateActionStatus(accountId, action.dashboard_id, {
-          action_ids: [action.action_id],
-          status: newStatus,
-        });
+        if (_portfolioId) {
+          await updatePortfolioActionStatus(accountId, _portfolioId, [action.action_id], newStatus);
+        } else {
+          await updateActionStatus(accountId, action.dashboard_id, {
+            action_ids: [action.action_id],
+            status: newStatus,
+          });
+        }
         setLocalActions((prev) =>
           prev.map((a) => (a.id === action.id ? { ...a, status: newStatus } : a))
         );
@@ -1175,7 +1183,7 @@ export const ActionsListPanel: React.FC<ActionsListPanelProps> = ({
         });
       }
     },
-    [accountId, onActionStatusChange]
+    [accountId, _portfolioId, onActionStatusChange]
   );
 
   const handleApprove = useCallback(
@@ -1220,21 +1228,27 @@ export const ActionsListPanel: React.FC<ActionsListPanelProps> = ({
   const handleApproveAll = useCallback(async () => {
     const pending = pendingReviewActions.filter((a) => a.action_id);
     if (pending.length === 0) return;
-    const byDashboard = new Map<number, ActionItem[]>();
-    for (const a of pending) {
-      if (!byDashboard.has(a.dashboard_id)) byDashboard.set(a.dashboard_id, []);
-      byDashboard.get(a.dashboard_id)!.push(a);
-    }
     setStatusUpdating((prev) => new Set([...prev, ...pending.map((a) => a.id)]));
     try {
-      await Promise.all(
-        Array.from(byDashboard.entries()).map(([dashId, actions]) =>
-          updateActionStatus(accountId, dashId, {
-            action_ids: actions.map((a) => a.action_id),
-            status: "active",
-          })
-        )
-      );
+      if (_portfolioId) {
+        await updatePortfolioActionStatus(
+          accountId, _portfolioId, pending.map((a) => a.action_id), "active",
+        );
+      } else {
+        const byDashboard = new Map<number, ActionItem[]>();
+        for (const a of pending) {
+          if (!byDashboard.has(a.dashboard_id)) byDashboard.set(a.dashboard_id, []);
+          byDashboard.get(a.dashboard_id)!.push(a);
+        }
+        await Promise.all(
+          Array.from(byDashboard.entries()).map(([dashId, actions]) =>
+            updateActionStatus(accountId, dashId, {
+              action_ids: actions.map((a) => a.action_id),
+              status: "active",
+            })
+          )
+        );
+      }
       const ids = new Set(pending.map((a) => a.id));
       setLocalActions((prev) =>
         prev.map((a) => (ids.has(a.id) ? { ...a, status: "active" } : a))
@@ -1244,26 +1258,32 @@ export const ActionsListPanel: React.FC<ActionsListPanelProps> = ({
     } finally {
       setStatusUpdating(new Set());
     }
-  }, [pendingReviewActions, accountId]);
+  }, [pendingReviewActions, accountId, _portfolioId]);
 
   const handleDeclineAll = useCallback(async () => {
     const pending = pendingReviewActions.filter((a) => a.action_id);
     if (pending.length === 0) return;
-    const byDashboard = new Map<number, ActionItem[]>();
-    for (const a of pending) {
-      if (!byDashboard.has(a.dashboard_id)) byDashboard.set(a.dashboard_id, []);
-      byDashboard.get(a.dashboard_id)!.push(a);
-    }
     setStatusUpdating((prev) => new Set([...prev, ...pending.map((a) => a.id)]));
     try {
-      await Promise.all(
-        Array.from(byDashboard.entries()).map(([dashId, actions]) =>
-          updateActionStatus(accountId, dashId, {
-            action_ids: actions.map((a) => a.action_id),
-            status: "disabled",
-          })
-        )
-      );
+      if (_portfolioId) {
+        await updatePortfolioActionStatus(
+          accountId, _portfolioId, pending.map((a) => a.action_id), "disabled",
+        );
+      } else {
+        const byDashboard = new Map<number, ActionItem[]>();
+        for (const a of pending) {
+          if (!byDashboard.has(a.dashboard_id)) byDashboard.set(a.dashboard_id, []);
+          byDashboard.get(a.dashboard_id)!.push(a);
+        }
+        await Promise.all(
+          Array.from(byDashboard.entries()).map(([dashId, actions]) =>
+            updateActionStatus(accountId, dashId, {
+              action_ids: actions.map((a) => a.action_id),
+              status: "disabled",
+            })
+          )
+        );
+      }
       const ids = new Set(pending.map((a) => a.id));
       setLocalActions((prev) =>
         prev.map((a) => (ids.has(a.id) ? { ...a, status: "disabled" } : a))
@@ -1273,7 +1293,7 @@ export const ActionsListPanel: React.FC<ActionsListPanelProps> = ({
     } finally {
       setStatusUpdating(new Set());
     }
-  }, [pendingReviewActions, accountId]);
+  }, [pendingReviewActions, accountId, _portfolioId]);
 
   return (
     <div className="space-y-4">
@@ -1287,24 +1307,44 @@ export const ActionsListPanel: React.FC<ActionsListPanelProps> = ({
             </span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              onClick={handleApproveAll}
-              disabled={statusUpdating.size > 0}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <ShieldCheck className="w-3 h-3" />
-              Approve All
-            </button>
-            <button
-              type="button"
-              onClick={handleDeclineAll}
-              disabled={statusUpdating.size > 0}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-white text-red-600 hover:bg-red-50 border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <ShieldX className="w-3 h-3" />
-              Decline All
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setConfirmingBulk((p) => (p === "approve" ? null : "approve"))}
+                disabled={statusUpdating.size > 0}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ShieldCheck className="w-3 h-3" />
+                Approve All
+              </button>
+              {confirmingBulk === "approve" && (
+                <PopoverConfirm
+                  message={`Approve all ${pendingReviewActions.length} actions?`}
+                  onConfirm={() => { setConfirmingBulk(null); handleApproveAll(); }}
+                  onCancel={() => setConfirmingBulk(null)}
+                  variant="warning"
+                />
+              )}
+            </div>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setConfirmingBulk((p) => (p === "decline" ? null : "decline"))}
+                disabled={statusUpdating.size > 0}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-white text-red-600 hover:bg-red-50 border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ShieldX className="w-3 h-3" />
+                Decline All
+              </button>
+              {confirmingBulk === "decline" && (
+                <PopoverConfirm
+                  message={`Decline all ${pendingReviewActions.length} actions?`}
+                  onConfirm={() => { setConfirmingBulk(null); handleDeclineAll(); }}
+                  onCancel={() => setConfirmingBulk(null)}
+                  variant="danger"
+                />
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1658,7 +1698,7 @@ const ActionCard: React.FC<ActionCardProps> = ({
 
         {/* Control buttons */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {action.query?.sql && portfolioId && (
+          {action.has_query && portfolioId && (
             <button
               type="button"
               onClick={handlePreview}
@@ -1672,55 +1712,75 @@ const ActionCard: React.FC<ActionCardProps> = ({
           )}
           {isPendingReview ? (
             <>
-              <button
-                type="button"
-                onClick={onApproveClick}
-                disabled={isUpdating}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                aria-label="Approve action"
-                title="Approve — makes action active"
-              >
-                <ShieldCheck className="w-3 h-3" />
-                Approve
-              </button>
-              <button
-                type="button"
-                onClick={onDeclineClick}
-                disabled={isUpdating}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold bg-white text-red-600 hover:bg-red-50 border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                aria-label="Decline action"
-                title="Decline — disables action"
-              >
-                <ShieldX className="w-3 h-3" />
-                Decline
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={onApproveClick}
+                  disabled={isUpdating}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Approve action"
+                  title="Approve — makes action active"
+                >
+                  <ShieldCheck className="w-3 h-3" />
+                  Approve
+                </button>
+                {confirmingApprove && (
+                  <PopoverConfirm message="Approve this action?" onConfirm={onApproveConfirm} onCancel={onApproveCancel} variant="warning" />
+                )}
+              </div>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={onDeclineClick}
+                  disabled={isUpdating}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold bg-white text-red-600 hover:bg-red-50 border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Decline action"
+                  title="Decline — disables action"
+                >
+                  <ShieldX className="w-3 h-3" />
+                  Decline
+                </button>
+                {confirmingDecline && (
+                  <PopoverConfirm message="Decline this action?" onConfirm={onDeclineConfirm} onCancel={onDeclineCancel} variant="danger" />
+                )}
+              </div>
             </>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={isPaused ? onResumeClick : onPauseClick}
-                disabled={isUpdating}
-                className="p-1 rounded hover:bg-sandstorm-s20 transition-colors disabled:opacity-50"
-                aria-label={isPaused ? "Resume action" : "Pause action"}
-                title={isPaused ? "Resume" : "Pause"}
-              >
-                {isPaused ? (
-                  <Play className="w-3.5 h-3.5 text-emerald-600" />
-                ) : (
-                  <Pause className="w-3.5 h-3.5 text-amber-600" />
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={isPaused ? onResumeClick : onPauseClick}
+                  disabled={isUpdating}
+                  className="p-1 rounded hover:bg-sandstorm-s20 transition-colors disabled:opacity-50"
+                  aria-label={isPaused ? "Resume action" : "Pause action"}
+                  title={isPaused ? "Resume" : "Pause"}
+                >
+                  {isPaused ? (
+                    <Play className="w-3.5 h-3.5 text-emerald-600" />
+                  ) : (
+                    <Pause className="w-3.5 h-3.5 text-amber-600" />
+                  )}
+                </button>
+                {confirmingPause && (
+                  <PopoverConfirm message="Pause this action?" onConfirm={onPauseConfirm} onCancel={onPauseCancel} variant="warning" />
                 )}
-              </button>
-              <button
-                type="button"
-                onClick={onDeleteClick}
-                disabled={isUpdating}
-                className="p-1 rounded hover:bg-red-50 transition-colors disabled:opacity-50"
-                aria-label="Delete action"
-                title="Delete"
-              >
-                <Trash2 className="w-3.5 h-3.5 text-red-500" />
-              </button>
+              </div>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={onDeleteClick}
+                  disabled={isUpdating}
+                  className="p-1 rounded hover:bg-red-50 transition-colors disabled:opacity-50"
+                  aria-label="Delete action"
+                  title="Delete"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                </button>
+                {confirmingDelete && (
+                  <PopoverConfirm message="Delete this action?" onConfirm={onDeleteConfirm} onCancel={onDeleteCancel} variant="danger" />
+                )}
+              </div>
             </>
           )}
         </div>
@@ -1839,7 +1899,7 @@ const ActionCard: React.FC<ActionCardProps> = ({
           onClose={() => setTriggerModalOpen(false)}
           condition={action.condition}
           platform={action.platform}
-          querySql={action.query?.sql}
+          querySql={undefined}
           accountId={accountId}
           portfolioId={portfolioId}
           actionId={action.action_id}
@@ -2002,19 +2062,7 @@ const ActionCard: React.FC<ActionCardProps> = ({
         </div>
       )}
 
-      {/* Inline confirmations */}
-      {confirmingApprove && (
-        <InlineConfirm message="Approve this action?" onConfirm={onApproveConfirm} onCancel={onApproveCancel} variant="warning" />
-      )}
-      {confirmingDecline && (
-        <InlineConfirm message="Decline this action?" onConfirm={onDeclineConfirm} onCancel={onDeclineCancel} variant="danger" />
-      )}
-      {confirmingPause && (
-        <InlineConfirm message="Pause this action?" onConfirm={onPauseConfirm} onCancel={onPauseCancel} variant="warning" />
-      )}
-      {confirmingDelete && (
-        <InlineConfirm message="Delete this action?" onConfirm={onDeleteConfirm} onCancel={onDeleteCancel} variant="danger" />
-      )}
+      {/* Confirmations are rendered as popovers next to their buttons */}
 
       {/* Preview modal */}
       <ActionPreviewModal
