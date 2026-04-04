@@ -4,9 +4,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Search,
   RefreshCw,
-  MoreVertical,
   Trash2,
-  Eye,
   Pencil,
   LayoutDashboard,
   ArrowUpDown,
@@ -812,7 +810,6 @@ export const PortfolioList: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [inputValue, setInputValue, searchQuery] = useDebouncedSearch();
   const [deletingPortfolio, setDeletingPortfolio] = useState<PortfolioListItem | null>(null);
-  const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   const [expandedRowId, setExpandedRowId] = useState<number | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({
     key: "name",
@@ -1055,11 +1052,21 @@ export const PortfolioList: React.FC = () => {
                       <thead>
                         <tr className="bg-sandstorm-s0 border-b border-sandstorm-s40">
                           <th
-                            colSpan={4}
-                            className="table-header !cursor-default text-left sticky left-0 z-30 bg-sandstorm-s10 border-r border-sandstorm-s40 shadow-[2px_0_6px_rgba(7,41,41,0.08)] text-forest-f60 font-semibold"
+                            className={cn(
+                              "table-header !cursor-default text-left sticky left-0 z-30 bg-sandstorm-s10 text-forest-f60 font-semibold",
+                              COL.portfolio,
+                            )}
                           >
                             Portfolio
                           </th>
+                          <th
+                            className={cn(
+                              "table-header !cursor-default text-left sticky z-30 bg-sandstorm-s10 border-r border-sandstorm-s40 shadow-[2px_0_6px_rgba(7,41,41,0.08)] text-forest-f60 font-semibold",
+                              COL.brandSticky,
+                              COL.brand,
+                            )}
+                          />
+                          <th colSpan={2} className="table-header !cursor-default bg-sandstorm-s10 border-r border-sandstorm-s40 text-forest-f60 font-semibold" />
                           <th
                             colSpan={4}
                             className="table-header !cursor-default text-center bg-sandstorm-s10/90 text-forest-f60 font-semibold border-r border-sandstorm-s40"
@@ -1171,10 +1178,6 @@ export const PortfolioList: React.FC = () => {
                                   )
                                 }
                                 onDelete={() => setDeletingPortfolio(p)}
-                                menuOpen={menuOpenId === p.id}
-                                onMenuToggle={() =>
-                                  setMenuOpenId(menuOpenId === p.id ? null : p.id)
-                                }
                               />
                               {expandedRowId === p.id ? (
                                 <tr className="border-t border-forest-f40/20 bg-sandstorm-s20">
@@ -1252,8 +1255,6 @@ interface PortfolioRowProps {
   onAgents: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  menuOpen: boolean;
-  onMenuToggle: () => void;
 }
 
       const PortfolioRow: React.FC<PortfolioRowProps> = ({
@@ -1265,13 +1266,10 @@ interface PortfolioRowProps {
         onAgents,
         onEdit,
         onDelete,
-        menuOpen,
-        onMenuToggle,
 }) => {
   const navigate = useNavigate();
         const t = p.latestTracking;
         const dashCount = p.dashboardCount ?? 0;
-        const latestDashboardId = p.latestDashboardId ?? null;
 
   const stickyCell = (extra: string) =>
         cn("table-cell align-top bg-sandstorm-s5", extra);
@@ -1337,20 +1335,14 @@ interface PortfolioRowProps {
                   {p.campaignCount} campaigns · {PLATFORM_LABELS[p.platform] ?? p.platform}
                 </span>
                 <div className="flex items-center gap-3 flex-wrap mt-0.5">
-                  {dashCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAgents();
-                      }}
-                      className="inline-flex items-center gap-1 self-start text-[11px] font-medium text-forest-f40 hover:text-forest-f50"
-                      aria-label={`Open dashboards tab, ${dashCount} dashboards`}
-                    >
-                      <LayoutDashboard className="w-3.5 h-3.5 shrink-0" aria-hidden />
-                      {dashCount} dashboard{dashCount === 1 ? "" : "s"}
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onView(); }}
+                    className="text-[11px] font-medium text-forest-f40 hover:text-forest-f50 underline hover:no-underline"
+                    aria-label="Open portfolio detail"
+                  >
+                    Detail
+                  </button>
                   {(p.actionCount ?? 0) > 0 && (
                     <button
                       type="button"
@@ -1383,6 +1375,20 @@ interface PortfolioRowProps {
             <span className="text-[12px] text-forest-f60 truncate block" title={p.accountName}>
               {p.accountName}
             </span>
+            {dashCount > 0 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAgents();
+                }}
+                className="inline-flex items-center gap-1 mt-1 text-[11px] font-medium text-forest-f40 hover:text-forest-f50"
+                aria-label={`Open dashboards tab, ${dashCount} dashboards`}
+              >
+                <LayoutDashboard className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                {dashCount} dashboard{dashCount === 1 ? "" : "s"}
+              </button>
+            )}
           </td>
           <td className={cn("table-cell align-top", COL.tags)}>
             <div className="flex flex-wrap gap-1">
@@ -1399,7 +1405,7 @@ interface PortfolioRowProps {
               )}
             </div>
           </td>
-          <td className={cn("table-cell align-top", COL.adAccount)}>
+          <td className={cn("table-cell align-top border-r border-sandstorm-s40", COL.adAccount)}>
             <div className="flex flex-col gap-0.5 text-[12px] leading-snug text-forest-f60">
               <span className="text-forest-f60">{p.channelName}</span>
               {p.profileName && (
@@ -1418,7 +1424,7 @@ interface PortfolioRowProps {
           <td className="table-cell text-[12px] text-forest-f60 whitespace-nowrap tabular-nums align-middle">
             {metricsLoading ? <MetricSkeleton /> : t?.totalSpend != null ? formatCurrency(t.totalSpend) : <EmptyValue />}
           </td>
-          <td className="table-cell whitespace-nowrap align-middle tabular-nums">
+          <td className="table-cell whitespace-nowrap align-middle tabular-nums border-r border-sandstorm-s40">
             {metricsLoading ? (
               <MetricSkeleton />
             ) : t?.pacingPercentage != null ? (
@@ -1500,70 +1506,25 @@ interface PortfolioRowProps {
             )}
           </td>
           <td
-            className="table-cell relative z-20 w-11 min-w-[2.75rem] align-middle bg-sandstorm-s5"
+            className="table-cell relative z-20 align-middle border-l border-sandstorm-s40"
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onMenuToggle();
-              }}
-              className="p-1 rounded hover:bg-sandstorm-s20 transition-colors"
-              aria-label="Actions"
-            >
-              <MoreVertical className="w-4 h-4 text-forest-f30" />
-            </button>
-            {menuOpen && (
-              <div
-                className={cn(
-                  "absolute right-0 top-full z-[100] mt-1 min-w-[168px] rounded-lg border border-sandstorm-s40 bg-white py-1 shadow-lg",
-                )}
-                onClick={(e) => e.stopPropagation()}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                className="p-1 rounded text-forest-f30 hover:text-forest-f50 hover:bg-sandstorm-s10 transition-colors"
+                aria-label="Edit portfolio"
               >
-                {latestDashboardId != null ? (
-                  <button
-                    onClick={() => {
-                      navigate(`/brands/${p.accountId}/dashboards/${latestDashboardId}?portfolioId=${p.id}`);
-                      onMenuToggle();
-                    }}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-forest-f60 hover:bg-sandstorm-s5 transition-colors"
-                  >
-                    <ExternalLink className="w-4 h-4 shrink-0 text-forest-f40" />
-                    Open dashboard
-                  </button>
-                ) : null}
-                <button
-                  onClick={() => {
-                    onView();
-                    onMenuToggle();
-                  }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-forest-f60 hover:bg-sandstorm-s5 transition-colors"
-                >
-                  <Eye className="w-4 h-4" />
-                  View
-                </button>
-                <button
-                  onClick={() => {
-                    onEdit();
-                    onMenuToggle();
-                  }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-forest-f60 hover:bg-sandstorm-s5 transition-colors"
-                >
-                  <Pencil className="w-4 h-4" />
-                  Edit
-                </button>
-                <button
-                  onClick={() => {
-                    onDelete();
-                    onMenuToggle();
-                  }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-red-r30 hover:bg-red-r0 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete
-                </button>
-              </div>
-            )}
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                className="p-1 rounded text-forest-f30 hover:text-red-r30 hover:bg-red-r0 transition-colors"
+                aria-label="Delete portfolio"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </td>
         </tr>
         );

@@ -160,7 +160,7 @@ export function PortfolioExecutionHistoryTab({
   }, [executions]);
 
   return (
-    <div className="space-y-4 mt-4">
+    <div className="space-y-4 mt-4 overflow-hidden">
       {/* Summary cards */}
       <div className="grid grid-cols-4 gap-3">
         <div className="bg-white border border-sandstorm-s40 rounded-lg p-3">
@@ -255,7 +255,7 @@ export function PortfolioExecutionHistoryTab({
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 overflow-hidden">
               {filteredExecutions.map((exec) => {
                 const execStatus = String(exec.status ?? "unknown");
                 const isSuccess = execStatus === "success";
@@ -269,7 +269,7 @@ export function PortfolioExecutionHistoryTab({
                   <div
                     key={String(exec.id)}
                     className={cn(
-                      "border rounded-xl p-4 transition-colors",
+                      "border rounded-xl p-4 transition-colors overflow-hidden",
                       isSuccess
                         ? "border-green-200 bg-green-50/20 hover:bg-green-50/40"
                         : isFailed
@@ -278,8 +278,8 @@ export function PortfolioExecutionHistoryTab({
                     )}
                   >
                     {/* Header row */}
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2.5">
+                    <div className="flex items-center justify-between mb-2 min-w-0">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         {isSuccess ? (
                           <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center">
                             <CheckCircle2 className="w-4 h-4 text-green-600" />
@@ -293,9 +293,9 @@ export function PortfolioExecutionHistoryTab({
                             <Clock className="w-4 h-4 text-amber-500" />
                           </div>
                         )}
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[13px] font-semibold text-forest-f60">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-[13px] font-semibold text-forest-f60 truncate">
                               {String(exec.action_rule_id ?? `Execution #${exec.id}`)}
                             </span>
                             <StatusBadge status={execStatus} />
@@ -368,8 +368,8 @@ export function PortfolioExecutionHistoryTab({
                     {result && typeof result === "object" && Object.keys(result).length > 0 && (
                       <div className="mt-2 pt-2 border-t border-sandstorm-s40/50">
                         <p className="text-[10px] font-medium text-green-600 mb-1">Result:</p>
-                        <div className="text-[11px] text-forest-f30 bg-white rounded-lg p-2.5 border border-sandstorm-s40">
-                          {JSON.stringify(result, null, 2).slice(0, 400)}
+                        <div className="text-[11px] text-forest-f30 bg-white rounded-lg p-2.5 border border-sandstorm-s40 overflow-hidden">
+                          <pre className="whitespace-pre-wrap break-all text-[10px]">{JSON.stringify(result, null, 2).slice(0, 400)}</pre>
                         </div>
                       </div>
                     )}
@@ -378,7 +378,7 @@ export function PortfolioExecutionHistoryTab({
                     {error && (
                       <div className="mt-2 pt-2 border-t border-sandstorm-s40/50">
                         <p className="text-[10px] font-medium text-red-600 mb-1">Error:</p>
-                        <div className="text-[11px] text-red-600 bg-red-50 rounded-lg p-2.5 border border-red-200">
+                        <div className="text-[11px] text-red-600 bg-red-50 rounded-lg p-2.5 border border-red-200 break-words overflow-hidden">
                           {String(error)}
                         </div>
                       </div>
@@ -406,14 +406,14 @@ export function PortfolioExecutionHistoryTab({
               </p>
             </div>
           ) : (
-            <div className="relative pl-3">
+            <div className="relative pl-3 overflow-hidden">
               <div className="absolute left-[21px] top-4 bottom-4 w-px bg-sandstorm-s40" />
               {filteredTrail.map((entry) => (
-                <div key={entry.id} className="relative flex gap-3.5 pb-5">
+                <div key={entry.id} className="relative flex gap-3.5 pb-5 min-w-0">
                   <div className="relative z-10 flex-shrink-0 w-10 h-10 rounded-full bg-white border border-sandstorm-s40 flex items-center justify-center shadow-sm">
                     {EVENT_ICON[entry.event_type] || <Activity className="w-3.5 h-3.5 text-forest-f30" />}
                   </div>
-                  <div className="flex-1 min-w-0 pt-0.5 bg-white border border-sandstorm-s40 rounded-xl px-4 py-3">
+                  <div className="flex-1 min-w-0 pt-0.5 bg-white border border-sandstorm-s40 rounded-xl px-4 py-3 overflow-hidden">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[12px] font-semibold text-forest-f60">
                         {EVENT_LABEL[entry.event_type] || entry.event_type}
@@ -433,11 +433,11 @@ export function PortfolioExecutionHistoryTab({
                         {formatDate(entry.created_at)}
                       </span>
                     </div>
-                    <p className="text-[12px] text-forest-f40 font-medium mt-1 truncate">
+                    <p className="text-[12px] text-forest-f40 font-medium mt-1 truncate" title={entry.action_description || entry.action_slug}>
                       {entry.action_description || entry.action_slug}
                     </p>
                     {entry.note && (
-                      <p className="text-[11px] text-forest-f30 mt-1.5 leading-relaxed">{entry.note}</p>
+                      <p className="text-[11px] text-forest-f30 mt-1.5 leading-relaxed line-clamp-2 break-words" title={entry.note}>{entry.note}</p>
                     )}
                     <div className="flex items-center gap-2 mt-1.5">
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-sandstorm-s10 text-forest-f20 font-mono">

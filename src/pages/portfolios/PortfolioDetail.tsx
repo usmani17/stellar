@@ -225,12 +225,12 @@ export const PortfolioDetail: React.FC = () => {
       <Sidebar />
 
       <div
-        className="flex-1 w-full"
+        className="flex-1 w-full min-w-0"
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
         <AccountsHeader />
         <Assistant>
-        <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white min-h-[calc(100vh-64px)]">
+        <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white min-h-[calc(100vh-64px)] overflow-x-hidden">
           <div className="space-y-6">
             {successMsg && (
               <Banner
@@ -468,24 +468,24 @@ const PortfolioDashboardsTab: React.FC<{ accountId: number; portfolioId: number 
         <p className="text-[13px] text-forest-f30">
           {loading ? "" : `${dashboards.length} dashboard${dashboards.length !== 1 ? "s" : ""}`}
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {dashboards.length > 0 && (
             <button
               onClick={() => setHistoryOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-forest-f40 border border-sandstorm-s40 rounded-lg hover:bg-sandstorm-s5 transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold text-forest-f40 border border-sandstorm-s40 hover:border-forest-f40/30 hover:bg-sandstorm-s5 transition-colors"
               aria-label="View analysis history"
             >
-              <History className="w-3.5 h-3.5" />
+              <History className="w-3 h-3" />
               Analysis History
             </button>
           )}
           <button
             onClick={() => fetchDashboards(true)}
             disabled={refreshing || loading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-forest-f40 border border-sandstorm-s40 rounded-lg hover:bg-sandstorm-s5 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold text-forest-f40 border border-sandstorm-s40 hover:bg-sandstorm-s5 transition-colors disabled:opacity-50"
             aria-label="Refresh dashboards"
           >
-            <RefreshCw className={cn("w-3.5 h-3.5", (refreshing || loading) && "animate-spin")} />
+            <RefreshCw className={cn("w-3 h-3", (refreshing || loading) && "animate-spin")} />
             {refreshing ? "Refreshing..." : "Refresh"}
           </button>
         </div>
