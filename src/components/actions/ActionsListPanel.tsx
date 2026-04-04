@@ -119,43 +119,70 @@ interface ActionsListPanelProps {
   headerExtra?: React.ReactNode;
 }
 
-function fmtDateMDY(iso?: string): string {
-  if (!iso) return "TBD";
-  const [y, m, d] = iso.split("-");
-  if (!y || !m || !d) return iso;
-  return `${m}/${d}/${y}`;
+const DISPLAY_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const DISPLAY_TZ_LABEL = (() => {
+  const parts = new Date().toLocaleTimeString("en-US", { timeZoneName: "short", timeZone: DISPLAY_TZ }).split(" ");
+  return parts[parts.length - 1] || "local";
+})();
+
+function utcTimeToDisplay(utcTime: string, refDate?: string): string {
+  const [hh, mm] = utcTime.split(":").map(Number);
+  const dateStr = refDate || "2026-01-15";
+  const d = new Date(`${dateStr}T${String(hh).padStart(2, "0")}:${String(mm || 0).padStart(2, "0")}:00Z`);
+  if (isNaN(d.getTime())) return utcTime;
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: DISPLAY_TZ });
+}
+
+function utcDateTimeToDisplay(utcDate: string, utcTime: string): { date: string; time: string } {
+  const [hh, mm] = utcTime.split(":").map(Number);
+  const d = new Date(`${utcDate}T${String(hh).padStart(2, "0")}:${String(mm || 0).padStart(2, "0")}:00Z`);
+  if (isNaN(d.getTime())) return { date: utcDate, time: utcTime };
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: DISPLAY_TZ, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return {
+    date: `${get("month")}/${get("day")}/${get("year")}`,
+    time: d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: DISPLAY_TZ }),
+  };
 }
 
 function fmtNextRun(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: DISPLAY_TZ })
     + " at "
-    + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "UTC" })
-    + " UTC";
+    + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: DISPLAY_TZ })
+    + ` ${DISPLAY_TZ_LABEL}`;
 }
 
 function formatScheduleLabel(schedule?: ActionItem["schedule"]): string {
   if (!schedule || !schedule.frequency) return "Not scheduled";
   const t = schedule.time ?? "09:00";
-  const tz = schedule.timezone ?? "UTC";
+  const displayTime = utcTimeToDisplay(t);
   switch (schedule.frequency) {
     case "hourly":
-      return `Hourly (${tz})`;
+      return `Hourly (${DISPLAY_TZ_LABEL})`;
     case "daily":
-      return `Daily at ${t} (${tz})`;
+      return `Daily at ${displayTime} (${DISPLAY_TZ_LABEL})`;
     case "weekly": {
       const days = (schedule.weekdays ?? []).map((d) => WEEKDAY_SHORT[d] ?? "?").join(", ");
-      return `Weekly ${days || "Mon"} at ${t} (${tz})`;
+      return `Weekly ${days || "Mon"} at ${displayTime} (${DISPLAY_TZ_LABEL})`;
     }
     case "monthly": {
       const days = (schedule.monthDays ?? []).sort((a, b) => a - b).join(", ");
-      return `Monthly on ${days || "1"} at ${t} (${tz})`;
+      return `Monthly on ${days || "1"} at ${displayTime} (${DISPLAY_TZ_LABEL})`;
     }
-    case "once":
-      return `Once on ${fmtDateMDY(schedule.date)} at ${t} (${tz})`;
+    case "once": {
+      if (schedule.date) {
+        const disp = utcDateTimeToDisplay(schedule.date, t);
+        return `Once on ${disp.date} at ${disp.time} (${DISPLAY_TZ_LABEL})`;
+      }
+      return `Once at ${displayTime} (${DISPLAY_TZ_LABEL})`;
+    }
     default:
-      return `${schedule.frequency} at ${t} (${tz})`;
+      return `${schedule.frequency} at ${displayTime} (${DISPLAY_TZ_LABEL})`;
   }
 }
 
@@ -772,29 +799,96 @@ const SCHED_TIME_OPTIONS = Array.from({ length: 24 }, (_, i) => {
 
 const SCHED_WEEKDAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-function scheduleToEditorState(schedule?: ActionItem["schedule"]): ScheduleEditorState {
-  const today = new Date();
+function utcToEtEditorValues(utcTime: string, utcDate?: string): { time: string; date: string } {
+  const dateStr = utcDate || new Date().toISOString().slice(0, 10);
+  const [hh, mm] = utcTime.split(":").map(Number);
+  const d = new Date(`${dateStr}T${String(hh).padStart(2, "0")}:${String(mm || 0).padStart(2, "0")}:00Z`);
+  if (isNaN(d.getTime())) return { time: utcTime, date: dateStr };
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: DISPLAY_TZ, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const localHour = get("hour") === "24" ? "00" : get("hour");
   return {
-    frequency: schedule?.frequency || "daily",
-    time: schedule?.time || "09:00",
-    weekdays: schedule?.weekdays ?? [0],
-    monthDays: schedule?.monthDays ?? [1],
-    date: schedule?.date || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`,
+    time: `${localHour}:${get("minute")}`,
+    date: `${get("year")}-${get("month")}-${get("day")}`,
   };
 }
 
+function scheduleToEditorState(schedule?: ActionItem["schedule"]): ScheduleEditorState {
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  if (!schedule?.time) {
+    return {
+      frequency: schedule?.frequency || "daily",
+      time: "09:00",
+      weekdays: schedule?.weekdays ?? [0],
+      monthDays: schedule?.monthDays ?? [1],
+      date: todayStr,
+    };
+  }
+  const et = utcToEtEditorValues(schedule.time, schedule.date);
+  return {
+    frequency: schedule.frequency || "daily",
+    time: et.time,
+    weekdays: schedule.weekdays ?? [0],
+    monthDays: schedule.monthDays ?? [1],
+    date: schedule.frequency === "once" ? et.date : (schedule.date || todayStr),
+  };
+}
+
+function etToUtc(etTime: string, etDate: string): { utcTime: string; utcDate: string; utcIso: string } {
+  const [hh, mm] = etTime.split(":").map(Number);
+  const [yy, mo, dd] = etDate.split("-").map(Number);
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: DISPLAY_TZ, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  });
+  const target = new Date(yy, mo - 1, dd, hh, mm || 0, 0);
+  let lo = target.getTime() - 24 * 3600_000;
+  let hi = target.getTime() + 24 * 3600_000;
+  for (let i = 0; i < 20; i++) {
+    const mid = Math.round((lo + hi) / 2);
+    const probe = new Date(mid);
+    const parts = formatter.formatToParts(probe);
+    const get = (t: string) => parseInt(parts.find((p) => p.type === t)?.value ?? "0", 10);
+    const pH = get("hour") === 24 ? 0 : get("hour");
+    const diff = (pH * 60 + get("minute")) - (hh * 60 + (mm || 0));
+    if (diff === 0) {
+      const utcH = String(probe.getUTCHours()).padStart(2, "0");
+      const utcM = String(probe.getUTCMinutes()).padStart(2, "0");
+      const utcY = probe.getUTCFullYear();
+      const utcMo = String(probe.getUTCMonth() + 1).padStart(2, "0");
+      const utcD = String(probe.getUTCDate()).padStart(2, "0");
+      return {
+        utcTime: `${utcH}:${utcM}`,
+        utcDate: `${utcY}-${utcMo}-${utcD}`,
+        utcIso: `${utcY}-${utcMo}-${utcD}T${utcH}:${utcM}:00Z`,
+      };
+    }
+    if (diff > 0) hi = mid; else lo = mid;
+  }
+  return { utcTime: etTime, utcDate: etDate, utcIso: `${etDate}T${etTime}:00Z` };
+}
+
 function editorStateToPayload(s: ScheduleEditorState): Record<string, unknown> {
+  const refDate = s.date || new Date().toISOString().slice(0, 10);
+  const { utcTime } = etToUtc(s.time, refDate);
+
   const base: Record<string, unknown> = {
     schedule_auto_execute: true,
     schedule_frequency: s.frequency,
-    schedule_time: s.time,
+    schedule_time: utcTime,
     schedule_timezone: "UTC",
   };
   if (s.frequency === "weekly") base.schedule_weekdays = s.weekdays;
   else if (s.frequency === "monthly") base.schedule_month_days = s.monthDays;
   else if (s.frequency === "once" && s.date) {
-    base.schedule_date = s.date;
-    base.schedule_next_run_at = `${s.date}T${s.time}:00Z`;
+    const once = etToUtc(s.time, s.date);
+    base.schedule_time = once.utcTime;
+    base.schedule_date = once.utcDate;
+    base.schedule_next_run_at = once.utcIso;
   }
   return base;
 }
@@ -892,7 +986,7 @@ const ScheduleEditorPopover: React.FC<{
 
       {/* Time */}
       <div className="flex items-center justify-between">
-        <span className="text-[11px] text-forest-f30">Time (UTC)</span>
+        <span className="text-[11px] text-forest-f30">Time ({DISPLAY_TZ_LABEL})</span>
         <select
           value={schedule.time}
           onChange={(e) => onChange({ ...schedule, time: e.target.value })}
@@ -1018,7 +1112,16 @@ const ScheduleEditorPopover: React.FC<{
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-2 border-t border-sandstorm-s40">
-        <span className="text-[10px] text-forest-f20">UTC · auto-execution</span>
+        <span className="text-[10px] text-forest-f20" title="Time sent to server">
+          {(() => {
+            const ref = schedule.date || new Date().toISOString().slice(0, 10);
+            const { utcTime, utcDate } = etToUtc(schedule.time, ref);
+            return schedule.frequency === "once"
+              ? `UTC: ${utcDate} ${utcTime}`
+              : `UTC: ${utcTime}`;
+          })()}
+          {" · auto-execution"}
+        </span>
         <div className="flex items-center gap-1.5">
           <button type="button" onClick={onCancel} className="px-2 py-1 rounded text-[10px] font-medium border border-sandstorm-s40 text-forest-f60 hover:bg-sandstorm-s10 transition-colors">
             Cancel
@@ -1416,10 +1519,10 @@ export const ActionsListPanel: React.FC<ActionsListPanelProps> = ({
             <button
               onClick={onRefresh}
               disabled={refreshing || loading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-forest-f40 border border-sandstorm-s40 rounded-lg hover:bg-sandstorm-s5 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold text-forest-f40 border border-sandstorm-s40 hover:bg-sandstorm-s5 transition-colors disabled:opacity-50"
               aria-label="Refresh actions"
             >
-              <RefreshCw className={cn("w-3.5 h-3.5", (refreshing || loading) && "animate-spin")} />
+              <RefreshCw className={cn("w-3 h-3", (refreshing || loading) && "animate-spin")} />
               Refresh
             </button>
           )}
@@ -1654,21 +1757,25 @@ const ActionCard: React.FC<ActionCardProps> = ({
     setScheduleSaving(true);
     try {
       const payload = editorStateToPayload(scheduleState);
-      await updatePortfolioAction(accountId, portfolioId, action.action_id, payload);
+      const resp = await updatePortfolioAction(accountId, portfolioId, action.action_id, payload);
 
-      const optimistic: ActionItem["schedule"] = {
-        frequency: scheduleState.frequency,
-        time: scheduleState.time,
-        timezone: "UTC",
-        auto_execute: true,
-      };
-      if (scheduleState.frequency === "weekly") optimistic.weekdays = scheduleState.weekdays;
-      if (scheduleState.frequency === "monthly") optimistic.monthDays = scheduleState.monthDays;
-      if (scheduleState.frequency === "once" && scheduleState.date) {
-        optimistic.date = scheduleState.date;
-        optimistic.next_run_at = `${scheduleState.date}T${scheduleState.time}:00Z`;
+      if (resp.action?.schedule) {
+        setLocalSchedule(resp.action.schedule);
+      } else {
+        const fallback: ActionItem["schedule"] = {
+          frequency: scheduleState.frequency,
+          time: (payload.schedule_time as string) || scheduleState.time,
+          timezone: "UTC",
+          auto_execute: true,
+        };
+        if (scheduleState.frequency === "weekly") fallback.weekdays = scheduleState.weekdays;
+        if (scheduleState.frequency === "monthly") fallback.monthDays = scheduleState.monthDays;
+        if (scheduleState.frequency === "once") {
+          fallback.date = (payload.schedule_date as string) || scheduleState.date;
+          fallback.next_run_at = payload.schedule_next_run_at as string;
+        }
+        setLocalSchedule(fallback);
       }
-      setLocalSchedule(optimistic);
       setEditingSchedule(false);
       onRefresh?.();
     } catch (err) {

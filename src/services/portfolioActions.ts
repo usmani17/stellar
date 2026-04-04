@@ -41,8 +41,8 @@ export async function updatePortfolioAction(
   portfolioId: number,
   actionId: number,
   updates: Record<string, unknown>,
-): Promise<{ updated: boolean }> {
-  const { data } = await api.patch<{ updated: boolean }>(
+): Promise<{ updated: boolean; action?: PortfolioAction }> {
+  const { data } = await api.patch<{ updated: boolean; action?: PortfolioAction }>(
     `${API_BASE}/${accountId}/portfolios/${portfolioId}/actions/${actionId}/`,
     updates,
   );

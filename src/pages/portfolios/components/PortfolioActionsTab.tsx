@@ -829,38 +829,41 @@ export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, p
               <button
                 type="button"
                 onClick={handleReanalyze}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-forest-f40 hover:bg-forest-f50 rounded-lg transition-colors"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold text-white bg-forest-f40 hover:bg-forest-f50 transition-colors"
                 aria-label="Re-analyze portfolio actions"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
+                <RefreshCw className="w-3 h-3" />
                 Re-analyze
+              </button>
+            )}
+            {/* Activity Trail — hidden, accessible via trail modal state */}
+            {false && (
+              <button
+                type="button"
+                onClick={() => setTrailOpen(true)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold text-forest-f40 hover:text-forest-f50 border border-sandstorm-s40 hover:border-forest-f40/30 transition-colors bg-white"
+                aria-label="View activity trail"
+              >
+                <Activity className="w-3 h-3" />
+                Activity Trail
               </button>
             )}
             <button
               type="button"
-              onClick={() => setTrailOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-forest-f40 hover:text-forest-f50 border border-sandstorm-s40 hover:border-forest-f40/30 rounded-lg transition-colors bg-white"
-              aria-label="View activity trail"
-            >
-              <Activity className="w-3.5 h-3.5" />
-              Activity Trail
-            </button>
-            <button
-              type="button"
               onClick={() => setHistoryOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-forest-f40 hover:text-forest-f50 border border-sandstorm-s40 hover:border-forest-f40/30 rounded-lg transition-colors bg-white"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold text-forest-f40 hover:text-forest-f50 border border-sandstorm-s40 hover:border-forest-f40/30 transition-colors bg-white"
               aria-label="View analysis history"
             >
-              <History className="w-3.5 h-3.5" />
+              <History className="w-3 h-3" />
               Analysis History
             </button>
             <button
               type="button"
               onClick={() => setSettingsOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-forest-f40 hover:text-forest-f50 border border-sandstorm-s40 hover:border-forest-f40/30 rounded-lg transition-colors bg-white"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold text-forest-f40 hover:text-forest-f50 border border-sandstorm-s40 hover:border-forest-f40/30 transition-colors bg-white"
               aria-label="Open action settings"
             >
-              <Settings className="w-3.5 h-3.5" />
+              <Settings className="w-3 h-3" />
               Settings
             </button>
           </div>
