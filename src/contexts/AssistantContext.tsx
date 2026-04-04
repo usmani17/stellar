@@ -114,6 +114,7 @@ interface AssistantContextType {
   streamingNewSessionId: string | null;
 
   sendMessage: (content: string, options?: { sessionType?: string }) => Promise<void>;
+  openAndSend: (message: string, options?: { sessionType?: string }) => void;
   cancelRun: () => Promise<void>;
   selectSession: (sessionId: string) => Promise<void>;
   startNewSession: () => void;
@@ -861,6 +862,29 @@ export const AssistantProvider: React.FC<{
     setTodoList([]);
     todoListRef.current = [];
   }, []);
+
+  const [pendingAutoSend, setPendingAutoSend] = useState<{ message: string; options?: { sessionType?: string } } | null>(null);
+
+  const openAndSend = useCallback((message: string, options?: { sessionType?: string }) => {
+    setCurrentSessionId(null);
+    setStreamingNewSessionId(null);
+    setPendingConversation(null);
+    setCampaignState(undefined);
+    campaignStateRef.current = undefined;
+    setTodoList([]);
+    todoListRef.current = [];
+    setPendingAutoSend({ message, options });
+    setIsOpen(true);
+  }, []);
+
+  useEffect(() => {
+    if (pendingAutoSend && isOpen) {
+      const { message, options } = pendingAutoSend;
+      setPendingAutoSend(null);
+      sendMessage(message, options);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAutoSend, isOpen]);
 
   const deleteSession = useCallback(
     async (sessionId: string) => {
@@ -1650,6 +1674,7 @@ export const AssistantProvider: React.FC<{
         currentSessionId,
         streamingNewSessionId,
         sendMessage,
+        openAndSend,
         cancelRun,
         selectSession,
         startNewSession,

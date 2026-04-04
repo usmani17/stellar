@@ -772,19 +772,17 @@ export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, p
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [trailOpen, setTrailOpen] = useState(false);
-  const { openAssistant, startNewSession, setInputValue } = useAssistant();
+  const { openAssistant, startNewSession } = useAssistant();
 
   const handleCreateActions = useCallback(() => {
     startNewSession();
-    setInputValue("Create optimization actions for this portfolio");
     openAssistant();
-  }, [startNewSession, setInputValue, openAssistant]);
+  }, [startNewSession, openAssistant]);
 
   const handleReanalyze = useCallback(() => {
     startNewSession();
-    setInputValue("Re-analyze portfolio actions and suggest new optimizations");
     openAssistant();
-  }, [startNewSession, setInputValue, openAssistant]);
+  }, [startNewSession, openAssistant]);
 
   const fetchActions = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);

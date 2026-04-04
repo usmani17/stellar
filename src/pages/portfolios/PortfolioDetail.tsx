@@ -292,7 +292,7 @@ export const PortfolioDetail: React.FC = () => {
             </div>
 
             {/* KPI Summary */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               <KPICard label="Total Budget" value={fmt(portfolio.totalBudget, "$")} />
               <KPICard label="Campaigns" value={portfolio.campaigns?.length ?? 0} />
               <KPICard label="Status" value={portfolio.status === "enabled" ? "Live" : "Disabled"} />
