@@ -119,6 +119,22 @@ interface ActionsListPanelProps {
   headerExtra?: React.ReactNode;
 }
 
+function fmtDateMDY(iso?: string): string {
+  if (!iso) return "TBD";
+  const [y, m, d] = iso.split("-");
+  if (!y || !m || !d) return iso;
+  return `${m}/${d}/${y}`;
+}
+
+function fmtNextRun(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    + " at "
+    + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "UTC" })
+    + " UTC";
+}
+
 function formatScheduleLabel(schedule?: ActionItem["schedule"]): string {
   if (!schedule || !schedule.frequency) return "Not scheduled";
   const t = schedule.time ?? "09:00";
@@ -137,7 +153,7 @@ function formatScheduleLabel(schedule?: ActionItem["schedule"]): string {
       return `Monthly on ${days || "1"} at ${t} (${tz})`;
     }
     case "once":
-      return `Once on ${schedule.date ?? "TBD"} at ${t} (${tz})`;
+      return `Once on ${fmtDateMDY(schedule.date)} at ${t} (${tz})`;
     default:
       return `${schedule.frequency} at ${t} (${tz})`;
   }
@@ -776,6 +792,10 @@ function editorStateToPayload(s: ScheduleEditorState): Record<string, unknown> {
   };
   if (s.frequency === "weekly") base.schedule_weekdays = s.weekdays;
   else if (s.frequency === "monthly") base.schedule_month_days = s.monthDays;
+  else if (s.frequency === "once" && s.date) {
+    base.schedule_date = s.date;
+    base.schedule_next_run_at = `${s.date}T${s.time}:00Z`;
+  }
   return base;
 }
 
@@ -1584,7 +1604,12 @@ const ActionCard: React.FC<ActionCardProps> = ({
   const [editingSchedule, setEditingSchedule] = useState(false);
   const [scheduleState, setScheduleState] = useState<ScheduleEditorState>(() => scheduleToEditorState(action.schedule));
   const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [localSchedule, setLocalSchedule] = useState<ActionItem["schedule"] | undefined>(action.schedule);
   const scheduleAnchorRef = useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    setLocalSchedule(action.schedule);
+  }, [action.schedule]);
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -1628,19 +1653,35 @@ const ActionCard: React.FC<ActionCardProps> = ({
     if (!portfolioId) return;
     setScheduleSaving(true);
     try {
-      await updatePortfolioAction(accountId, portfolioId, action.action_id, editorStateToPayload(scheduleState));
+      const payload = editorStateToPayload(scheduleState);
+      await updatePortfolioAction(accountId, portfolioId, action.action_id, payload);
+
+      const optimistic: ActionItem["schedule"] = {
+        frequency: scheduleState.frequency,
+        time: scheduleState.time,
+        timezone: "UTC",
+        auto_execute: true,
+      };
+      if (scheduleState.frequency === "weekly") optimistic.weekdays = scheduleState.weekdays;
+      if (scheduleState.frequency === "monthly") optimistic.monthDays = scheduleState.monthDays;
+      if (scheduleState.frequency === "once" && scheduleState.date) {
+        optimistic.date = scheduleState.date;
+        optimistic.next_run_at = `${scheduleState.date}T${scheduleState.time}:00Z`;
+      }
+      setLocalSchedule(optimistic);
       setEditingSchedule(false);
+      onRefresh?.();
     } catch (err) {
       console.error("Failed to save schedule:", err);
     } finally {
       setScheduleSaving(false);
     }
-  }, [accountId, portfolioId, action.action_id, scheduleState]);
+  }, [accountId, portfolioId, action.action_id, scheduleState, onRefresh]);
 
   const typeLabel = ACTION_TYPE_LABELS[action.type] ?? action.type;
   const typeColors = ACTION_TYPE_COLORS[action.type] ?? { bg: "bg-gray-50", text: "text-gray-700" };
   const statusCfg = STATUS_CONFIG[action.status] ?? STATUS_CONFIG.active;
-  const scheduleText = formatScheduleLabel(action.schedule);
+  const scheduleText = formatScheduleLabel(localSchedule);
   const isPaused = action.status === "paused";
   const isPendingReview = action.status === "pending_review";
   const accentColor = TYPE_ACCENT_COLORS[action.type] || "border-l-forest-f40";
@@ -1934,11 +1975,11 @@ const ActionCard: React.FC<ActionCardProps> = ({
 
       {/* Schedule */}
       <div ref={scheduleAnchorRef} className="flex items-center gap-2">
-        <Clock className={cn("w-3.5 h-3.5 shrink-0", action.schedule ? "text-forest-f20" : "text-amber-400")} />
+        <Clock className={cn("w-3.5 h-3.5 shrink-0", localSchedule ? "text-forest-f20" : "text-amber-400")} />
         <span className="text-[11px] text-forest-f30">{scheduleText}</span>
-        {action.schedule?.next_run_at && (
+        {localSchedule?.next_run_at && (
           <span className="text-[10px] text-forest-f20">
-            · Next: {new Date(action.schedule.next_run_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+            · Next: {fmtNextRun(localSchedule.next_run_at)}
           </span>
         )}
         {portfolioId && (
@@ -1948,7 +1989,7 @@ const ActionCard: React.FC<ActionCardProps> = ({
               if (editingSchedule) {
                 setEditingSchedule(false);
               } else {
-                setScheduleState(scheduleToEditorState(action.schedule));
+                setScheduleState(scheduleToEditorState(localSchedule));
                 setEditingSchedule(true);
               }
             }}
