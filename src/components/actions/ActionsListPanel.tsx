@@ -1703,11 +1703,11 @@ const ActionCard: React.FC<ActionCardProps> = ({
               type="button"
               onClick={handlePreview}
               className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold bg-forest-f40/10 text-forest-f40 hover:bg-forest-f40/20 border border-forest-f40/20 transition-colors"
-              aria-label="Review changes"
+              aria-label="Preview changes"
               title="Preview what this action will do"
             >
               <Eye className="w-3 h-3" />
-              Review
+              Preview
             </button>
           )}
           {isPendingReview ? (
