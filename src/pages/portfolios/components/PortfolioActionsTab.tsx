@@ -3,7 +3,6 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   listPortfolioActions,
-  updatePortfolioActionStatus,
   getPortfolioAnalysisHistory,
   updatePortfolioRefreshSettings,
   getPortfolioRefreshSettings,
@@ -102,16 +101,27 @@ function PortfolioSettingsModal({
   accountId: number;
   portfolioId: number;
 }) {
-  const [enabled, setEnabled] = useState(false);
-  const [frequency, setFrequency] = useState("daily");
-  const [refreshTime, setRefreshTime] = useState("09:00");
-  const [weekday, setWeekday] = useState(0);
-  const [monthDay, setMonthDay] = useState(1);
-  const [nextAt, setNextAt] = useState<string | null>(null);
-  const [lastAt, setLastAt] = useState<string | null>(null);
+  interface SettingsState {
+    enabled: boolean;
+    frequency: string;
+    refreshTime: string;
+    weekday: number;
+    monthDay: number;
+    nextAt: string | null;
+    lastAt: string | null;
+  }
+
+  const defaultSettings: SettingsState = {
+    enabled: false, frequency: "daily", refreshTime: "09:00",
+    weekday: 0, monthDay: 1, nextAt: null, lastAt: null,
+  };
+
+  const [settings, setSettings] = useState<SettingsState>(defaultSettings);
   const [saving, setSaving] = useState(false);
 
-  const applyResult = useCallback((result: {
+  const { enabled, frequency, refreshTime, weekday, monthDay, nextAt, lastAt } = settings;
+
+  const toSettingsState = (r: {
     actionRefreshEnabled: boolean;
     actionRefreshFrequency: string;
     actionRefreshTime: string;
@@ -119,29 +129,26 @@ function PortfolioSettingsModal({
     actionRefreshMonthDay: number;
     actionRefreshNextAt: string | null;
     actionRefreshLastAt: string | null;
-  }) => {
-    setEnabled(result.actionRefreshEnabled);
-    setFrequency(result.actionRefreshFrequency);
-    setRefreshTime(result.actionRefreshTime || "09:00");
-    setWeekday(result.actionRefreshWeekday ?? 0);
-    setMonthDay(result.actionRefreshMonthDay ?? 1);
-    setNextAt(result.actionRefreshNextAt);
-    setLastAt(result.actionRefreshLastAt);
-  }, []);
+  }): SettingsState => ({
+    enabled: r.actionRefreshEnabled,
+    frequency: r.actionRefreshFrequency,
+    refreshTime: r.actionRefreshTime || "09:00",
+    weekday: r.actionRefreshWeekday ?? 0,
+    monthDay: r.actionRefreshMonthDay ?? 1,
+    nextAt: r.actionRefreshNextAt,
+    lastAt: r.actionRefreshLastAt,
+  });
 
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
-    (async () => {
-      try {
-        const result = await getPortfolioRefreshSettings(accountId, portfolioId);
-        if (!cancelled) applyResult(result);
-      } catch {
-        /* ignore — keep defaults */
-      }
-    })();
+    getPortfolioRefreshSettings(accountId, portfolioId)
+      .then((result) => {
+        if (!cancelled) setSettings(toSettingsState(result));
+      })
+      .catch(() => { /* keep defaults */ });
     return () => { cancelled = true; };
-  }, [isOpen, accountId, portfolioId, applyResult]);
+  }, [isOpen, accountId, portfolioId]);
 
   const save = useCallback(
     async (updates: {
@@ -154,14 +161,14 @@ function PortfolioSettingsModal({
       setSaving(true);
       try {
         const result = await updatePortfolioRefreshSettings(accountId, portfolioId, updates);
-        applyResult(result);
+        setSettings(toSettingsState(result));
       } catch {
         /* ignore */
       } finally {
         setSaving(false);
       }
     },
-    [accountId, portfolioId, applyResult],
+    [accountId, portfolioId],
   );
 
   return (
@@ -200,7 +207,7 @@ function PortfolioSettingsModal({
                 aria-checked={enabled}
                 onClick={() => {
                   const next = !enabled;
-                  setEnabled(next);
+                  setSettings((s) => ({ ...s, enabled: next }));
                   save({ enabled: next });
                 }}
                 disabled={saving}
@@ -228,7 +235,7 @@ function PortfolioSettingsModal({
                   key={opt.value}
                   type="button"
                   onClick={() => {
-                    setFrequency(opt.value);
+                    setSettings((s) => ({ ...s, frequency: opt.value }));
                     save({ frequency: opt.value });
                   }}
                   disabled={saving || !enabled}
@@ -263,8 +270,9 @@ function PortfolioSettingsModal({
               <select
                 value={refreshTime}
                 onChange={(e) => {
-                  setRefreshTime(e.target.value);
-                  save({ time: e.target.value });
+                  const val = e.target.value;
+                  setSettings((s) => ({ ...s, refreshTime: val }));
+                  save({ time: val });
                 }}
                 disabled={saving || !enabled}
                 className="text-[12px] border border-sandstorm-s40 rounded-md px-3 py-1.5 bg-white text-forest-f60 focus:ring-1 focus:ring-forest-f40 focus:border-forest-f40 min-w-[100px]"
@@ -290,7 +298,7 @@ function PortfolioSettingsModal({
                   value={weekday}
                   onChange={(e) => {
                     const v = Number(e.target.value);
-                    setWeekday(v);
+                    setSettings((s) => ({ ...s, weekday: v }));
                     save({ weekday: v });
                   }}
                   disabled={saving || !enabled}
@@ -318,7 +326,7 @@ function PortfolioSettingsModal({
                   value={monthDay}
                   onChange={(e) => {
                     const v = Number(e.target.value);
-                    setMonthDay(v);
+                    setSettings((s) => ({ ...s, monthDay: v }));
                     save({ monthDay: v });
                   }}
                   disabled={saving || !enabled}
@@ -488,7 +496,7 @@ function PortfolioAnalysisHistoryModal({
   );
 }
 
-export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, portfolioName }) => {
+export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, portfolioName: _portfolioName }) => {
   const [actions, setActions] = useState<PortfolioAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -530,15 +538,6 @@ export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, p
     return () => {
       cancelled = true;
     };
-  }, [accountId, portfolioId]);
-
-  const handleStatusChange = useCallback(async (actionIds: number[], newStatus: string) => {
-    try {
-      await updatePortfolioActionStatus(accountId, portfolioId, actionIds, newStatus);
-      fetchActions(true);
-    } catch {
-      // status update failed silently
-    }
   }, [accountId, portfolioId]);
 
   return (
