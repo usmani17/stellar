@@ -6,6 +6,7 @@ import {
   updatePortfolioActionStatus,
   getPortfolioAnalysisHistory,
   updatePortfolioRefreshSettings,
+  getPortfolioRefreshSettings,
 } from "../../../services/portfolioActions";
 import type { PortfolioChatEntry } from "../../../services/portfolioActions";
 import type { PortfolioAction } from "../../../services/dashboard";
@@ -127,6 +128,20 @@ function PortfolioSettingsModal({
     setNextAt(result.actionRefreshNextAt);
     setLastAt(result.actionRefreshLastAt);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await getPortfolioRefreshSettings(accountId, portfolioId);
+        if (!cancelled) applyResult(result);
+      } catch {
+        /* ignore — keep defaults */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen, accountId, portfolioId, applyResult]);
 
   const save = useCallback(
     async (updates: {
@@ -559,7 +574,7 @@ export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, p
               aria-label="View analysis history"
             >
               <History className="w-3.5 h-3.5" />
-              History
+              Analysis History
             </button>
             <button
               type="button"

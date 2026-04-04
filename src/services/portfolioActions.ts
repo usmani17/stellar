@@ -184,6 +184,16 @@ export interface RefreshSettings {
   actionRefreshLastAt: string | null;
 }
 
+export async function getPortfolioRefreshSettings(
+  accountId: number,
+  portfolioId: number,
+): Promise<RefreshSettings> {
+  const { data } = await api.get<RefreshSettings>(
+    `${API_BASE}/${accountId}/portfolios/${portfolioId}/refresh-settings/`,
+  );
+  return data;
+}
+
 export async function updatePortfolioRefreshSettings(
   accountId: number,
   portfolioId: number,
