@@ -9,6 +9,7 @@ import {
   updatePortfolioRefreshSettings,
   getPortfolioRefreshSettings,
   getPortfolioRefreshStatus,
+  markPortfolioRefreshStarted,
 } from "../../../services/portfolioActions";
 import type { PortfolioChatEntry, PortfolioTrailEntry } from "../../../services/portfolioActions";
 import type { PortfolioAction } from "../../../services/dashboard";
@@ -794,10 +795,16 @@ export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, p
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [trailOpen, setTrailOpen] = useState(false);
-  const { openAssistant, startNewSession } = useAssistant();
+  const { openAndSend, startNewSession, openAssistant } = useAssistant();
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const prevAnalyzing = useRef(false);
+  const [reanalyzeOpen, setReanalyzeOpen] = useState(false);
+
+  const DEFAULT_REANALYZE_PROMPT =
+    "Review what actions are already in place, check current performance, " +
+    "and look for new optimization opportunities.";
+  const [reanalyzePrompt, setReanalyzePrompt] = useState(DEFAULT_REANALYZE_PROMPT);
 
   useEffect(() => {
     let cancelled = false;
@@ -838,9 +845,22 @@ export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, p
   }, [startNewSession, openAssistant]);
 
   const handleReanalyze = useCallback(() => {
-    startNewSession();
-    openAssistant();
-  }, [startNewSession, openAssistant]);
+    setReanalyzePrompt(DEFAULT_REANALYZE_PROMPT);
+    setReanalyzeOpen(true);
+  }, []);
+
+  const handleReanalyzeConfirm = useCallback(async () => {
+    const prompt = reanalyzePrompt.trim() || DEFAULT_REANALYZE_PROMPT;
+    setReanalyzeOpen(false);
+    setIsAnalyzing(true);
+    try {
+      await markPortfolioRefreshStarted(accountId, portfolioId);
+    } catch { /* best-effort */ }
+    openAndSend(
+      `/reanalyze-portfolio-actions\n\n${prompt}`,
+      { sessionType: "reanalyze" },
+    );
+  }, [reanalyzePrompt, openAndSend, accountId, portfolioId]);
 
   const fetchActions = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -888,21 +908,58 @@ export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, p
               </span>
             )}
             {actions.length > 0 && (
-              <button
-                type="button"
-                onClick={handleReanalyze}
-                disabled={isAnalyzing}
-                className={cn(
-                  "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors",
-                  isAnalyzing
-                    ? "text-forest-f30 bg-sandstorm-s20 cursor-not-allowed"
-                    : "text-white bg-forest-f40 hover:bg-forest-f50",
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={handleReanalyze}
+                  disabled={isAnalyzing}
+                  className={cn(
+                    "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors",
+                    isAnalyzing
+                      ? "text-forest-f30 bg-sandstorm-s20 cursor-not-allowed"
+                      : "text-white bg-forest-f40 hover:bg-forest-f50",
+                  )}
+                  aria-label="Re-analyze portfolio actions"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Re-analyze
+                </button>
+
+                {reanalyzeOpen && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setReanalyzeOpen(false)} />
+                    <div className="absolute right-0 top-full mt-2 z-40 w-80 rounded-lg border border-sandstorm-s40 bg-white shadow-lg p-4 space-y-3">
+                      <p className="text-[12px] font-semibold text-forest-f60">Re-analyze Portfolio</p>
+                      <p className="text-[11px] text-forest-f30 leading-relaxed">
+                        Edit the prompt below to guide the analysis.
+                      </p>
+                      <textarea
+                        value={reanalyzePrompt}
+                        onChange={(e) => setReanalyzePrompt(e.target.value)}
+                        rows={3}
+                        className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-2.5 py-2 text-[12px] text-forest-f60 placeholder:text-forest-f30/50 focus:border-forest-f40 focus:outline-none focus:ring-1 focus:ring-forest-f40 resize-none"
+                        placeholder="What should the agent focus on..."
+                      />
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setReanalyzeOpen(false)}
+                          className="px-2.5 py-1 rounded-md text-[11px] font-medium text-forest-f30 hover:text-forest-f60 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleReanalyzeConfirm}
+                          className="px-2.5 py-1 rounded-md text-[11px] font-semibold text-white bg-forest-f40 hover:bg-forest-f50 transition-colors"
+                        >
+                          Start Analysis
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 )}
-                aria-label="Re-analyze portfolio actions"
-              >
-                <RefreshCw className="w-3 h-3" />
-                Re-analyze
-              </button>
+              </div>
             )}
             {/* Activity Trail — hidden, accessible via trail modal state */}
             {false && (
@@ -956,6 +1013,7 @@ export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, p
         accountId={accountId}
         portfolioId={portfolioId}
       />
+
     </div>
   );
 };

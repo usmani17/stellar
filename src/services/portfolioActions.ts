@@ -270,3 +270,13 @@ export async function getPortfolioRefreshStatus(
   );
   return data;
 }
+
+export async function markPortfolioRefreshStarted(
+  accountId: number,
+  portfolioId: number,
+): Promise<{ logId: number; isAnalyzing: boolean; startedAt: string }> {
+  const { data } = await api.post<{ logId: number; isAnalyzing: boolean; startedAt: string }>(
+    `${API_BASE}/${accountId}/portfolios/${portfolioId}/refresh-status/`,
+  );
+  return data;
+}
