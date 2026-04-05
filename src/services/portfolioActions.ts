@@ -211,6 +211,7 @@ export interface RefreshSettings {
   actionRefreshMonthDay: number;
   actionRefreshNextAt: string | null;
   actionRefreshLastAt: string | null;
+  portfolioInstructions: string;
 }
 
 export async function getPortfolioRefreshSettings(
@@ -232,11 +233,40 @@ export async function updatePortfolioRefreshSettings(
     time?: string;
     weekday?: number;
     monthDay?: number;
+    portfolioInstructions?: string;
   },
 ): Promise<RefreshSettings> {
   const { data } = await api.patch<RefreshSettings>(
     `${API_BASE}/${accountId}/portfolios/${portfolioId}/refresh-settings/`,
     settings,
+  );
+  return data;
+}
+
+// ── Refresh Status (polling) ─────────────────────────────────────────────
+
+export interface RefreshStatusEntry {
+  isAnalyzing: boolean;
+  startedAt: string | null;
+}
+
+export async function getPortfoliosRefreshStatus(
+  ids: number[],
+): Promise<Record<string, RefreshStatusEntry>> {
+  if (!ids.length) return {};
+  const { data } = await api.get<Record<string, RefreshStatusEntry>>(
+    `${API_BASE}/portfolios/refresh-status/`,
+    { params: { ids: ids.join(",") } },
+  );
+  return data;
+}
+
+export async function getPortfolioRefreshStatus(
+  accountId: number,
+  portfolioId: number,
+): Promise<RefreshStatusEntry> {
+  const { data } = await api.get<RefreshStatusEntry>(
+    `${API_BASE}/${accountId}/portfolios/${portfolioId}/refresh-status/`,
   );
   return data;
 }

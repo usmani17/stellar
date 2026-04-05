@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -31,6 +32,7 @@ import { CreatePortfolioWizard } from "./components/CreatePortfolioWizard";
 import { AnalysisHistoryModal } from "./components/AnalysisHistoryModal";
 import { PortfolioActionsTab } from "./components/PortfolioActionsTab";
 import { PortfolioExecutionHistoryTab } from "./components/PortfolioExecutionHistoryTab";
+import { getPortfolioRefreshStatus } from "../../services/portfolioActions";
 
 type Tab = "campaigns" | "dashboards" | "actions" | "history";
 
@@ -99,6 +101,17 @@ export const PortfolioDetail: React.FC = () => {
 
   const runMutation = useRunPortfolio(accountId);
   const updateMutation = useUpdatePortfolio(accountId, portfolioId);
+
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const { data: refreshStatus } = useQuery({
+    queryKey: ["portfolio-refresh-status", accountId, portfolioId],
+    queryFn: () => getPortfolioRefreshStatus(accountId, portfolioId),
+    enabled: !!portfolioId,
+    refetchInterval: isAnalyzing ? 60_000 : false,
+  });
+  useEffect(() => {
+    if (refreshStatus) setIsAnalyzing(refreshStatus.isAnalyzing);
+  }, [refreshStatus]);
 
   useEffect(() => {
     if (portfolio) {
@@ -239,6 +252,15 @@ export const PortfolioDetail: React.FC = () => {
                 dismissable
                 onDismiss={() => setSuccessMsg("")}
               />
+            )}
+
+            {isAnalyzing && (
+              <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-forest-f40/10 border border-forest-f40/20">
+                <RefreshCw className="w-4 h-4 text-forest-f40 animate-spin shrink-0" />
+                <p className="text-[13px] font-medium text-forest-f60">
+                  Agent is re-analyzing your portfolio actions...
+                </p>
+              </div>
             )}
 
             {/* Breadcrumb + Actions */}

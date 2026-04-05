@@ -37,6 +37,7 @@ import { cn } from "../../lib/cn";
 import { queryKeys } from "../../hooks/queries/queryKeys";
 import { getPortfolioActions } from "../../services/dashboard";
 import { portfoliosService, type PortfolioListItem } from "../../services/portfolios";
+import { getPortfoliosRefreshStatus } from "../../services/portfolioActions";
 
 const PAGE_SIZE = 25;
 
@@ -833,15 +834,35 @@ export const PortfolioList: React.FC = () => {
   const { data: liveMetrics, isLoading: liveMetricsLoading } =
     usePortfolioLiveMetrics(needsLiveIds, { enabled: needsLiveIds.length > 0 });
 
+  const analyzingIds = useMemo(
+    () => portfolios.filter((p) => p.isAnalyzing).map((p) => p.id),
+    [portfolios],
+  );
+  const [polledStatus, setPolledStatus] = useState<Record<string, { isAnalyzing: boolean }>>({});
+  const hasAnalyzing = analyzingIds.length > 0 || Object.values(polledStatus).some((s) => s.isAnalyzing);
+  const { data: refreshStatusData } = useQuery({
+    queryKey: ["portfolios-refresh-status", analyzingIds],
+    queryFn: () => getPortfoliosRefreshStatus(portfolios.map((p) => p.id)),
+    enabled: hasAnalyzing,
+    refetchInterval: hasAnalyzing ? 60_000 : false,
+  });
+  useEffect(() => {
+    if (refreshStatusData) {
+      setPolledStatus(refreshStatusData);
+    }
+  }, [refreshStatusData]);
+
   const { data: summary } = usePortfolioSummary(accountId);
   const deleteMutation = useDeletePortfolio();
 
   const sortedPortfolios = useMemo(() => {
     const list = portfolios.map((p) => {
-      if (p.latestTracking) return p;
+      const polled = polledStatus[String(p.id)];
+      const analyzing = polled ? polled.isAnalyzing : p.isAnalyzing;
+      if (p.latestTracking) return { ...p, isAnalyzing: analyzing };
       const live = liveMetrics?.[String(p.id)];
-      if (live) return { ...p, latestTracking: live };
-      return p;
+      if (live) return { ...p, latestTracking: live, isAnalyzing: analyzing };
+      return { ...p, isAnalyzing: analyzing };
     });
     const mul = sort.dir === "asc" ? 1 : -1;
     list.sort((a, b) => {
@@ -868,7 +889,7 @@ export const PortfolioList: React.FC = () => {
       }
     });
     return list;
-  }, [portfolios, sort, liveMetrics]);
+  }, [portfolios, sort, liveMetrics, polledStatus]);
 
   const computedSummary = useMemo(() => {
     let behindPacing = 0;
@@ -1354,6 +1375,12 @@ interface PortfolioRowProps {
                       <Zap className="w-3.5 h-3.5 shrink-0" aria-hidden />
                       {p.actionCount} action{p.actionCount === 1 ? "" : "s"}
                     </button>
+                  )}
+                  {p.isAnalyzing && (
+                    <span className="inline-flex items-center gap-1 self-start text-[11px] font-medium text-forest-f40 bg-forest-f40/10 px-2 py-0.5 rounded-full">
+                      <RefreshCw className="w-3 h-3 animate-spin" aria-hidden />
+                      Analyzing...
+                    </span>
                   )}
                 </div>
               </div>

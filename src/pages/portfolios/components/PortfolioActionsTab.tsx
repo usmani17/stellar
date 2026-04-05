@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -8,6 +8,7 @@ import {
   getPortfolioActionHistory,
   updatePortfolioRefreshSettings,
   getPortfolioRefreshSettings,
+  getPortfolioRefreshStatus,
 } from "../../../services/portfolioActions";
 import type { PortfolioChatEntry, PortfolioTrailEntry } from "../../../services/portfolioActions";
 import type { PortfolioAction } from "../../../services/dashboard";
@@ -795,6 +796,42 @@ export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, p
   const [trailOpen, setTrailOpen] = useState(false);
   const { openAssistant, startNewSession } = useAssistant();
 
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const prevAnalyzing = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const poll = async () => {
+      try {
+        const status = await getPortfolioRefreshStatus(accountId, portfolioId);
+        if (cancelled) return;
+        setIsAnalyzing(status.isAnalyzing);
+
+        if (prevAnalyzing.current && !status.isAnalyzing) {
+          fetchActions(true);
+        }
+        prevAnalyzing.current = status.isAnalyzing;
+
+        if (!status.isAnalyzing && timer) {
+          clearInterval(timer);
+          timer = null;
+        }
+      } catch {
+        /* ignore polling errors */
+      }
+    };
+
+    poll();
+    timer = setInterval(poll, 60_000);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
+  }, [accountId, portfolioId]);
+
   const handleCreateActions = useCallback(() => {
     startNewSession();
     openAssistant();
@@ -844,11 +881,23 @@ export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, p
         onCreateActions={handleCreateActions}
         headerExtra={
           <div className="flex items-center gap-1.5">
+            {isAnalyzing && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold text-forest-f40 bg-forest-f40/10 border border-forest-f40/20">
+                <RefreshCw className="w-3 h-3 animate-spin" />
+                Analyzing...
+              </span>
+            )}
             {actions.length > 0 && (
               <button
                 type="button"
                 onClick={handleReanalyze}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold text-white bg-forest-f40 hover:bg-forest-f50 transition-colors"
+                disabled={isAnalyzing}
+                className={cn(
+                  "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors",
+                  isAnalyzing
+                    ? "text-forest-f30 bg-sandstorm-s20 cursor-not-allowed"
+                    : "text-white bg-forest-f40 hover:bg-forest-f50",
+                )}
                 aria-label="Re-analyze portfolio actions"
               >
                 <RefreshCw className="w-3 h-3" />

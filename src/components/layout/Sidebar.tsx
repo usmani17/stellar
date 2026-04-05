@@ -994,7 +994,7 @@ export const Sidebar: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => navigate("/super-admin/workspaces")}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg w-full text-left ${location.pathname.startsWith("/super-admin")
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg w-full text-left ${location.pathname === "/super-admin/workspaces" || location.pathname === "/super-admin"
                     ? "bg-forest-f60 text-white"
                     : "text-forest-f60 hover:bg-sandstorm-s10"
                     }`}
