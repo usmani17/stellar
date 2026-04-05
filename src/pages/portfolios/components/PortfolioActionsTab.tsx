@@ -87,6 +87,12 @@ const FREQUENCY_OPTIONS = [
 
 const WEEKDAY_LABELS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const LOCAL_TZ_LABEL = (() => {
+  const parts = new Date().toLocaleTimeString("en-US", { timeZoneName: "short" }).split(" ");
+  return parts[parts.length - 1] || LOCAL_TZ;
+})();
+
 const TIME_OPTIONS = [
   "00:00", "01:00", "02:00", "03:00", "04:00", "05:00",
   "06:00", "07:00", "08:00", "09:00", "10:00", "11:00",
@@ -99,6 +105,20 @@ function formatTime12h(t: string): string {
   const ampm = h >= 12 ? "PM" : "AM";
   const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
+function utcTimeToLocal(utcTime: string): string {
+  const [h, m] = utcTime.split(":").map(Number);
+  const d = new Date();
+  d.setUTCHours(h, m, 0, 0);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function localTimeToUtc(localTime: string): string {
+  const [h, m] = localTime.split(":").map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
 }
 
 function PortfolioSettingsModal({
@@ -275,15 +295,16 @@ function PortfolioSettingsModal({
               <div>
                 <p className="text-[13px] font-medium text-forest-f60">Time of Day</p>
                 <p className="text-[11px] text-forest-f30 mt-0.5">
-                  What time to run the analysis (UTC)
+                  What time to run the analysis ({LOCAL_TZ_LABEL})
                 </p>
               </div>
               <select
-                value={refreshTime}
+                value={utcTimeToLocal(refreshTime)}
                 onChange={(e) => {
-                  const val = e.target.value;
-                  setSettings((s) => ({ ...s, refreshTime: val }));
-                  save({ time: val });
+                  const localVal = e.target.value;
+                  const utcVal = localTimeToUtc(localVal);
+                  setSettings((s) => ({ ...s, refreshTime: utcVal }));
+                  save({ time: utcVal });
                 }}
                 disabled={saving || !enabled}
                 className="text-[12px] border border-sandstorm-s40 rounded-md px-3 py-1.5 bg-white text-forest-f60 focus:ring-1 focus:ring-forest-f40 focus:border-forest-f40 min-w-[100px]"
@@ -359,14 +380,14 @@ function PortfolioSettingsModal({
                   <div className="flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5 text-forest-f30" />
                     <span className="text-forest-f30">Next run:</span>
-                    <span className="text-forest-f60 font-medium">{formatDate(nextAt)}</span>
+                    <span className="text-forest-f60 font-medium">{formatDate(nextAt)} {LOCAL_TZ_LABEL}</span>
                   </div>
                 )}
                 {lastAt && (
                   <div className="flex items-center gap-1.5">
                     <History className="w-3.5 h-3.5 text-forest-f30" />
                     <span className="text-forest-f30">Last run:</span>
-                    <span className="text-forest-f60 font-medium">{formatDate(lastAt)}</span>
+                    <span className="text-forest-f60 font-medium">{formatDate(lastAt)} {LOCAL_TZ_LABEL}</span>
                   </div>
                 )}
               </div>
