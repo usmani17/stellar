@@ -689,6 +689,7 @@ function PortfolioExpandActions({ portfolio: p }: { portfolio: PortfolioListItem
                         platform: p.platform,
                         totalBudget: p.totalBudget ?? undefined,
                         targetType: p.targetType ?? undefined,
+                        targetValue: p.targetValue ?? undefined,
                         startDate: p.startDate!,
                         endDate: p.endDate!,
                         campaignCount: p.campaignCount ?? 0,
