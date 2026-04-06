@@ -9,7 +9,6 @@ import {
   updatePortfolioRefreshSettings,
   getPortfolioRefreshSettings,
   getPortfolioRefreshStatus,
-  markPortfolioRefreshStarted,
 } from "../../../services/portfolioActions";
 import type { PortfolioChatEntry, PortfolioTrailEntry } from "../../../services/portfolioActions";
 import type { PortfolioAction } from "../../../services/dashboard";
@@ -31,6 +30,7 @@ import {
   PlayCircle,
   AlertCircle,
   Zap,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "../../../lib/cn";
 import { useAssistant } from "../../../contexts/AssistantContext";
@@ -67,7 +67,9 @@ function toActionItems(actions: PortfolioAction[]): ActionItem[] {
 
 const SESSION_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   initial: { label: "Initial Analysis", color: "bg-forest-f40/10 text-forest-f40" },
+  portfolio_actions: { label: "Initial Analysis", color: "bg-forest-f40/10 text-forest-f40" },
   reanalyze: { label: "Re-analysis", color: "bg-amber-50 text-amber-700" },
+  reanalyze_portfolio_actions: { label: "Re-analysis", color: "bg-amber-50 text-amber-700" },
 };
 
 function formatDate(iso: string): string {
@@ -411,10 +413,12 @@ function PortfolioAnalysisHistoryModal({
   onClose,
   accountId,
   portfolioId,
+  onOpenChat,
 }: {
   isOpen: boolean;
   onClose: () => void;
   accountId: number;
+  onOpenChat?: (sessionId: string) => void;
   portfolioId: number;
 }) {
   const [chats, setChats] = useState<PortfolioChatEntry[]>([]);
@@ -498,7 +502,7 @@ function PortfolioAnalysisHistoryModal({
                         typeInfo.color,
                       )}
                     >
-                      {chat.sessionType === "reanalyze" && (
+                      {chat.sessionType?.includes("reanalyze") && (
                         <RefreshCw className="w-3 h-3" />
                       )}
                       {typeInfo.label}
@@ -509,15 +513,30 @@ function PortfolioAnalysisHistoryModal({
                       </span>
                     )}
                   </div>
-                  <span className="text-[11px] text-forest-f20">
-                    {formatDate(chat.createdAt)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {chat.sessionId && onOpenChat && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenChat(chat.sessionId)}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium text-forest-f40 hover:bg-forest-f40/10 transition-colors"
+                        title="Open in Chat"
+                      >
+                        <MessageSquare className="w-3 h-3" />
+                        Open
+                      </button>
+                    )}
+                    <span className="text-[11px] text-forest-f20">
+                      {formatDate(chat.createdAt)}
+                    </span>
+                  </div>
                 </div>
                 {chat.summary ? (
-                  <div className="prose prose-sm max-w-none text-[12px] text-forest-f30 leading-relaxed [&_h1]:text-[14px] [&_h1]:font-semibold [&_h1]:text-forest-f60 [&_h1]:mt-2 [&_h1]:mb-1 [&_h2]:text-[13px] [&_h2]:font-semibold [&_h2]:text-forest-f60 [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[12px] [&_h3]:font-semibold [&_h3]:text-forest-f50 [&_h3]:mt-1.5 [&_h3]:mb-0.5 [&_p]:my-1 [&_ul]:my-1 [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:pl-4 [&_li]:my-0.5 [&_strong]:text-forest-f50 [&_code]:text-[11px] [&_code]:bg-sandstorm-s5 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_hr]:my-2 [&_hr]:border-sandstorm-s40">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {chat.summary}
-                    </ReactMarkdown>
+                  <div className="overflow-x-auto">
+                    <div className="prose prose-sm max-w-none text-[12px] text-forest-f30 leading-relaxed [&_h1]:text-[14px] [&_h1]:font-semibold [&_h1]:text-forest-f60 [&_h1]:mt-2 [&_h1]:mb-1 [&_h2]:text-[13px] [&_h2]:font-semibold [&_h2]:text-forest-f60 [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[12px] [&_h3]:font-semibold [&_h3]:text-forest-f50 [&_h3]:mt-1.5 [&_h3]:mb-0.5 [&_p]:my-1 [&_ul]:my-1 [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:pl-4 [&_li]:my-0.5 [&_strong]:text-forest-f50 [&_code]:text-[11px] [&_code]:bg-sandstorm-s5 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_hr]:my-2 [&_hr]:border-sandstorm-s40 [&_table]:w-full [&_table]:border-collapse [&_table]:border [&_table]:border-sandstorm-s40 [&_table]:text-[11px] [&_th]:border [&_th]:border-sandstorm-s40 [&_th]:bg-sandstorm-s5 [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-medium [&_td]:border [&_td]:border-sandstorm-s40 [&_td]:px-2 [&_td]:py-1 [&_td]:text-[11px]">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {chat.summary}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 ) : (
                   <p className="text-[12px] text-forest-f20 italic">No summary available.</p>
@@ -795,7 +814,7 @@ export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, p
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [trailOpen, setTrailOpen] = useState(false);
-  const { openAndSend, startNewSession, openAssistant } = useAssistant();
+  const { openAndSend, selectSession, openAssistantPanel } = useAssistant();
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const prevAnalyzing = useRef(false);
@@ -839,28 +858,35 @@ export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, p
     };
   }, [accountId, portfolioId]);
 
+  const DEFAULT_CREATE_PROMPT =
+    "Analyze my portfolio's current performance and create optimization actions " +
+    "based on the data.";
+
   const handleCreateActions = useCallback(() => {
-    startNewSession();
-    openAssistant();
-  }, [startNewSession, openAssistant]);
+    openAndSend("/portfolio-actions", { sessionType: "portfolio_actions" });
+  }, [openAndSend]);
+
+  const handleCreateActionsWithPrompt = useCallback((prompt: string) => {
+    openAndSend(
+      `/portfolio-actions\n\n${prompt}`,
+      { sessionType: "portfolio_actions" },
+    );
+  }, [openAndSend]);
 
   const handleReanalyze = useCallback(() => {
     setReanalyzePrompt(DEFAULT_REANALYZE_PROMPT);
     setReanalyzeOpen(true);
   }, []);
 
-  const handleReanalyzeConfirm = useCallback(async () => {
+  const handleReanalyzeConfirm = useCallback(() => {
     const prompt = reanalyzePrompt.trim() || DEFAULT_REANALYZE_PROMPT;
     setReanalyzeOpen(false);
     setIsAnalyzing(true);
-    try {
-      await markPortfolioRefreshStarted(accountId, portfolioId);
-    } catch { /* best-effort */ }
     openAndSend(
       `/reanalyze-portfolio-actions\n\n${prompt}`,
-      { sessionType: "reanalyze" },
+      { sessionType: "reanalyze_portfolio_actions" },
     );
-  }, [reanalyzePrompt, openAndSend, accountId, portfolioId]);
+  }, [reanalyzePrompt, openAndSend]);
 
   const fetchActions = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -899,6 +925,8 @@ export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, p
         showDashboardLink={false}
         onActionStatusChange={() => fetchActions(true)}
         onCreateActions={handleCreateActions}
+        onCreateActionsWithPrompt={handleCreateActionsWithPrompt}
+        createActionsDefaultPrompt={DEFAULT_CREATE_PROMPT}
         headerExtra={
           <div className="flex items-center gap-1.5">
             {isAnalyzing && (
@@ -1006,6 +1034,11 @@ export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, p
         onClose={() => setHistoryOpen(false)}
         accountId={accountId}
         portfolioId={portfolioId}
+        onOpenChat={async (sessionId) => {
+          setHistoryOpen(false);
+          openAssistantPanel();
+          selectSession(sessionId);
+        }}
       />
       <PortfolioExecutionHistoryModal
         isOpen={trailOpen}

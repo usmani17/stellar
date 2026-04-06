@@ -104,6 +104,8 @@ interface AssistantContextType {
   isOpen: boolean;
   toggleAssistant: () => void;
   openAssistant: () => void;
+  /** Open the panel without resetting the current session (use after selectSession). */
+  openAssistantPanel: () => void;
   closeAssistant: () => void;
 
   sessions: SessionWithMessages[];
@@ -416,8 +418,10 @@ export const AssistantProvider: React.FC<{
 
     setIsLoadingSessions(true);
     try {
-      // Always fetch all user sessions (backend ignores account_id for listing)
-      const resp = await pixisAiSessionsService.list(token, { limit: 50 });
+      const resp = await pixisAiSessionsService.list(token, {
+        limit: 50,
+        type: "chat,portfolio_actions,reanalyze_portfolio_actions,reanalyze",
+      });
       const list = Array.isArray(resp?.sessions) ? resp.sessions : [];
       apiSessionCountRef.current = list.length;
       // Reset pagination: a fresh load always starts from page 1
@@ -466,7 +470,11 @@ export const AssistantProvider: React.FC<{
     setIsLoadingMoreSessions(true);
     try {
       const offset = apiSessionCountRef.current;
-      const resp = await pixisAiSessionsService.list(token, { limit: 50, offset });
+      const resp = await pixisAiSessionsService.list(token, {
+        limit: 50,
+        offset,
+        type: "chat,portfolio_actions,reanalyze_portfolio_actions,reanalyze",
+      });
       const list = Array.isArray(resp?.sessions) ? resp.sessions : [];
       if (list.length < 50) {
         hasMoreSessionsRef.current = false;
@@ -807,23 +815,34 @@ export const AssistantProvider: React.FC<{
           return;
         }
 
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === sessionId
-              ? { ...s, messages: msgs, campaignState: _campaignState }
-              : s
-          )
-        );
+        setSessions((prev) => {
+          const exists = prev.some((s) => s.id === sessionId);
+          if (exists) {
+            return prev.map((s) =>
+              s.id === sessionId
+                ? { ...s, messages: msgs, campaignState: _campaignState }
+                : s
+            );
+          }
+          return [
+            { id: sessionId, messages: msgs, campaignState: _campaignState, created_at: new Date().toISOString(), last_activity_at: new Date().toISOString(), updated_at: new Date().toISOString() } as SessionWithMessages,
+            ...prev,
+          ];
+        });
       } catch (err) {
         console.error("[selectSession] Failed to load history for", sessionId, err);
-        // Clear messages so the error is visible rather than a stuck spinner
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === sessionId
-              ? { ...s, messages: [] }
-              : s
-          )
-        );
+        setSessions((prev) => {
+          const exists = prev.some((s) => s.id === sessionId);
+          if (exists) {
+            return prev.map((s) =>
+              s.id === sessionId ? { ...s, messages: [] } : s
+            );
+          }
+          return [
+            { id: sessionId, messages: [], created_at: new Date().toISOString(), last_activity_at: new Date().toISOString(), updated_at: new Date().toISOString() } as SessionWithMessages,
+            ...prev,
+          ];
+        });
       } finally {
         setIsLoading(false);
         // Only clear the loading indicator if THIS fetch wasn't superseded by a newer one.
@@ -1584,6 +1603,7 @@ export const AssistantProvider: React.FC<{
     }
     setIsOpen(true);
   }, [assistantScope.portfolioId, assistantScope.dashboardId]);
+  const openAssistantPanel = useCallback(() => setIsOpen(true), []);
   const closeAssistant = useCallback(() => setIsOpen(false), []);
 
   const runTestSse = useCallback(async () => {
@@ -1668,6 +1688,7 @@ export const AssistantProvider: React.FC<{
         isOpen,
         toggleAssistant,
         openAssistant,
+        openAssistantPanel,
         closeAssistant,
         sessions,
         currentSession,

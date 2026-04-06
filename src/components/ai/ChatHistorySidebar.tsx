@@ -5,7 +5,7 @@ import {
   type ChatHistorySidebarContextType,
 } from "../../contexts/ChatHistorySidebarContext";
 import { groupSessionsByDate } from "../../utils/assistantSessionUtils";
-import { Plus, Search, BarChart3, RefreshCw, Loader2 } from "lucide-react";
+import { Plus, Search, BarChart3, RefreshCw, Loader2, Zap } from "lucide-react";
 import { cn } from "../../lib/cn";
 
 const CHAT_HISTORY_SIDEBAR_WIDTH = 260;
@@ -217,6 +217,12 @@ export const ChatHistorySidebar: React.FC = () => {
                       <span className="truncate flex-1">
                         {session.title || "Untitled"}
                       </span>
+                      {session.type?.includes("portfolio_actions") && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[9px] font-medium shrink-0">
+                          <Zap className="w-2.5 h-2.5" />
+                          Actions
+                        </span>
+                      )}
                       {isRunning && (
                         <span
                           className="relative flex shrink-0 h-2 w-2"

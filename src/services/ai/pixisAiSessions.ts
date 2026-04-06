@@ -31,6 +31,8 @@ export interface PixisSession {
   updated_at?: string;
   /** Multi-profile context stored when session used multiple profiles. */
   profiles_json?: PixisSessionProfile[] | null;
+  /** Session type — e.g. 'chat', 'portfolio_actions', 'reanalyze_portfolio_actions'. */
+  type?: string | null;
   /** True when the agent subprocess for this session is still running in the backend. */
   is_running?: boolean;
 }
@@ -76,13 +78,14 @@ export function getPixisAiBaseUrl(): string | null {
 export const pixisAiSessionsService = {
   list: async (
     accessToken: string,
-    options?: { accountId?: number; limit?: number; offset?: number }
+    options?: { accountId?: number; limit?: number; offset?: number; type?: string }
   ): Promise<{ sessions: PixisSession[] }> => {
     const baseUrl = getBaseUrl();
     const params = new URLSearchParams();
     if (options?.accountId != null) params.set("account_id", String(options.accountId));
     if (options?.limit) params.set("limit", String(options.limit));
     if (options?.offset) params.set("offset", String(options.offset));
+    if (options?.type) params.set("type", options.type);
 
     const res = await fetch(`${baseUrl}/sessions?${params}`, {
       headers: { Authorization: `Bearer ${accessToken}` },

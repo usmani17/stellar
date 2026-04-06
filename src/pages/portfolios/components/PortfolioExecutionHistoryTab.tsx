@@ -12,6 +12,8 @@ import {
   Clock,
   Filter,
   Search,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { Loader } from "../../../components/ui";
 import { cn } from "../../../lib/cn";
@@ -75,6 +77,226 @@ function StatusBadge({ status }: { status: string }) {
     <span className={cn("text-[10px] px-2 py-0.5 rounded-full border font-medium", cls)}>
       {status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
+  );
+}
+
+interface PreviewEntity {
+  id: string;
+  name: string;
+  before?: Record<string, number>;
+  after?: Record<string, number>;
+  data?: Record<string, unknown>;
+}
+
+function ExecutionCard({ exec }: { exec: Record<string, unknown> }) {
+  const [expanded, setExpanded] = useState(true);
+
+  const execStatus = String(exec.status ?? "unknown");
+  const isSuccess = execStatus === "success";
+  const isFailed = execStatus === "failed" || execStatus === "error";
+  const entityIds = Array.isArray(exec.entity_ids) ? (exec.entity_ids as string[]) : [];
+  const previewResult = Array.isArray(exec.preview_result)
+    ? (exec.preview_result as PreviewEntity[])
+    : [];
+  const result = exec.result as Record<string, unknown> | null | undefined;
+  const error = exec.error as string | null | undefined;
+  const actionParams = exec.action_params as Record<string, unknown> | null | undefined;
+
+  const hasDetails = previewResult.length > 0 || entityIds.length > 0;
+
+  return (
+    <div
+      className={cn(
+        "border rounded-xl overflow-hidden transition-colors",
+        isSuccess
+          ? "border-green-200 bg-green-50/20"
+          : isFailed
+            ? "border-red-200 bg-red-50/20"
+            : "border-sandstorm-s40 bg-white",
+      )}
+    >
+      {/* Header row — clickable to toggle */}
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className={cn(
+          "w-full flex items-center justify-between p-4 text-left",
+          isSuccess ? "hover:bg-green-50/40" : isFailed ? "hover:bg-red-50/40" : "hover:bg-sandstorm-s5",
+        )}
+      >
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          {isSuccess ? (
+            <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+              <CheckCircle2 className="w-4 h-4 text-green-600" />
+            </div>
+          ) : isFailed ? (
+            <div className="w-7 h-7 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+              <XCircle className="w-4 h-4 text-red-500" />
+            </div>
+          ) : (
+            <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <Clock className="w-4 h-4 text-amber-500" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-[13px] font-semibold text-forest-f60 truncate">
+                {String(exec.action_rule_id ?? `Execution #${exec.id}`)}
+              </span>
+              <StatusBadge status={execStatus} />
+            </div>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-sandstorm-s10 text-forest-f20 font-mono">
+                {String(exec.action_type ?? "—")}
+              </span>
+              <span className="text-[10px] text-forest-f20">
+                {String(exec.platform ?? "")} / {String(exec.entity_type ?? "")}
+              </span>
+              {exec.action_id != null && (
+                <span className="text-[10px] text-forest-f20">Action #{String(exec.action_id)}</span>
+              )}
+              {entityIds.length > 0 && (
+                <span className="text-[10px] text-forest-f30 font-medium">
+                  · {entityIds.length} {entityIds.length === 1 ? "entity" : "entities"}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="text-right">
+            <p className="text-[11px] text-forest-f30">
+              {exec.executed_at
+                ? formatDate(String(exec.executed_at))
+                : exec.proposed_at
+                  ? formatDate(String(exec.proposed_at))
+                  : ""}
+            </p>
+          </div>
+          {hasDetails && (
+            expanded
+              ? <ChevronDown className="w-4 h-4 text-forest-f20" />
+              : <ChevronRight className="w-4 h-4 text-forest-f20" />
+          )}
+        </div>
+      </button>
+
+      {/* Expanded detail */}
+      {expanded && (
+        <div className="px-4 pb-4 space-y-3">
+          {/* Action params */}
+          {actionParams && typeof actionParams === "object" && Object.keys(actionParams).length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              <span className="text-[10px] font-medium text-forest-f30">Parameters:</span>
+              {Object.entries(actionParams)
+                .filter(([k]) => !k.startsWith("_"))
+                .slice(0, 8)
+                .map(([k, v]) => (
+                  <span key={k} className="text-[10px] px-2 py-0.5 rounded bg-sandstorm-s10 text-forest-f30">
+                    <span className="font-medium">{k}:</span> {JSON.stringify(v)}
+                  </span>
+                ))}
+            </div>
+          )}
+
+          {/* Entity detail table from preview_result */}
+          {previewResult.length > 0 && (
+            <div className="border border-sandstorm-s40 rounded-lg overflow-hidden">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-sandstorm-s10 border-b border-sandstorm-s40">
+                    <th className="px-3 py-2 text-[10px] font-semibold text-forest-f30 uppercase tracking-wider">Entity ID</th>
+                    <th className="px-3 py-2 text-[10px] font-semibold text-forest-f30 uppercase tracking-wider">Name</th>
+                    {previewResult.some((e) => e.before) && (
+                      <th className="px-3 py-2 text-[10px] font-semibold text-forest-f30 uppercase tracking-wider">Before</th>
+                    )}
+                    {previewResult.some((e) => e.after) && (
+                      <th className="px-3 py-2 text-[10px] font-semibold text-forest-f30 uppercase tracking-wider">After</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewResult.map((entity, i) => {
+                    const hasBefore = previewResult.some((e) => e.before);
+                    const hasAfter = previewResult.some((e) => e.after);
+                    return (
+                      <tr key={entity.id || i} className={cn("border-b border-sandstorm-s40/50 last:border-b-0", i % 2 === 0 ? "bg-white" : "bg-sandstorm-s5/50")}>
+                        <td className="px-3 py-2 text-[11px] font-mono text-forest-f40">{entity.id}</td>
+                        <td className="px-3 py-2 text-[11px] text-forest-f60 max-w-[240px] truncate" title={entity.name}>
+                          {entity.name || "—"}
+                        </td>
+                        {hasBefore && (
+                          <td className="px-3 py-2 text-[11px] text-forest-f30">
+                            {entity.before
+                              ? Object.entries(entity.before).map(([k, v]) => (
+                                  <span key={k} className="inline-flex items-center gap-1 mr-2">
+                                    <span className="text-forest-f20">{k}:</span>
+                                    <span className="font-medium">{typeof v === "number" ? v.toLocaleString() : String(v)}</span>
+                                  </span>
+                                ))
+                              : "—"}
+                          </td>
+                        )}
+                        {hasAfter && (
+                          <td className="px-3 py-2 text-[11px] text-forest-f40 font-medium">
+                            {entity.after
+                              ? Object.entries(entity.after).map(([k, v]) => (
+                                  <span key={k} className="inline-flex items-center gap-1 mr-2">
+                                    <span className="text-forest-f20">{k}:</span>
+                                    <span className="font-semibold">{typeof v === "number" ? v.toLocaleString() : String(v)}</span>
+                                  </span>
+                                ))
+                              : "—"}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Fallback: show entity ID badges when no preview_result */}
+          {previewResult.length === 0 && entityIds.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-sandstorm-s40/50">
+              <span className="text-[10px] text-forest-f30 font-medium mr-1">Affected entities:</span>
+              {entityIds.slice(0, 20).map((eid, i) => (
+                <span
+                  key={i}
+                  className="text-[10px] px-2 py-0.5 rounded-full bg-forest-f40/10 text-forest-f40 font-mono"
+                >
+                  {String(eid)}
+                </span>
+              ))}
+              {entityIds.length > 20 && (
+                <span className="text-[10px] text-forest-f20">+{entityIds.length - 20} more</span>
+              )}
+            </div>
+          )}
+
+          {/* Result */}
+          {result && typeof result === "object" && Object.keys(result).length > 0 && (
+            <div className="pt-1 border-t border-sandstorm-s40/50">
+              <p className="text-[10px] font-medium text-green-600 mb-1">Result:</p>
+              <div className="text-[11px] text-forest-f30 bg-white rounded-lg p-2.5 border border-sandstorm-s40 overflow-hidden">
+                <pre className="whitespace-pre-wrap break-all text-[10px]">{JSON.stringify(result, null, 2).slice(0, 400)}</pre>
+              </div>
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="pt-1 border-t border-sandstorm-s40/50">
+              <p className="text-[10px] font-medium text-red-600 mb-1">Error:</p>
+              <div className="text-[11px] text-red-600 bg-red-50 rounded-lg p-2.5 border border-red-200 break-words overflow-hidden">
+                {String(error)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -256,136 +478,9 @@ export function PortfolioExecutionHistoryTab({
             </div>
           ) : (
             <div className="space-y-2 overflow-hidden">
-              {filteredExecutions.map((exec) => {
-                const execStatus = String(exec.status ?? "unknown");
-                const isSuccess = execStatus === "success";
-                const isFailed = execStatus === "failed" || execStatus === "error";
-                const entityIds = Array.isArray(exec.entity_ids) ? (exec.entity_ids as string[]) : [];
-                const result = exec.result as Record<string, unknown> | null | undefined;
-                const error = exec.error as string | null | undefined;
-                const actionParams = exec.action_params as Record<string, unknown> | null | undefined;
-
-                return (
-                  <div
-                    key={String(exec.id)}
-                    className={cn(
-                      "border rounded-xl p-4 transition-colors overflow-hidden",
-                      isSuccess
-                        ? "border-green-200 bg-green-50/20 hover:bg-green-50/40"
-                        : isFailed
-                          ? "border-red-200 bg-red-50/20 hover:bg-red-50/40"
-                          : "border-sandstorm-s40 bg-white hover:bg-sandstorm-s5",
-                    )}
-                  >
-                    {/* Header row */}
-                    <div className="flex items-center justify-between mb-2 min-w-0">
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        {isSuccess ? (
-                          <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center">
-                            <CheckCircle2 className="w-4 h-4 text-green-600" />
-                          </div>
-                        ) : isFailed ? (
-                          <div className="w-7 h-7 rounded-full bg-red-100 flex items-center justify-center">
-                            <XCircle className="w-4 h-4 text-red-500" />
-                          </div>
-                        ) : (
-                          <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center">
-                            <Clock className="w-4 h-4 text-amber-500" />
-                          </div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-[13px] font-semibold text-forest-f60 truncate">
-                              {String(exec.action_rule_id ?? `Execution #${exec.id}`)}
-                            </span>
-                            <StatusBadge status={execStatus} />
-                          </div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-sandstorm-s10 text-forest-f20 font-mono">
-                              {String(exec.action_type ?? "—")}
-                            </span>
-                            <span className="text-[10px] text-forest-f20">
-                              {String(exec.platform ?? "")} / {String(exec.entity_type ?? "")}
-                            </span>
-                            {exec.action_id != null && (
-                              <span className="text-[10px] text-forest-f20">Action #{String(exec.action_id)}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[11px] text-forest-f30">
-                          {exec.executed_at
-                            ? formatDate(String(exec.executed_at))
-                            : exec.proposed_at
-                              ? formatDate(String(exec.proposed_at))
-                              : ""}
-                        </p>
-                        {exec.executed_at != null && exec.proposed_at != null && String(exec.executed_at) !== String(exec.proposed_at) && (
-                          <p className="text-[9px] text-forest-f20 mt-0.5">
-                            Proposed: {formatDate(String(exec.proposed_at))}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Affected entities */}
-                    {entityIds.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-sandstorm-s40/50">
-                        <span className="text-[10px] text-forest-f30 font-medium mr-1">Affected entities:</span>
-                        {entityIds.slice(0, 10).map((eid, i) => (
-                          <span
-                            key={i}
-                            className="text-[10px] px-2 py-0.5 rounded-full bg-forest-f40/10 text-forest-f40 font-mono"
-                          >
-                            {String(eid)}
-                          </span>
-                        ))}
-                        {entityIds.length > 10 && (
-                          <span className="text-[10px] text-forest-f20">+{entityIds.length - 10} more</span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Action params summary */}
-                    {actionParams && typeof actionParams === "object" && Object.keys(actionParams).length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-sandstorm-s40/50">
-                        <p className="text-[10px] font-medium text-forest-f30 mb-1">Parameters:</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {Object.entries(actionParams)
-                            .filter(([k]) => !k.startsWith("_"))
-                            .slice(0, 6)
-                            .map(([k, v]) => (
-                              <span key={k} className="text-[10px] px-2 py-0.5 rounded bg-sandstorm-s10 text-forest-f30">
-                                <span className="font-medium">{k}:</span> {JSON.stringify(v)}
-                              </span>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Result */}
-                    {result && typeof result === "object" && Object.keys(result).length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-sandstorm-s40/50">
-                        <p className="text-[10px] font-medium text-green-600 mb-1">Result:</p>
-                        <div className="text-[11px] text-forest-f30 bg-white rounded-lg p-2.5 border border-sandstorm-s40 overflow-hidden">
-                          <pre className="whitespace-pre-wrap break-all text-[10px]">{JSON.stringify(result, null, 2).slice(0, 400)}</pre>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Error */}
-                    {error && (
-                      <div className="mt-2 pt-2 border-t border-sandstorm-s40/50">
-                        <p className="text-[10px] font-medium text-red-600 mb-1">Error:</p>
-                        <div className="text-[11px] text-red-600 bg-red-50 rounded-lg p-2.5 border border-red-200 break-words overflow-hidden">
-                          {String(error)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {filteredExecutions.map((exec) => (
+                <ExecutionCard key={String(exec.id)} exec={exec} />
+              ))}
             </div>
           )}
         </div>

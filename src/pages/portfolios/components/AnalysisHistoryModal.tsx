@@ -24,7 +24,9 @@ interface DashboardHistoryGroup {
 
 const SESSION_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   original: { label: "Initial Analysis", color: "bg-forest-f40/10 text-forest-f40" },
+  portfolio_actions: { label: "Initial Analysis", color: "bg-forest-f40/10 text-forest-f40" },
   reanalyze: { label: "Re-analysis", color: "bg-amber-50 text-amber-700" },
+  reanalyze_portfolio_actions: { label: "Re-analysis", color: "bg-amber-50 text-amber-700" },
 };
 
 function formatDate(iso: string): string {
@@ -193,7 +195,7 @@ export const AnalysisHistoryModal: React.FC<Props> = ({
                               typeInfo.color,
                             )}
                           >
-                            {chat.session_type === "reanalyze" && (
+                            {chat.session_type?.includes("reanalyze") && (
                               <RefreshCw className="w-3 h-3" />
                             )}
                             {typeInfo.label}
@@ -211,10 +213,12 @@ export const AnalysisHistoryModal: React.FC<Props> = ({
 
                       {/* Summary */}
                       {chat.summary ? (
-                        <div className="prose prose-sm max-w-none text-[12px] text-forest-f30 leading-relaxed [&_h1]:text-[14px] [&_h1]:font-semibold [&_h1]:text-forest-f60 [&_h1]:mt-2 [&_h1]:mb-1 [&_h2]:text-[13px] [&_h2]:font-semibold [&_h2]:text-forest-f60 [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[12px] [&_h3]:font-semibold [&_h3]:text-forest-f50 [&_h3]:mt-1.5 [&_h3]:mb-0.5 [&_p]:my-1 [&_ul]:my-1 [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:pl-4 [&_li]:my-0.5 [&_strong]:text-forest-f50 [&_code]:text-[11px] [&_code]:bg-sandstorm-s5 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_hr]:my-2 [&_hr]:border-sandstorm-s40">
+                        <div className="overflow-x-auto">
+                        <div className="prose prose-sm max-w-none text-[12px] text-forest-f30 leading-relaxed [&_h1]:text-[14px] [&_h1]:font-semibold [&_h1]:text-forest-f60 [&_h1]:mt-2 [&_h1]:mb-1 [&_h2]:text-[13px] [&_h2]:font-semibold [&_h2]:text-forest-f60 [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[12px] [&_h3]:font-semibold [&_h3]:text-forest-f50 [&_h3]:mt-1.5 [&_h3]:mb-0.5 [&_p]:my-1 [&_ul]:my-1 [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:pl-4 [&_li]:my-0.5 [&_strong]:text-forest-f50 [&_code]:text-[11px] [&_code]:bg-sandstorm-s5 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_hr]:my-2 [&_hr]:border-sandstorm-s40 [&_table]:w-full [&_table]:border-collapse [&_table]:border [&_table]:border-sandstorm-s40 [&_table]:text-[11px] [&_th]:border [&_th]:border-sandstorm-s40 [&_th]:bg-sandstorm-s5 [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-medium [&_td]:border [&_td]:border-sandstorm-s40 [&_td]:px-2 [&_td]:py-1">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>
                             {chat.summary}
                           </ReactMarkdown>
+                        </div>
                         </div>
                       ) : (
                         <p className="text-[12px] text-forest-f20 italic">

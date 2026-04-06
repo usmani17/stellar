@@ -116,6 +116,8 @@ interface ActionsListPanelProps {
   showDashboardLink?: boolean;
   onActionStatusChange?: (actionId: string, newStatus: string) => void;
   onCreateActions?: () => void;
+  onCreateActionsWithPrompt?: (prompt: string) => void;
+  createActionsDefaultPrompt?: string;
   headerExtra?: React.ReactNode;
 }
 
@@ -241,9 +243,17 @@ function formatParamValue(val: unknown): string {
   if (Array.isArray(val)) {
     const items = val.map((v) => {
       if (typeof v === "string") return v;
+      if (typeof v === "number") return String(v);
       if (v && typeof v === "object") {
         const obj = v as Record<string, unknown>;
-        return obj.text ?? obj.value ?? obj.keyword ?? obj.name ?? JSON.stringify(v);
+        if (typeof obj.text === "string") {
+          const mt = obj.match_type ? ` [${String(obj.match_type)}]` : "";
+          return `${obj.text}${mt}`;
+        }
+        if (typeof obj.keyword === "string") return obj.keyword;
+        if (typeof obj.value === "string") return obj.value;
+        if (typeof obj.name === "string") return obj.name;
+        return JSON.stringify(v);
       }
       return String(v);
     });
@@ -251,11 +261,231 @@ function formatParamValue(val: unknown): string {
   }
   if (typeof val === "object") {
     const obj = val as Record<string, unknown>;
-    if ("text" in obj) return String(obj.text);
+    if ("text" in obj && typeof obj.text === "string") return obj.text;
     if ("value" in obj) return String(obj.value);
     return JSON.stringify(val);
   }
   return String(val);
+}
+
+function formatSmartParams(
+  actionType: string,
+  params: Record<string, unknown>,
+  platform?: string,
+): Array<{ key: string; label: string }> {
+  const changeType = String(params.change_type ?? "").toLowerCase();
+  const unit = String(params.unit ?? "").toLowerCase();
+  const value = params.value;
+  const unitSuffix = unit === "percent" ? "%" : unit === "amount" ? " (amount)" : "";
+  const _platform = (platform ?? "google").toLowerCase();
+
+  // Meta-specific action formatting will go here when Meta actions are added
+  // if (_platform === "meta") { ... }
+  void _platform;
+
+  switch (actionType) {
+    case "adjust_budget":
+    case "adjust_bid":
+    case "adjust_shared_budget":
+    case "adjust_portfolio_bid_target": {
+      const verb = changeType === "increase" ? "Increase" : changeType === "decrease" ? "Decrease" : changeType === "set" ? "Set to" : changeType;
+      return [{ key: "_summary", label: `${verb} ${value}${unitSuffix}` }];
+    }
+    case "adjust_target": {
+      const target = String(params.target_type ?? "").toUpperCase();
+      const verb = changeType === "increase" ? "Increase" : changeType === "decrease" ? "Decrease" : changeType === "set" ? "Set to" : changeType;
+      return [{ key: "_summary", label: `${verb} ${target} by ${value}${unitSuffix}` }];
+    }
+    case "change_bid_strategy": {
+      const strategy = String(params.strategy ?? "").replace(/_/g, " ");
+      const parts: Array<{ key: string; label: string }> = [{ key: "strategy", label: `Strategy: ${strategy}` }];
+      if (params.target_cpa != null) parts.push({ key: "target_cpa", label: `Target CPA: $${params.target_cpa}` });
+      if (params.target_roas != null) parts.push({ key: "target_roas", label: `Target ROAS: ${params.target_roas}` });
+      return parts;
+    }
+    case "set_frequency_cap": {
+      const imp = params.impressions ?? "?";
+      const tu = String(params.time_unit ?? "DAY").toLowerCase();
+      return [{ key: "_summary", label: `${imp} impressions per ${tu}` }];
+    }
+    case "add_keyword":
+    case "add_negative_keyword": {
+      const kws = params.keywords;
+      const matchType = params.match_type ? String(params.match_type) : undefined;
+      const chips: Array<{ key: string; label: string }> = [];
+      if (Array.isArray(kws)) {
+        kws.forEach((kw, i) => {
+          if (typeof kw === "string") {
+            const mt = matchType ? ` [${matchType}]` : "";
+            chips.push({ key: `kw_${i}`, label: `${kw}${mt}` });
+          } else if (kw && typeof kw === "object") {
+            const obj = kw as Record<string, unknown>;
+            const text = String(obj.text ?? obj.keyword ?? "");
+            const mt = obj.match_type ? ` [${String(obj.match_type)}]` : matchType ? ` [${matchType}]` : "";
+            if (text) chips.push({ key: `kw_${i}`, label: `${text}${mt}` });
+          }
+        });
+      }
+      return chips.length > 0 ? chips : Object.entries(params).map(([k, v]) => ({ key: k, label: `${formatMetricLabel(k)}: ${formatParamValue(v)}` }));
+    }
+    case "change_state": {
+      const status = String(params.status ?? "");
+      return [{ key: "status", label: status === "PAUSED" ? "Pause" : status === "ENABLED" ? "Enable" : status }];
+    }
+    case "add_asset": {
+      const at = String(params.asset_type ?? "").replace(/_/g, " ");
+      const parts: Array<{ key: string; label: string }> = [{ key: "asset_type", label: `Type: ${at}` }];
+      if (params.callout_text) parts.push({ key: "callout_text", label: String(params.callout_text) });
+      if (params.link_text) parts.push({ key: "link_text", label: String(params.link_text) });
+      if (params.header) parts.push({ key: "header", label: `Header: ${params.header}` });
+      if (params.phone_number) parts.push({ key: "phone_number", label: String(params.phone_number) });
+      return parts;
+    }
+    case "update_ad_url": {
+      if (params.final_url) return [{ key: "final_url", label: String(params.final_url) }];
+      break;
+    }
+    case "remove_keyword": {
+      if (params.keyword_ids) return [{ key: "keyword_ids", label: `Keyword IDs: ${formatParamValue(params.keyword_ids)}` }];
+      break;
+    }
+    case "remove_negative_keyword": {
+      if (params.criterion_ids) return [{ key: "criterion_ids", label: `Criterion IDs: ${formatParamValue(params.criterion_ids)}` }];
+      if (params.keyword_ids) return [{ key: "keyword_ids", label: `Keyword IDs: ${formatParamValue(params.keyword_ids)}` }];
+      break;
+    }
+    case "adjust_device_bid": {
+      const device = String(params.device ?? "");
+      const verb = changeType === "increase" ? "Increase" : changeType === "decrease" ? "Decrease" : changeType === "set" ? "Set" : changeType;
+      return [{ key: "_summary", label: `${device}: ${verb} ${value}%` }];
+    }
+    case "toggle_ai_max": {
+      return [{ key: "enabled", label: params.enabled ? "Enable AI Max" : "Disable AI Max" }];
+    }
+    case "add_product_group":
+    case "exclude_product_group": {
+      const pgType = String(params.product_group_type ?? "").replace(/_/g, " ");
+      const pgVal = String(params.product_group_value ?? "");
+      const parts: Array<{ key: string; label: string }> = [];
+      if (pgType && pgVal) {
+        parts.push({ key: "pg", label: `${pgType}: ${pgVal}` });
+      } else if (pgVal) {
+        parts.push({ key: "pg", label: pgVal });
+      }
+      if (params.bid_micros != null) {
+        const bidDollars = (Number(params.bid_micros) / 1_000_000).toFixed(2);
+        parts.push({ key: "bid", label: `Bid: $${bidDollars}` });
+      }
+      return parts.length > 0 ? parts : Object.entries(params).map(([k, v]) => ({ key: k, label: `${formatMetricLabel(k)}: ${formatParamValue(v)}` }));
+    }
+    case "exclude_placement": {
+      const placements = params.placements;
+      const pType = params.placement_type ? String(params.placement_type) : "";
+      const chips: Array<{ key: string; label: string }> = [];
+      if (pType) chips.push({ key: "type", label: `Type: ${pType}` });
+      if (Array.isArray(placements)) {
+        placements.slice(0, 5).forEach((p, i) => chips.push({ key: `p_${i}`, label: String(p) }));
+        if (placements.length > 5) chips.push({ key: "more", label: `+${placements.length - 5} more` });
+      }
+      return chips.length > 0 ? chips : Object.entries(params).map(([k, v]) => ({ key: k, label: `${formatMetricLabel(k)}: ${formatParamValue(v)}` }));
+    }
+    case "assign_shared_budget":
+    case "assign_portfolio_bid_strategy": {
+      const id = params.budget_id ?? params.bidding_strategy_id ?? "";
+      const label = params.budget_id ? "Budget ID" : "Strategy ID";
+      return [{ key: "_id", label: `${label}: ${id}` }];
+    }
+    case "adjust_impression_share_target": {
+      const parts: Array<{ key: string; label: string }> = [];
+      if (params.location) parts.push({ key: "location", label: String(params.location).replace(/_/g, " ") });
+      if (params.fraction_micros != null) {
+        const pct = (Number(params.fraction_micros) / 10_000).toFixed(1);
+        parts.push({ key: "fraction", label: `Target: ${pct}%` });
+      }
+      if (params.cpc_bid_ceiling_micros != null) {
+        const ceiling = (Number(params.cpc_bid_ceiling_micros) / 1_000_000).toFixed(2);
+        parts.push({ key: "ceiling", label: `CPC Ceiling: $${ceiling}` });
+      }
+      return parts.length > 0 ? parts : Object.entries(params).map(([k, v]) => ({ key: k, label: `${formatMetricLabel(k)}: ${formatParamValue(v)}` }));
+    }
+    default:
+      break;
+  }
+
+  return Object.entries(params).map(([key, val]) => ({
+    key,
+    label: `${formatMetricLabel(key)}: ${formatParamValue(val)}`,
+  }));
+}
+
+function hasRealCondition(condition?: Record<string, unknown>): boolean {
+  if (!condition || Object.keys(condition).length === 0) return false;
+  if ("logic" in condition && Array.isArray(condition.conditions)) {
+    const subs = condition.conditions as Array<Record<string, unknown>>;
+    return subs.length > 0 && subs.some((c) => c.field && String(c.field).trim() !== "");
+  }
+  if ("field" in condition && String(condition.field ?? "").trim() !== "") return true;
+  return false;
+}
+
+const ENTITY_TYPE_LABELS: Record<string, string> = {
+  campaign: "Campaigns",
+  adgroup: "Ad Groups",
+  keyword: "Keywords",
+  ad: "Ads",
+  asset: "Assets",
+  asset_group: "Asset Groups",
+  product_group: "Product Groups",
+};
+
+function getActionTargetDescription(actionType: string, entityType: string): string | null {
+  const entityLabel = ENTITY_TYPE_LABELS[entityType] || entityType.replace(/_/g, " ");
+
+  switch (actionType) {
+    case "add_keyword":
+      return entityType === "campaign"
+        ? `Adding keywords to ad groups within matched ${entityLabel}`
+        : `Adding keywords to matched ${entityLabel}`;
+    case "add_negative_keyword":
+      return entityType === "campaign"
+        ? `Adding negative keywords at campaign level on matched ${entityLabel}`
+        : `Adding negative keywords to matched ${entityLabel}`;
+    case "remove_keyword":
+      return `Removing keywords from matched ${entityLabel}`;
+    case "remove_negative_keyword":
+      return entityType === "campaign"
+        ? `Removing negative keywords from matched ${entityLabel}`
+        : `Removing negative keywords from matched ${entityLabel}`;
+    case "add_asset":
+      return `Linking asset to matched ${entityLabel}`;
+    case "remove_asset":
+      return `Unlinking asset from matched ${entityLabel}`;
+    case "adjust_budget":
+    case "adjust_shared_budget":
+      return `Adjusting budget on matched ${entityLabel}`;
+    case "adjust_bid":
+      return `Adjusting bids on matched ${entityLabel}`;
+    case "adjust_target":
+      return `Adjusting target on matched ${entityLabel}`;
+    case "change_bid_strategy":
+      return `Switching bid strategy on matched ${entityLabel}`;
+    case "change_state":
+      return `Changing status on matched ${entityLabel}`;
+    case "set_frequency_cap":
+      return `Setting frequency cap on matched ${entityLabel}`;
+    case "exclude_placement":
+      return `Excluding placements on matched ${entityLabel}`;
+    case "update_ad_url":
+      return `Updating URLs on matched ${entityLabel}`;
+    case "adjust_device_bid":
+      return `Adjusting device bids on matched ${entityLabel}`;
+    case "adjust_demographic_bid":
+      return `Adjusting demographic bids on matched ${entityLabel}`;
+    case "set_ad_schedule":
+      return `Setting ad schedule on matched ${entityLabel}`;
+    default:
+      return `Applies to matched ${entityLabel}`;
+  }
 }
 
 function getFormattedGuardrails(guardrails?: Record<string, unknown>): Array<{ key: string; label: string; value: string; description: string }> {
@@ -756,11 +986,11 @@ const TriggerEditModal: React.FC<{
         )}
       </div>
 
-      <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-sandstorm-s40">
+      <div className="flex items-center justify-end gap-2 px-6 py-3.5 border-t border-sandstorm-s40">
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-2 text-[12px] font-medium text-forest-f60 border border-sandstorm-s40 rounded-lg hover:bg-sandstorm-s10 transition-colors"
+          className="px-3 py-1.5 text-[11px] font-semibold text-forest-f60 border border-sandstorm-s40 rounded-md hover:bg-sandstorm-s10 transition-colors"
         >
           Cancel
         </button>
@@ -768,7 +998,7 @@ const TriggerEditModal: React.FC<{
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="px-4 py-2 text-[12px] font-medium text-white bg-forest-f40 hover:bg-forest-f50 rounded-lg disabled:opacity-50 transition-colors"
+          className="px-3 py-1.5 text-[11px] font-semibold text-white bg-forest-f40 hover:bg-forest-f50 rounded-md disabled:opacity-50 transition-colors"
         >
           {saving ? "Saving..." : "Save Conditions"}
         </button>
@@ -892,6 +1122,634 @@ function editorStateToPayload(s: ScheduleEditorState): Record<string, unknown> {
   }
   return base;
 }
+
+// ── Params Edit Modal ─────────────────────────────────────────────────────────
+
+const PARAM_FIELD_CONFIG: Record<string, {
+  label: string;
+  type: "text" | "url" | "number" | "boolean" | "select" | "textarea" | "string-list";
+  placeholder?: string;
+  options?: Array<{ value: string; label: string }>;
+  helperText?: string;
+  readonly?: boolean;
+}> = {
+  // ── User-facing content (editable) ──────────────────────────────────────────
+  final_url: { label: "Final URL", type: "url", placeholder: "https://example.com/landing-page", helperText: "Must start with http:// or https://" },
+  final_urls: { label: "Final URLs", type: "string-list", placeholder: "https://example.com/page", helperText: "One URL per line" },
+  link_text: { label: "Link Text", type: "text", placeholder: "e.g. Shop Now" },
+  description1: { label: "Description Line 1", type: "text", placeholder: "e.g. Free shipping on orders $50+" },
+  description2: { label: "Description Line 2", type: "text", placeholder: "e.g. 30-day returns" },
+  callout_text: { label: "Callout Text", type: "text", placeholder: "e.g. Free Shipping" },
+  header: {
+    label: "Header", type: "select", readonly: true, helperText: "Structured snippet header — set by Agent analysis",
+    options: [
+      { value: "Amenities", label: "Amenities" },
+      { value: "Brands", label: "Brands" },
+      { value: "Courses", label: "Courses" },
+      { value: "Degree programs", label: "Degree programs" },
+      { value: "Destinations", label: "Destinations" },
+      { value: "Featured hotels", label: "Featured hotels" },
+      { value: "Insurance coverage", label: "Insurance coverage" },
+      { value: "Models", label: "Models" },
+      { value: "Neighborhoods", label: "Neighborhoods" },
+      { value: "Service catalog", label: "Service catalog" },
+      { value: "Shows", label: "Shows" },
+      { value: "Styles", label: "Styles" },
+      { value: "Types", label: "Types" },
+    ],
+  },
+  values: { label: "Values", type: "string-list", placeholder: "e.g. Nike, Adidas, Puma", helperText: "One value per line" },
+  phone_number: { label: "Phone Number", type: "text", placeholder: "+15551234567" },
+  promotion_target: { label: "Promotion Target", type: "text", placeholder: "e.g. Summer Sale" },
+  percent_off: { label: "Percent Off", type: "number", placeholder: "20" },
+  product_group_value: { label: "Product Group Value", type: "text", readonly: true, helperText: "Must match your Merchant Center feed — set by Agent analysis" },
+  keywords: { label: "Keywords", type: "string-list", placeholder: "One keyword per line" },
+
+  // ── Numeric values (editable) ───────────────────────────────────────────────
+  value: { label: "Value", type: "number", placeholder: "e.g. 20" },
+  impressions: { label: "Impressions", type: "number", placeholder: "e.g. 3" },
+  target_cpa: { label: "Target CPA ($)", type: "number", placeholder: "e.g. 15" },
+  target_roas: { label: "Target ROAS", type: "number", placeholder: "e.g. 3.0" },
+  bid_micros: { label: "CPC Bid (micros)", type: "number", placeholder: "500000 = $0.50", helperText: "1,000,000 micros = $1.00" },
+  cpc_bid_micros: { label: "CPC Bid (micros)", type: "number", placeholder: "500000 = $0.50", helperText: "1,000,000 micros = $1.00" },
+  fraction_micros: { label: "Target Fraction (micros)", type: "number", placeholder: "700000 = 70%" },
+  cpc_bid_ceiling_micros: { label: "CPC Bid Ceiling (micros)", type: "number", placeholder: "5000000 = $5.00" },
+
+  // ── Selects the user can change (editable) ─────────────────────────────────
+  change_type: {
+    label: "Change Type", type: "select",
+    options: [
+      { value: "increase", label: "Increase" },
+      { value: "decrease", label: "Decrease" },
+      { value: "set", label: "Set to value" },
+    ],
+  },
+  unit: {
+    label: "Unit", type: "select",
+    options: [{ value: "percent", label: "Percent (%)" }, { value: "amount", label: "Amount ($)" }],
+  },
+  status: {
+    label: "Status", type: "select",
+    options: [{ value: "PAUSED", label: "Paused" }, { value: "ENABLED", label: "Enabled" }],
+  },
+  enabled: { label: "Enabled", type: "boolean" },
+  match_type: {
+    label: "Match Type", type: "select",
+    options: [
+      { value: "EXACT", label: "Exact" },
+      { value: "PHRASE", label: "Phrase" },
+      { value: "BROAD", label: "Broad" },
+    ],
+  },
+  strategy: {
+    label: "Strategy", type: "select",
+    options: [
+      { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions" },
+      { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },
+      { value: "TARGET_CPA", label: "Target CPA" },
+      { value: "TARGET_ROAS", label: "Target ROAS" },
+      { value: "MANUAL_CPC", label: "Manual CPC" },
+      { value: "MANUAL_CPM", label: "Manual CPM" },
+      { value: "TARGET_IMPRESSION_SHARE", label: "Target Impression Share" },
+    ],
+  },
+  time_unit: {
+    label: "Time Unit", type: "select",
+    options: [
+      { value: "DAY", label: "Per Day" },
+      { value: "WEEK", label: "Per Week" },
+      { value: "MONTH", label: "Per Month" },
+    ],
+  },
+  location: {
+    label: "Target Location", type: "select",
+    options: [
+      { value: "ANYWHERE_ON_PAGE", label: "Anywhere on page" },
+      { value: "TOP_OF_PAGE", label: "Top of page" },
+      { value: "ABSOLUTE_TOP_OF_PAGE", label: "Absolute top of page" },
+    ],
+  },
+  targeting_action: {
+    label: "Action", type: "select",
+    options: [
+      { value: "add", label: "Add" },
+      { value: "remove", label: "Remove" },
+      { value: "replace", label: "Replace" },
+    ],
+  },
+
+  // ── Structural / system fields (READONLY — never let user free-type) ────────
+  asset_type: {
+    label: "Asset Type", type: "select", readonly: true,
+    options: [
+      { value: "SITELINK", label: "Sitelink" },
+      { value: "CALLOUT", label: "Callout" },
+      { value: "STRUCTURED_SNIPPET", label: "Structured Snippet" },
+      { value: "CALL", label: "Call" },
+      { value: "PROMOTION", label: "Promotion" },
+      { value: "PRICE", label: "Price" },
+    ],
+  },
+  asset_resource_name: { label: "Asset Resource Name", type: "text", readonly: true, helperText: "System identifier — set by Agent analysis" },
+  target_type: {
+    label: "Target Type", type: "select", readonly: true,
+    options: [{ value: "cpa", label: "CPA" }, { value: "roas", label: "ROAS" }],
+  },
+  level: { label: "Level", type: "text", readonly: true },
+  country_code: { label: "Country Code", type: "text", readonly: true },
+  device: {
+    label: "Device", type: "select", readonly: true,
+    options: [
+      { value: "MOBILE", label: "Mobile" },
+      { value: "DESKTOP", label: "Desktop" },
+      { value: "TABLET", label: "Tablet" },
+      { value: "CONNECTED_TV", label: "Connected TV" },
+    ],
+  },
+  demographic_type: {
+    label: "Demographic Type", type: "select", readonly: true,
+    options: [
+      { value: "age", label: "Age" },
+      { value: "gender", label: "Gender" },
+      { value: "income", label: "Income" },
+      { value: "parental_status", label: "Parental Status" },
+    ],
+  },
+  segment: { label: "Segment", type: "text", readonly: true },
+  product_group_type: {
+    label: "Product Group Type", type: "select", readonly: true,
+    options: [
+      { value: "BRAND", label: "Brand" },
+      { value: "CATEGORY", label: "Category" },
+      { value: "PRODUCT_TYPE", label: "Product Type" },
+      { value: "CUSTOM_LABEL", label: "Custom Label" },
+    ],
+  },
+  targeting_type: {
+    label: "Targeting Type", type: "select", readonly: true,
+    options: [
+      { value: "location", label: "Location" },
+      { value: "language", label: "Language" },
+      { value: "audience", label: "Audience" },
+      { value: "interest", label: "Interest" },
+    ],
+  },
+  placement_type: {
+    label: "Placement Type", type: "select", readonly: true,
+    options: [
+      { value: "SITE", label: "Site" },
+      { value: "APP", label: "App" },
+      { value: "DEVICE_TYPE", label: "Device Type" },
+      { value: "CHANNEL", label: "Channel" },
+    ],
+  },
+  price_type: { label: "Price Type", type: "text", readonly: true },
+
+  // ── System IDs (READONLY — breaking these breaks execution) ─────────────────
+  budget_id: { label: "Budget ID", type: "text", readonly: true, helperText: "System identifier — set by Agent analysis" },
+  bidding_strategy_id: { label: "Bidding Strategy ID", type: "text", readonly: true, helperText: "System identifier — set by Agent analysis" },
+  strategy_id: { label: "Strategy ID", type: "text", readonly: true, helperText: "System identifier — set by Agent analysis" },
+  keyword_ids: { label: "Keyword IDs", type: "text", readonly: true, helperText: "IDs of keywords that will be affected" },
+  criterion_ids: { label: "Criterion IDs", type: "text", readonly: true, helperText: "IDs of criteria that will be affected" },
+  resource_names: { label: "Resource Names", type: "string-list", readonly: true },
+  placements: { label: "Placements", type: "string-list", readonly: true },
+  age_ranges: { label: "Age Ranges", type: "string-list", readonly: true },
+  listing_group_id: { label: "Listing Group ID", type: "text", readonly: true, helperText: "System identifier — set by Agent analysis" },
+  ad_group_id: { label: "Ad Group ID", type: "text", readonly: true, helperText: "System identifier — set by Agent analysis" },
+  campaign_id: { label: "Campaign ID", type: "text", readonly: true, helperText: "System identifier — set by Agent analysis" },
+};
+
+function KeywordChipsEditor({
+  label,
+  items,
+  onChange,
+}: {
+  label: string;
+  items: Array<{ idx: number; text: string; match_type?: string }>;
+  onChange: (updated: Array<{ text: string; match_type?: string }>) => void;
+}) {
+  const allItemsRef = useRef(items);
+  const [removedIndices, setRemovedIndices] = useState<Set<number>>(new Set());
+
+  const toggleRemoval = (idx: number) => {
+    setRemovedIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      const remaining = allItemsRef.current
+        .filter((_, i) => !next.has(i))
+        .map(({ text, match_type }) => ({ text, match_type }));
+      onChange(remaining);
+      return next;
+    });
+  };
+
+  const displayed = allItemsRef.current;
+
+  return (
+    <div>
+      <label className="text-[10px] font-medium text-forest-f30 uppercase tracking-wide block mb-1.5">{label}</label>
+      <div className="flex flex-wrap gap-1.5 min-h-[36px] p-2.5 rounded-md border border-sandstorm-s40 bg-white">
+        {displayed.length === 0 && (
+          <span className="text-[11px] text-forest-f20 italic">No keywords</span>
+        )}
+        {displayed.map((item, i) => {
+          const isRemoved = removedIndices.has(i);
+          return (
+            <span
+              key={`${item.text}-${i}`}
+              className={cn(
+                "inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all",
+                isRemoved
+                  ? "bg-red-50 border border-red-200 text-red-400 line-through"
+                  : "bg-forest-f0/50 border border-forest-f40/20 text-forest-f50",
+              )}
+            >
+              <span>{item.text}</span>
+              {item.match_type && (
+                <span className={cn(
+                  "text-[9px] uppercase font-semibold px-1 py-0.5 rounded",
+                  isRemoved ? "text-red-300 bg-red-50" : "text-forest-f30 bg-sandstorm-s10",
+                )}>
+                  {item.match_type}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => toggleRemoval(i)}
+                className={cn(
+                  "ml-0.5 p-0.5 rounded-full transition-colors",
+                  isRemoved
+                    ? "text-red-400 hover:text-red-600 hover:bg-red-100"
+                    : "text-forest-f20 hover:text-red-500 hover:bg-red-50",
+                )}
+                aria-label={isRemoved ? "Undo remove" : "Remove keyword"}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          );
+        })}
+      </div>
+      {removedIndices.size > 0 && (
+        <p className="text-[10px] text-red-500 mt-1">
+          {removedIndices.size} keyword{removedIndices.size > 1 ? "s" : ""} marked for removal
+        </p>
+      )}
+    </div>
+  );
+}
+
+const ParamsEditModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  actionType: string;
+  params: Record<string, unknown>;
+  accountId: number;
+  portfolioId: number;
+  actionId: number;
+  onSaved: () => void;
+}> = ({ isOpen, onClose, actionType, params, accountId, portfolioId, actionId, onSaved }) => {
+  const [editParams, setEditParams] = useState<Record<string, unknown>>({});
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setEditParams({ ...params });
+      setError(null);
+    }
+  }, [isOpen, params]);
+
+  const updateParam = (key: string, value: unknown) => {
+    setEditParams((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = async () => {
+    const urlFields = ["final_url"];
+    for (const f of urlFields) {
+      const v = editParams[f];
+      if (typeof v === "string" && v.trim() && !v.startsWith("http://") && !v.startsWith("https://")) {
+        setError(`${PARAM_FIELD_CONFIG[f]?.label || f} must start with http:// or https://`);
+        return;
+      }
+    }
+    const urlListFields = ["final_urls"];
+    for (const f of urlListFields) {
+      const v = editParams[f];
+      if (Array.isArray(v)) {
+        for (const u of v) {
+          if (typeof u === "string" && u.trim() && !u.startsWith("http://") && !u.startsWith("https://")) {
+            setError(`Each URL in ${PARAM_FIELD_CONFIG[f]?.label || f} must start with http:// or https://`);
+            return;
+          }
+        }
+      }
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      await updatePortfolioAction(accountId, portfolioId, actionId, { params: editParams });
+      onSaved();
+      onClose();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const PARAM_DISPLAY_ORDER: Record<string, number> = {
+    change_type: 1,
+    value: 2,
+    unit: 3,
+    target_type: 10,
+    strategy: 11,
+    target_cpa: 12,
+    target_roas: 13,
+    status: 15,
+    enabled: 16,
+    device: 17,
+    demographic_type: 18,
+    segment: 19,
+    asset_type: 20,
+    callout_text: 21,
+    link_text: 22,
+    description1: 23,
+    description2: 24,
+    header: 25,
+    values: 26,
+    final_url: 27,
+    final_urls: 28,
+    phone_number: 29,
+    country_code: 30,
+    promotion_target: 31,
+    percent_off: 32,
+    keywords: 35,
+    match_type: 36,
+    impressions: 40,
+    time_unit: 41,
+    level: 42,
+    location: 43,
+    fraction_micros: 44,
+    cpc_bid_ceiling_micros: 45,
+    product_group_type: 50,
+    product_group_value: 51,
+    bid_micros: 52,
+    cpc_bid_micros: 53,
+    budget_id: 90,
+    bidding_strategy_id: 91,
+    strategy_id: 92,
+    asset_resource_name: 93,
+    keyword_ids: 94,
+    criterion_ids: 95,
+    resource_names: 96,
+    placements: 97,
+    age_ranges: 98,
+    listing_group_id: 99,
+    ad_group_id: 100,
+    campaign_id: 101,
+  };
+
+  const paramKeys = Object.keys(editParams).sort((a, b) => {
+    const oa = PARAM_DISPLAY_ORDER[a] ?? 80;
+    const ob = PARAM_DISPLAY_ORDER[b] ?? 80;
+    return oa - ob;
+  });
+
+  const renderField = (key: string) => {
+    const config = PARAM_FIELD_CONFIG[key];
+    const value = editParams[key];
+    const label = config?.label || formatMetricLabel(key);
+    const fieldType = config?.type || (typeof value === "number" ? "number" : typeof value === "boolean" ? "boolean" : "text");
+    const isReadonly = config?.readonly === true;
+
+    if (isReadonly) {
+      let displayVal = formatParamValue(value);
+      if (fieldType === "select" && config?.options) {
+        const strVal = String(value ?? "").toUpperCase();
+        const match = config.options.find((o) => o.value.toUpperCase() === strVal);
+        if (match) displayVal = match.label;
+      }
+      return (
+        <div key={key}>
+          <label className="text-[10px] font-medium text-forest-f30 uppercase tracking-wide block mb-1">{label}</label>
+          <div className="w-full px-2.5 py-2 text-[12px] border border-sandstorm-s40/50 rounded-md bg-sandstorm-s10/50 text-forest-f30 cursor-not-allowed">
+            {displayVal}
+          </div>
+          {config?.helperText && <p className="text-[10px] text-forest-f20 mt-0.5">{config.helperText}</p>}
+        </div>
+      );
+    }
+
+    if (fieldType === "boolean") {
+      return (
+        <div key={key} className="flex items-center justify-between py-2">
+          <label className="text-[12px] font-medium text-forest-f60">{label}</label>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!value}
+            onClick={() => updateParam(key, !value)}
+            className={cn(
+              "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+              value ? "bg-forest-f40" : "bg-sandstorm-s40",
+            )}
+          >
+            <span className={cn(
+              "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform",
+              value ? "translate-x-5" : "translate-x-0",
+            )} />
+          </button>
+        </div>
+      );
+    }
+
+    if (fieldType === "select" && config?.options) {
+      const strVal = String(value ?? "");
+      const normalizedVal = config.options.find(
+        (o) => o.value.toUpperCase() === strVal.toUpperCase(),
+      )?.value ?? strVal;
+      return (
+        <div key={key}>
+          <label className="text-[10px] font-medium text-forest-f30 uppercase tracking-wide block mb-1">{label}</label>
+          <select
+            value={normalizedVal}
+            onChange={(e) => updateParam(key, e.target.value)}
+            className="w-full px-2.5 py-2 text-[12px] border border-sandstorm-s40 rounded-md bg-white text-forest-f60 focus:ring-1 focus:ring-forest-f40 focus:border-forest-f40"
+          >
+            <option value="">Select…</option>
+            {config.options.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      );
+    }
+
+    if (fieldType === "string-list") {
+      const hasObjects = Array.isArray(value) && value.some((v) => v && typeof v === "object");
+
+      if (key === "keywords" && hasObjects) {
+        const items = (value as Array<Record<string, unknown>>).map((kw, i) => ({
+          idx: i,
+          text: String(kw.text ?? kw.keyword ?? ""),
+          match_type: kw.match_type ? String(kw.match_type) : undefined,
+        }));
+        return (
+          <KeywordChipsEditor
+            key={key}
+            label={label}
+            items={items}
+            onChange={(updated) => {
+              const newKws = updated.map((item) => {
+                const kw: Record<string, unknown> = { text: item.text };
+                if (item.match_type) kw.match_type = item.match_type;
+                return kw;
+              });
+              updateParam(key, newKws);
+            }}
+          />
+        );
+      }
+
+      const listVal = Array.isArray(value)
+        ? (value as unknown[]).map((v) => {
+            if (typeof v === "string") return v;
+            if (v && typeof v === "object") {
+              const obj = v as Record<string, unknown>;
+              return String(obj.text ?? obj.value ?? obj.keyword ?? obj.name ?? JSON.stringify(v));
+            }
+            return String(v);
+          }).join("\n")
+        : String(value ?? "");
+      return (
+        <div key={key}>
+          <label className="text-[10px] font-medium text-forest-f30 uppercase tracking-wide block mb-1">{label}</label>
+          <textarea
+            value={listVal}
+            onChange={(e) => {
+              const lines = e.target.value.split("\n").map((l) => l.trim()).filter(Boolean);
+              updateParam(key, lines.length > 0 ? lines : []);
+            }}
+            rows={3}
+            placeholder={config?.placeholder}
+            className="w-full px-2.5 py-2 text-[12px] border border-sandstorm-s40 rounded-md bg-white text-forest-f60 focus:ring-1 focus:ring-forest-f40 focus:border-forest-f40 placeholder:text-forest-f20 resize-none font-mono"
+          />
+          {config?.helperText && <p className="text-[10px] text-forest-f20 mt-0.5">{config.helperText}</p>}
+        </div>
+      );
+    }
+
+    if (fieldType === "url") {
+      return (
+        <div key={key}>
+          <label className="text-[10px] font-medium text-forest-f30 uppercase tracking-wide block mb-1">{label}</label>
+          <input
+            type="url"
+            value={String(value ?? "")}
+            onChange={(e) => updateParam(key, e.target.value)}
+            placeholder={config?.placeholder}
+            className="w-full px-2.5 py-2 text-[12px] border border-sandstorm-s40 rounded-md bg-white text-forest-f60 focus:ring-1 focus:ring-forest-f40 focus:border-forest-f40 placeholder:text-forest-f20 font-mono"
+          />
+          {config?.helperText && <p className="text-[10px] text-forest-f20 mt-0.5">{config.helperText}</p>}
+        </div>
+      );
+    }
+
+    if (fieldType === "number") {
+      return (
+        <div key={key}>
+          <label className="text-[10px] font-medium text-forest-f30 uppercase tracking-wide block mb-1">{label}</label>
+          <input
+            type="number"
+            value={value === null || value === undefined ? "" : String(value)}
+            onChange={(e) => updateParam(key, e.target.value === "" ? null : Number(e.target.value))}
+            placeholder={config?.placeholder}
+            className="w-full px-2.5 py-2 text-[12px] border border-sandstorm-s40 rounded-md bg-white text-forest-f60 focus:ring-1 focus:ring-forest-f40 focus:border-forest-f40 placeholder:text-forest-f20"
+          />
+        </div>
+      );
+    }
+
+    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      return (
+        <div key={key}>
+          <label className="text-[10px] font-medium text-forest-f30 uppercase tracking-wide block mb-1">{label}</label>
+          <textarea
+            value={JSON.stringify(value, null, 2)}
+            onChange={(e) => {
+              try { updateParam(key, JSON.parse(e.target.value)); } catch { /* keep current */ }
+            }}
+            rows={4}
+            className="w-full px-2.5 py-2 text-[12px] border border-sandstorm-s40 rounded-md bg-white text-forest-f60 focus:ring-1 focus:ring-forest-f40 focus:border-forest-f40 resize-none font-mono"
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div key={key}>
+        <label className="text-[10px] font-medium text-forest-f30 uppercase tracking-wide block mb-1">{label}</label>
+        <input
+          type="text"
+          value={String(value ?? "")}
+          onChange={(e) => updateParam(key, e.target.value)}
+          placeholder={config?.placeholder}
+          className="w-full px-2.5 py-2 text-[12px] border border-sandstorm-s40 rounded-md bg-white text-forest-f60 focus:ring-1 focus:ring-forest-f40 focus:border-forest-f40 placeholder:text-forest-f20"
+        />
+      </div>
+    );
+  };
+
+  return (
+    <BaseModal isOpen={isOpen} onClose={onClose} size="lg" padding="p-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-sandstorm-s40">
+        <div className="flex items-center gap-2.5">
+          <Pencil className="w-5 h-5 text-forest-f40" />
+          <div>
+            <h2 className="text-[16px] font-semibold text-forest-f60 font-agrandir">Edit Parameters</h2>
+            <p className="text-[12px] text-forest-f20 mt-0.5">
+              {ACTION_TYPE_LABELS[actionType] || actionType} — modify values before approving or executing
+            </p>
+          </div>
+        </div>
+        <button onClick={onClose} className="p-1.5 rounded-lg text-forest-f20 hover:bg-sandstorm-s5 hover:text-forest-f60 transition-colors" aria-label="Close">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
+        {paramKeys.map(renderField)}
+
+        {error && (
+          <div className="px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-[12px] text-red-700">
+            {error}
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-end gap-2 px-6 py-3.5 border-t border-sandstorm-s40">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-3 py-1.5 text-[11px] font-semibold text-forest-f60 border border-sandstorm-s40 rounded-md hover:bg-sandstorm-s10 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="px-3 py-1.5 text-[11px] font-semibold text-white bg-forest-f40 hover:bg-forest-f50 rounded-md disabled:opacity-50 transition-colors"
+        >
+          {saving ? "Saving..." : "Save Parameters"}
+        </button>
+      </div>
+    </BaseModal>
+  );
+};
 
 const ScheduleEditorPopover: React.FC<{
   anchorEl: HTMLElement | null;
@@ -1182,6 +2040,94 @@ const PopoverConfirm: React.FC<{
   </div>
 );
 
+function CreateActionsEmptyState({
+  onCreateActions,
+  onCreateActionsWithPrompt,
+  createActionsDefaultPrompt = "",
+}: {
+  onCreateActions?: () => void;
+  onCreateActionsWithPrompt?: (prompt: string) => void;
+  createActionsDefaultPrompt?: string;
+}) {
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [prompt, setPrompt] = useState(createActionsDefaultPrompt);
+
+  const hasPromptFlow = !!onCreateActionsWithPrompt;
+
+  const handleClick = () => {
+    if (hasPromptFlow) {
+      setPrompt(createActionsDefaultPrompt);
+      setPopoverOpen(true);
+    } else if (onCreateActions) {
+      onCreateActions();
+    }
+  };
+
+  const handleConfirm = () => {
+    setPopoverOpen(false);
+    if (onCreateActionsWithPrompt) {
+      onCreateActionsWithPrompt(prompt.trim() || createActionsDefaultPrompt);
+    }
+  };
+
+  return (
+    <div className="text-center py-12">
+      <Zap className="w-10 h-10 mx-auto mb-3 text-forest-f20" />
+      <p className="text-[14px] text-forest-f30 mb-1">No actions configured</p>
+      <p className="text-[12px] text-forest-f20 mb-4">
+        Use the AI assistant to analyze your portfolio and create optimization actions.
+      </p>
+      {(onCreateActions || onCreateActionsWithPrompt) && (
+        <div className="relative inline-block">
+          <button
+            type="button"
+            onClick={handleClick}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-white bg-forest-f40 hover:bg-forest-f50 rounded-md transition-colors"
+          >
+            <Zap className="w-3.5 h-3.5" />
+            Create Actions
+          </button>
+
+          {popoverOpen && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setPopoverOpen(false)} />
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-40 w-80 rounded-lg border border-sandstorm-s40 bg-white shadow-lg p-4 space-y-3">
+                <p className="text-[12px] font-semibold text-forest-f60">Analyze Portfolio</p>
+                <p className="text-[11px] text-forest-f30 leading-relaxed">
+                  Edit the prompt below to guide the analysis, or start with defaults.
+                </p>
+                <textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-2.5 py-2 text-[12px] text-forest-f60 placeholder:text-forest-f30/50 focus:border-forest-f40 focus:outline-none focus:ring-1 focus:ring-forest-f40 resize-none"
+                  placeholder="What should the agent focus on..."
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPopoverOpen(false)}
+                    className="px-2.5 py-1 rounded-md text-[11px] font-medium text-forest-f30 hover:text-forest-f60 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirm}
+                    className="px-2.5 py-1 rounded-md text-[11px] font-semibold text-white bg-forest-f40 hover:bg-forest-f50 transition-colors"
+                  >
+                    Start Analysis
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export const ActionsListPanel: React.FC<ActionsListPanelProps> = ({
   actions: externalActions,
   accountId,
@@ -1193,6 +2139,8 @@ export const ActionsListPanel: React.FC<ActionsListPanelProps> = ({
   showDashboardLink = true,
   onActionStatusChange,
   onCreateActions,
+  onCreateActionsWithPrompt,
+  createActionsDefaultPrompt = "",
   headerExtra,
 }) => {
   const [localActions, setLocalActions] = useState<ActionItem[]>(externalActions);
@@ -1539,23 +2487,11 @@ export const ActionsListPanel: React.FC<ActionsListPanelProps> = ({
 
       {/* Empty state */}
       {!loading && !refreshing && visibleActions.length === 0 && (
-        <div className="text-center py-12">
-          <Zap className="w-10 h-10 mx-auto mb-3 text-forest-f20" />
-          <p className="text-[14px] text-forest-f30 mb-1">No actions configured</p>
-          <p className="text-[12px] text-forest-f20 mb-4">
-            Use the AI assistant to analyze your portfolio and create optimization actions.
-          </p>
-          {onCreateActions && (
-            <button
-              type="button"
-              onClick={onCreateActions}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium text-white bg-forest-f40 hover:bg-forest-f50 rounded-lg transition-colors"
-            >
-              <Zap className="w-4 h-4" />
-              Create Actions
-            </button>
-          )}
-        </div>
+        <CreateActionsEmptyState
+          onCreateActions={onCreateActions}
+          onCreateActionsWithPrompt={onCreateActionsWithPrompt}
+          createActionsDefaultPrompt={createActionsDefaultPrompt}
+        />
       )}
 
       {/* No filter results */}
@@ -1704,6 +2640,8 @@ const ActionCard: React.FC<ActionCardProps> = ({
   const [trail, setTrail] = useState<ActionStatusLogEntry[]>([]);
   const [trailLoading, setTrailLoading] = useState(false);
   const [triggerModalOpen, setTriggerModalOpen] = useState(false);
+  const [paramsModalOpen, setParamsModalOpen] = useState(false);
+  const [localParams, setLocalParams] = useState<Record<string, unknown> | undefined>(action.params);
   const [editingSchedule, setEditingSchedule] = useState(false);
   const [scheduleState, setScheduleState] = useState<ScheduleEditorState>(() => scheduleToEditorState(action.schedule));
   const [scheduleSaving, setScheduleSaving] = useState(false);
@@ -1713,6 +2651,10 @@ const ActionCard: React.FC<ActionCardProps> = ({
   React.useEffect(() => {
     setLocalSchedule(action.schedule);
   }, [action.schedule]);
+
+  React.useEffect(() => {
+    setLocalParams(action.params);
+  }, [action.params]);
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -1738,11 +2680,16 @@ const ActionCard: React.FC<ActionCardProps> = ({
     }
   }, [accountId, portfolioId, action.action_id]);
 
+  const [executeResult, setExecuteResult] = useState<{ status: string; message: string; proposal?: ActionPreviewProposal } | null>(null);
+
   const handleExecute = useCallback(async () => {
     if (!portfolioId) return;
     setExecuting(true);
+    setPreviewError(null);
     try {
-      await executePortfolioAction(accountId, portfolioId, action.action_id);
+      const result = await executePortfolioAction(accountId, portfolioId, action.action_id);
+      setExecuteResult(result);
+      if (result.proposal) setPreviewProposal(result.proposal);
       setExecuted(true);
       onRefresh?.();
     } catch (err) {
@@ -2001,7 +2948,7 @@ const ActionCard: React.FC<ActionCardProps> = ({
       )}
 
       {/* Condition */}
-      {action.condition && Object.keys(action.condition).length > 0 ? (
+      {hasRealCondition(action.condition) ? (
         <div className="rounded-lg border border-sandstorm-s40 bg-sandstorm-s0/60 px-4 py-3">
           <div className="flex items-center justify-between mb-2">
             <Tooltip
@@ -2056,28 +3003,54 @@ const ActionCard: React.FC<ActionCardProps> = ({
       )}
 
       {/* Params */}
-      {action.params && Object.keys(action.params).length > 0 && (
-        <Tooltip
-          heading="Action Parameters"
-          description="What this action changes when the trigger conditions are met"
-          position="topMiddle"
-          portal
-        >
-          <div className="flex items-start gap-2 cursor-help">
-            <Zap className="w-3.5 h-3.5 text-forest-f20 mt-0.5 shrink-0" />
+      {localParams && Object.keys(localParams).length > 0 && (
+        <div className="flex items-start gap-2">
+          <Zap className="w-3.5 h-3.5 text-forest-f20 mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0 space-y-1">
             <div className="text-[11px] text-forest-f30 flex items-center gap-1.5 flex-wrap">
               <span className="text-forest-f20 font-medium">Applies:</span>
-              {Object.entries(action.params).map(([key, val]) => (
+              {formatSmartParams(action.type, localParams, action.platform).map((chip) => (
                 <span
-                  key={key}
+                  key={chip.key}
                   className="px-1.5 py-0.5 rounded bg-forest-f0/50 border border-forest-f40/15 text-[10px] text-forest-f50 font-medium"
                 >
-                  {formatMetricLabel(key)}: {formatParamValue(val)}
+                  {chip.label}
                 </span>
               ))}
+              {portfolioId && (
+                <button
+                  type="button"
+                  onClick={() => setParamsModalOpen(true)}
+                  className="inline-flex items-center gap-0.5 text-[10px] font-medium text-forest-f30 hover:text-forest-f40 transition-colors"
+                  title="Edit action parameters"
+                  aria-label="Edit action parameters"
+                >
+                  <Pencil className="w-2.5 h-2.5" />
+                  Edit
+                </button>
+              )}
             </div>
+            {action.entity_type && (
+              <p className="text-[10px] text-forest-f20 leading-relaxed">
+                {getActionTargetDescription(action.type, action.entity_type)}
+              </p>
+            )}
           </div>
-        </Tooltip>
+        </div>
+      )}
+      {paramsModalOpen && portfolioId && localParams && (
+        <ParamsEditModal
+          isOpen={paramsModalOpen}
+          onClose={() => setParamsModalOpen(false)}
+          actionType={action.type}
+          params={localParams}
+          accountId={accountId}
+          portfolioId={portfolioId}
+          actionId={action.action_id}
+          onSaved={() => {
+            onRefresh?.();
+          }}
+        />
       )}
 
       {/* Schedule */}
@@ -2216,12 +3189,15 @@ const ActionCard: React.FC<ActionCardProps> = ({
       <ActionPreviewModal
         isOpen={previewOpen}
         onClose={() => setPreviewOpen(false)}
+        action={action}
+        localParams={localParams}
         proposal={previewProposal}
         loading={previewLoading}
         error={previewError}
         onExecute={handleExecute}
         executing={executing}
         executed={executed}
+        executeResult={executeResult}
       />
     </div>
   );
@@ -2237,19 +3213,33 @@ function conditionFieldLabel(c: Record<string, unknown>): string {
 const ActionPreviewModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
+  action: ActionItem;
+  localParams: Record<string, unknown> | undefined;
   proposal: ActionPreviewProposal | null;
   loading: boolean;
   error: string | null;
   onExecute: () => void;
   executing: boolean;
   executed: boolean;
-}> = ({ isOpen, onClose, proposal, loading, error, onExecute, executing, executed }) => {
+  executeResult?: { status: string; message: string; proposal?: ActionPreviewProposal } | null;
+}> = ({ isOpen, onClose, action, localParams, proposal, loading, error, onExecute, executing, executed, executeResult }) => {
+  const smartChips = localParams ? formatSmartParams(action.type, localParams, action.platform) : [];
+  const typeLabel = ACTION_TYPE_LABELS[action.type] || action.type.replace(/_/g, " ");
+  const typeColor = ACTION_TYPE_COLORS[action.type];
+  const entityLabel = ENTITY_TYPE_LABELS[action.entity_type] || action.entity_type;
+  const hasConditions = action.condition && hasRealCondition(action.condition);
+  const guardrails = action.guardrails;
+  const hasGuardrails = guardrails && Object.keys(guardrails).length > 0;
+
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} size="4xl" padding="p-0">
       <div className="flex items-center justify-between px-6 py-4 border-b border-sandstorm-s40">
         <div className="flex items-center gap-2.5">
           <Eye className="w-5 h-5 text-forest-f40" />
-          <h2 className="text-[16px] font-semibold text-forest-f60 font-agrandir">Action Preview</h2>
+          <div>
+            <h2 className="text-[16px] font-semibold text-forest-f60 font-agrandir m-0">Action Preview</h2>
+            <p className="text-[11px] text-forest-f30 m-0 mt-0.5">{action.description}</p>
+          </div>
         </div>
         <button onClick={onClose} className="p-1.5 rounded-lg text-forest-f20 hover:bg-sandstorm-s5 hover:text-forest-f60 transition-colors" aria-label="Close">
           <X className="w-5 h-5" />
@@ -2272,37 +3262,109 @@ const ActionPreviewModal: React.FC<{
 
         {!loading && !error && proposal && (
           <div className="space-y-5">
-            {/* Summary */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="rounded-lg border border-sandstorm-s40 bg-sandstorm-s0/50 p-4 text-center">
-                <p className="text-[26px] font-bold text-forest-f60 m-0">{proposal.total_rows}</p>
-                <p className="text-[12px] text-forest-f30 m-0 mt-1">Total rows from query</p>
-              </div>
-              <div className="rounded-lg border border-sandstorm-s40 bg-sandstorm-s0/50 p-4 text-center">
-                <p className={cn("text-[26px] font-bold m-0", proposal.matched_rows > 0 ? "text-amber-600" : "text-forest-f30")}>{proposal.matched_rows}</p>
-                <p className="text-[12px] text-forest-f30 m-0 mt-1">Matched conditions</p>
-              </div>
-              <div className={cn("rounded-lg border border-sandstorm-s40 p-4 text-center", (ACTION_TYPE_COLORS[proposal.type]?.bg || "bg-sandstorm-s0/50"))}>
+
+            {/* Action summary bar */}
+            <div className="rounded-lg border border-sandstorm-s40 bg-sandstorm-s0/50 px-4 py-3 space-y-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <span className={cn(
-                  "inline-block px-3 py-1.5 rounded-md text-[13px] font-semibold",
-                  ACTION_TYPE_COLORS[proposal.type]?.bg || "bg-gray-50",
-                  ACTION_TYPE_COLORS[proposal.type]?.text || "text-gray-700",
+                  "inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide",
+                  typeColor?.bg || "bg-gray-50", typeColor?.text || "text-gray-700",
                 )}>
-                  {ACTION_TYPE_LABELS[proposal.type] || proposal.type.replace(/_/g, " ")}
+                  {typeLabel}
                 </span>
-                <p className="text-[12px] text-forest-f30 m-0 mt-2">Action type</p>
+                <span className="text-[10px] text-forest-f20">•</span>
+                <span className="text-[11px] text-forest-f40 font-medium">{entityLabel} level</span>
+                <span className="text-[10px] text-forest-f20">•</span>
+                <span className="text-[11px] text-forest-f30">{action.platform}</span>
+              </div>
+
+              {/* What will change */}
+              {smartChips.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] text-forest-f20 font-medium uppercase tracking-wider">Changes:</span>
+                  {smartChips.map((chip) => (
+                    <span key={chip.key} className="px-1.5 py-0.5 rounded bg-forest-f0/50 border border-forest-f40/15 text-[10px] text-forest-f50 font-medium">
+                      {chip.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Guardrails */}
+              {hasGuardrails && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] text-forest-f20 font-medium uppercase tracking-wider">Guardrails:</span>
+                  {Object.entries(guardrails!).map(([k, v]) => (
+                    <span key={k} className="px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200/60 text-[10px] text-amber-700 font-medium">
+                      {formatMetricLabel(k)}: {String(v)}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Trigger conditions */}
+              {hasConditions && (() => {
+                const cond = action.condition!;
+                const conditionItems = (cond.conditions || cond.rules || (cond.field ? [cond] : [])) as Record<string, unknown>[];
+                if (conditionItems.length === 0) return null;
+                return (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-forest-f20 font-medium uppercase tracking-wider">Trigger:</span>
+                    {conditionItems.map((c, i) => {
+                      const field = conditionFieldLabel(c);
+                      const op = OPERATOR_SYMBOLS[String(c.operator || c.op || "")] || String(c.operator || c.op || "");
+                      const val = c.value ?? c.threshold ?? "";
+                      return (
+                        <span key={i} className="px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200/60 text-[10px] text-blue-700 font-medium">
+                          {field} {op} {String(val)}
+                        </span>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Execution success banner */}
+            {executed && executeResult && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-[13px] font-semibold text-emerald-800 m-0">Execution complete</p>
+                  <p className="text-[11px] text-emerald-700 m-0">{executeResult.message}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Executing spinner */}
+            {executing && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 flex items-center gap-3">
+                <RefreshCw className="w-4 h-4 text-blue-600 animate-spin shrink-0" />
+                <p className="text-[12px] text-blue-700 m-0">Executing action on {proposal.matched_rows} matched entities…</p>
+              </div>
+            )}
+
+            {/* Stats row */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-lg border border-sandstorm-s40 bg-white p-3 text-center">
+                <p className="text-[22px] font-bold text-forest-f60 m-0">{proposal.total_rows}</p>
+                <p className="text-[11px] text-forest-f20 m-0 mt-0.5">Total from query</p>
+              </div>
+              <div className="rounded-lg border border-sandstorm-s40 bg-white p-3 text-center">
+                <p className={cn("text-[22px] font-bold m-0", proposal.matched_rows > 0 ? "text-amber-600" : "text-forest-f30")}>{proposal.matched_rows}</p>
+                <p className="text-[11px] text-forest-f20 m-0 mt-0.5">Matched conditions</p>
+              </div>
+              <div className={cn("rounded-lg border p-3 text-center", executed ? "border-emerald-200 bg-emerald-50" : "border-sandstorm-s40 bg-white")}>
+                <p className={cn("text-[22px] font-bold m-0", executed ? "text-emerald-600" : proposal.matched_rows > 0 ? "text-forest-f40" : "text-forest-f30")}>{proposal.matched_rows}</p>
+                <p className="text-[11px] text-forest-f20 m-0 mt-0.5">{executed ? "Updated" : "Will be updated"}</p>
               </div>
             </div>
 
-            {proposal.description && (
-              <p className="text-[13px] text-forest-f60 m-0 leading-relaxed">{proposal.description}</p>
-            )}
-
-            {/* Matched entities */}
+            {/* Entities table */}
             {proposal.entities.length > 0 ? (
               <div className="space-y-2">
-                <h3 className="text-[13px] font-semibold text-forest-f60 m-0">
-                  Matched entities ({proposal.entities.length})
+                <h3 className="text-[12px] font-semibold text-forest-f60 m-0">
+                  {executed ? "Updated entities" : "Matched entities"} ({proposal.entities.length})
                 </h3>
                 <div className="rounded-lg border border-sandstorm-s40 overflow-hidden">
                   <table className="w-full text-[12px]">
@@ -2310,10 +3372,13 @@ const ActionPreviewModal: React.FC<{
                       <tr className="bg-sandstorm-s0 border-b border-sandstorm-s40">
                         <th className="text-left px-3 py-2 font-semibold text-forest-f50">Entity</th>
                         {proposal.entities[0]?.before && (
-                          <th className="text-left px-3 py-2 font-semibold text-forest-f50">Before</th>
+                          <th className="text-left px-3 py-2 font-semibold text-forest-f50">{executed ? "Was" : "Current"}</th>
                         )}
                         {proposal.entities[0]?.after && (
-                          <th className="text-left px-3 py-2 font-semibold text-forest-f50">After</th>
+                          <th className="text-left px-3 py-2 font-semibold text-forest-f50">{executed ? "Changed to" : "After change"}</th>
+                        )}
+                        {executed && (
+                          <th className="text-left px-3 py-2 font-semibold text-forest-f50 w-16">Status</th>
                         )}
                       </tr>
                     </thead>
@@ -2329,15 +3394,22 @@ const ActionPreviewModal: React.FC<{
                           {entity.before && (
                             <td className="px-3 py-2 text-forest-f30">
                               {Object.entries(entity.before).map(([k, v]) => (
-                                <span key={k}>{formatMetricLabel(k)}: <span className="font-medium text-forest-f60">{String(v)}</span></span>
+                                <div key={k} className="text-[11px]">{formatMetricLabel(k)}: <span className={cn("font-medium", executed ? "text-forest-f30 line-through" : "text-forest-f60")}>{String(v)}</span></div>
                               ))}
                             </td>
                           )}
                           {entity.after && (
                             <td className="px-3 py-2">
                               {Object.entries(entity.after).map(([k, v]) => (
-                                <span key={k}>{formatMetricLabel(k)}: <span className="font-semibold text-forest-f40">{String(v)}</span></span>
+                                <div key={k} className="text-[11px]">{formatMetricLabel(k)}: <span className={cn("font-semibold", executed ? "text-emerald-600" : "text-forest-f40")}>{String(v)}</span></div>
                               ))}
+                            </td>
+                          )}
+                          {executed && (
+                            <td className="px-3 py-2">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600">
+                                <CheckCircle2 className="w-3 h-3" /> Done
+                              </span>
                             </td>
                           )}
                         </tr>
@@ -2354,36 +3426,66 @@ const ActionPreviewModal: React.FC<{
             ) : (
               <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-sandstorm-s40 bg-sandstorm-s0/50">
                 <CheckCircle2 className="w-4 h-4 text-forest-f30" />
-                <p className="text-[13px] text-forest-f30 m-0">No entities matched the trigger conditions. The action would not execute.</p>
+                <p className="text-[12px] text-forest-f30 m-0">No entities matched the trigger conditions. The action would not execute.</p>
               </div>
             )}
           </div>
         )}
       </div>
 
-      {/* Footer with Run button */}
-      <div className="flex items-center justify-between px-6 py-4 border-t border-sandstorm-s40">
+      {/* Footer */}
+      <div className={cn(
+        "flex items-center justify-between px-6 py-3.5 border-t",
+        executed ? "border-emerald-200 bg-emerald-50/50" : "border-sandstorm-s40",
+      )}>
         <p className="text-[11px] text-forest-f30 m-0">
-          {executed ? "Action has been executed" : "Review the preview above before running"}
+          {executed
+            ? `Successfully updated ${proposal?.matched_rows || 0} ${entityLabel.toLowerCase()}`
+            : executing
+              ? "Executing action — please wait…"
+              : "Review the preview above before running"}
         </p>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-[12px] font-medium text-forest-f60 border border-sandstorm-s40 rounded-lg hover:bg-sandstorm-s10 transition-colors"
-          >
-            {executed ? "Done" : "Cancel"}
-          </button>
-          {!executed && proposal && proposal.matched_rows > 0 && (
+          {executed ? (
             <button
               type="button"
-              onClick={onExecute}
-              disabled={executing}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-forest-f40 rounded-lg hover:bg-forest-f50 disabled:opacity-50 transition-colors"
+              onClick={onClose}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-white bg-forest-f40 rounded-md hover:bg-forest-f50 transition-colors"
             >
-              <PlayCircle className="w-4 h-4" />
-              {executing ? "Executing…" : "Run Now"}
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Done
             </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={executing}
+                className="px-3 py-1.5 text-[11px] font-semibold text-forest-f60 border border-sandstorm-s40 rounded-md hover:bg-sandstorm-s10 disabled:opacity-50 transition-colors"
+              >
+                Cancel
+              </button>
+              {proposal && proposal.matched_rows > 0 && (
+                <button
+                  type="button"
+                  onClick={onExecute}
+                  disabled={executing}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-white bg-forest-f40 rounded-md hover:bg-forest-f50 disabled:opacity-50 transition-colors"
+                >
+                  {executing ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      Executing…
+                    </>
+                  ) : (
+                    <>
+                      <PlayCircle className="w-3.5 h-3.5" />
+                      Run Now
+                    </>
+                  )}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>

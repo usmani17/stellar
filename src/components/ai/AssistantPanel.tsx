@@ -5,7 +5,7 @@ import { useAssistant, type SessionWithMessages } from "../../contexts/Assistant
 import { useAccounts, type AccountProfileOption } from "../../contexts/AccountsContext";
 import { useAuth } from "../../contexts/AuthContext";
 import type { PixisTimelineItem } from "../../services/ai/pixisChat";
-import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search, Share2, Copy, Check, RefreshCw, Clipboard, Loader2, Briefcase, LayoutDashboard } from "lucide-react";
+import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search, Share2, Copy, Check, RefreshCw, Clipboard, Loader2, Briefcase, LayoutDashboard, Zap } from "lucide-react";
 import { cn } from "../../lib/cn";
 import PrismLogo from "../../assets/images/prism-logo-mini.svg";
 import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
@@ -1331,6 +1331,11 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                 </div>
                                             )}
                                             <span className="max-w-[140px] truncate">{session.title || "Untitled"}</span>
+                                            {session.type?.includes("portfolio_actions") && (
+                                                <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[8px] font-medium shrink-0">
+                                                    <Zap className="w-2 h-2" />
+                                                </span>
+                                            )}
                                         </button>
                                         <div className="relative" onClick={(e) => e.stopPropagation()}>
                                             <button
@@ -1414,6 +1419,12 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                                     <BarChart3 className="w-4 h-4 shrink-0" />
                                                                 )}
                                                                 <span className="truncate flex-1">{session.title || "Untitled"}</span>
+                                                                {session.type?.includes("portfolio_actions") && (
+                                                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[9px] font-medium shrink-0">
+                                                                        <Zap className="w-2.5 h-2.5" />
+                                                                        Actions
+                                                                    </span>
+                                                                )}
                                                             </button>
                                                             <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
                                                                 <button
