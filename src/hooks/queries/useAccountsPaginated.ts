@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   accountsService,
   type Account,
@@ -23,6 +23,7 @@ export const useAccountsPaginated = (
     queryKey: queryKeys.accounts.listPaginated(workspaceId, page, pageSize),
     queryFn: () =>
       accountsService.getAccountsPaginated({ page, page_size: pageSize }),
+    placeholderData: keepPreviousData,
     enabled: (options?.enabled ?? true) && workspaceId != null,
     retry: (failureCount, error: any) => {
       if (error?.response?.status === 401 || error?.response?.status === 403) {
