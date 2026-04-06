@@ -210,77 +210,80 @@ function ExecutionCard({ exec }: { exec: Record<string, unknown> }) {
           )}
 
           {/* Entity detail table from preview_result */}
-          {previewResult.length > 0 && (
-            <div className="border border-sandstorm-s40 rounded-lg overflow-hidden">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-sandstorm-s10 border-b border-sandstorm-s40">
-                    <th className="px-3 py-2 text-[10px] font-semibold text-forest-f30 uppercase tracking-wider">Entity</th>
-                    {previewResult.some((e) => e.before) && (
-                      <th className="px-3 py-2 text-[10px] font-semibold text-forest-f30 uppercase tracking-wider">Was</th>
-                    )}
-                    {previewResult.some((e) => e.after) && (
-                      <th className="px-3 py-2 text-[10px] font-semibold text-forest-f30 uppercase tracking-wider">Changed to</th>
-                    )}
-                    <th className="px-3 py-2 text-[10px] font-semibold text-forest-f30 uppercase tracking-wider w-20">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewResult.map((entity, i) => {
-                    const hasBefore = previewResult.some((e) => e.before);
-                    const hasAfter = previewResult.some((e) => e.after);
-                    return (
-                      <tr key={entity.id || i} className={cn("border-b border-sandstorm-s40/50 last:border-b-0", i % 2 === 0 ? "bg-white" : "bg-sandstorm-s5/50")}>
-                        <td className="px-3 py-2">
-                          <div className="text-[11px] font-medium text-forest-f60">{entity.name || entity.id}</div>
+          {previewResult.length > 0 && (() => {
+            const hasBefore = previewResult.some((e) => e.before);
+            const hasAfter = previewResult.some((e) => e.after);
+            const colCount = 1 + (hasBefore ? 1 : 0) + (hasAfter ? 1 : 0) + 1;
+            return (
+              <div className="bg-sandstorm-s5 border border-sandstorm-s40 rounded-[12px] overflow-x-auto">
+                <table className="w-full" style={{ tableLayout: "fixed" }}>
+                  <colgroup>
+                    <col style={{ width: colCount <= 3 ? "45%" : "35%" }} />
+                    {hasBefore && <col style={{ width: "22%" }} />}
+                    {hasAfter && <col style={{ width: "25%" }} />}
+                    <col style={{ width: "18%" }} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th className="table-header">Entity</th>
+                      {hasBefore && <th className="table-header">Was</th>}
+                      {hasAfter && <th className="table-header">Changed to</th>}
+                      <th className="table-header">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewResult.map((entity, i) => (
+                      <tr key={entity.id || i} className="table-row">
+                        <td className="table-cell">
+                          <div className="text-[12px] font-medium text-forest-f60 truncate">{entity.name || entity.id}</div>
                           {entity.name && entity.id && (
-                            <div className="text-[10px] text-forest-f20 font-mono">ID: {entity.id}</div>
+                            <div className="text-[10px] text-forest-f20 font-mono mt-0.5">ID: {entity.id}</div>
                           )}
                         </td>
                         {hasBefore && (
-                          <td className="px-3 py-2 text-[11px] text-forest-f30">
+                          <td className="table-cell">
                             {entity.before
                               ? Object.entries(entity.before).map(([k, v]) => (
-                                  <div key={k} className="text-[11px]">
+                                  <div key={k} className="text-[12px]">
                                     <span className="text-forest-f20">{k}:</span>{" "}
                                     <span className="font-medium text-forest-f30 line-through">{typeof v === "number" ? v.toLocaleString() : String(v)}</span>
                                   </div>
                                 ))
-                              : "—"}
+                              : <span className="text-[12px] text-forest-f20">—</span>}
                           </td>
                         )}
                         {hasAfter && (
-                          <td className="px-3 py-2">
+                          <td className="table-cell">
                             {entity.after
                               ? Object.entries(entity.after).map(([k, v]) => (
-                                  <div key={k} className="text-[11px]">
+                                  <div key={k} className="text-[12px]">
                                     <span className="text-forest-f20">{k}:</span>{" "}
                                     <span className="font-semibold text-emerald-600">{typeof v === "number" ? v.toLocaleString() : String(v)}</span>
                                   </div>
                                 ))
-                              : "—"}
+                              : <span className="text-[12px] text-forest-f20">—</span>}
                           </td>
                         )}
-                        <td className="px-3 py-2">
+                        <td className="table-cell">
                           {isSuccess ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600">
-                              <CheckCircle2 className="w-3 h-3" /> Updated
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Updated
                             </span>
                           ) : isFailed ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-red-500">
-                              <XCircle className="w-3 h-3" /> Failed
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-500">
+                              <XCircle className="w-3.5 h-3.5" /> Failed
                             </span>
                           ) : (
-                            <span className="text-[10px] text-forest-f20">—</span>
+                            <span className="text-[11px] text-forest-f20">—</span>
                           )}
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
 
           {/* Fallback: show entity ID badges when no preview_result */}
           {previewResult.length === 0 && entityIds.length > 0 && (
