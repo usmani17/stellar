@@ -60,6 +60,7 @@ export interface Portfolio {
   scheduleEnabled: boolean;
   tags: string[];
   guardrails: Record<string, unknown> | null;
+  portfolioInstructions?: string;
   lastRunAt: string | null;
   lastRunStatus: string | null;
   accountId: number;
@@ -79,6 +80,8 @@ export interface Portfolio {
 export interface PortfolioListItem extends Portfolio {
   campaignCount: number;
   dashboardCount?: number;
+  actionCount?: number;
+  isAnalyzing?: boolean;
   /** Most recently updated dashboard linked to this portfolio, if any. */
   latestDashboardId?: number | null;
   /** First conversion metric name from portfolio setup (for KPI subtitle in list). */
@@ -152,6 +155,7 @@ export interface CreatePortfolioPayload {
   tags?: string[];
   guardrails?: Record<string, unknown> | null;
   budgetFrequency?: string | null;
+  portfolioInstructions?: string;
   campaigns?: Array<{
     campaign_id: string;
     campaign_name: string;
@@ -177,6 +181,7 @@ export interface UpdatePortfolioPayload {
   tags?: string[];
   guardrails?: Record<string, unknown> | null;
   budgetFrequency?: string | null;
+  portfolioInstructions?: string;
   campaigns?: Array<{
     campaign_id: string;
     campaign_name: string;

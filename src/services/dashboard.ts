@@ -21,9 +21,11 @@ export interface DashboardResponse {
   channelId?: number;
   profileId?: number;
   workflowId?: number;
+  portfolioId?: number;
   channelName?: string;
   profileName?: string;
   config: DashboardConfig;
+  chatSessionId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -52,6 +54,101 @@ export async function getDashboardsByPortfolio(
     { params: { portfolio_id: portfolioId } },
   );
   return data;
+}
+
+export interface DashboardChatEntry {
+  id: number;
+  dashboard_id: number;
+  session_id: string;
+  session_type: string;
+  account_id: number;
+  actions_added: number;
+  summary: string | null;
+  created_at: string;
+}
+
+/**
+ * Fetch analysis history (chat sessions) for a dashboard.
+ */
+export async function getDashboardAnalysisHistory(
+  accountId: number,
+  dashboardId: number,
+): Promise<DashboardChatEntry[]> {
+  const { data } = await api.get<{ chats: DashboardChatEntry[] }>(
+    `${API_BASE}/${accountId}/dashboards/${dashboardId}/analysis-history/`
+  );
+  return data.chats;
+}
+
+export interface PortfolioAction {
+  id: string;
+  action_slug: string;
+  action_id: number;
+  portfolio_id?: number;
+  dashboard_id?: number;
+  dashboard_name?: string;
+  component_id?: string;
+  type: string;
+  platform: string;
+  entity_type: string;
+  entity_id_column?: string;
+  entity_name_column?: string;
+  status: string;
+  description: string;
+  condition?: Record<string, unknown>;
+  params?: Record<string, unknown>;
+  guardrails?: Record<string, unknown>;
+  has_query?: boolean;
+  query_source?: string | null;
+  reasoning?: {
+    detected: string;
+    why_it_matters: string;
+    conclusion: string;
+  };
+  learning?: {
+    patterns?: unknown[];
+    strategy_adjustments?: unknown[];
+  };
+  schedule?: {
+    frequency: string;
+    time?: string;
+    date?: string;
+    weekdays?: number[];
+    monthDays?: number[];
+    timezone: string;
+    auto_execute: boolean;
+    next_run_at?: string;
+  };
+}
+
+export interface ActionStatusLogEntry {
+  id: number;
+  action_id: number;
+  portfolio_id: number;
+  account_id: number;
+  old_status: string | null;
+  new_status: string;
+  event_type: string;
+  changed_by: number | null;
+  session_id: string | null;
+  note: string | null;
+  created_at: string;
+  action_slug?: string;
+  action_type?: string;
+  action_description?: string;
+}
+
+/**
+ * Fetch all actions across all dashboards in a portfolio.
+ */
+export async function getPortfolioActions(
+  accountId: number,
+  portfolioId: number,
+): Promise<PortfolioAction[]> {
+  const { data } = await api.get<{ actions: PortfolioAction[] }>(
+    `${API_BASE}/${accountId}/portfolios/${portfolioId}/actions/`
+  );
+  return data.actions;
 }
 
 /**

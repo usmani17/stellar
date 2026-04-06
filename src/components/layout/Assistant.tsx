@@ -88,9 +88,9 @@ export const Assistant: React.FC<React.PropsWithChildren<object>> = ({
       {/* Assistant Sidebar - show when open */}
       {isOpen && (
         <div
-          className={`${isFixed ? "fixed" : "absolute"} right-0 top-0 bottom-0 z-[500] bg-[var(--color-semantic-background-primary)] transition-[width] duration-200 ease-out ${isFixed ? "border-l border-gray-200" : "rounded-l-2xl shadow-[-8px_0_24px_rgba(0,0,0,0.15)]"
+          className={`fixed right-0 top-0 bottom-0 z-[500] bg-[var(--color-semantic-background-primary)] transition-[width] duration-200 ease-out ${isFixed ? "border-l border-gray-200" : "rounded-l-2xl shadow-[-8px_0_24px_rgba(0,0,0,0.15)]"
             }`}
-          style={{ width: widthCss }}
+          style={{ width: widthCss, maxWidth: "100vw" }}
         >
           {/* Resize handle - left edge, vertically centered; thin strip with grip */}
           <div

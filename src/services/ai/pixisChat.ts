@@ -49,8 +49,12 @@ export interface PixisChatParams {
   }>;
   /** Portfolio ID when assistant is opened from a portfolio detail page */
   portfolio_id?: number;
+  /** Dashboard ID when assistant is opened from a dashboard page */
+  dashboard_id?: number;
   /** "stream-json" | "stream-json-partial" | "json" — for testing output formats */
   output_format?: string;
+  /** Session type — 'reanalyze' for autonomous re-analysis sessions */
+  session_type?: string;
   /** Selected Google Sheets integrations with full details for agent context */
   google_sheets_integrations?: Array<{
     account_id: number;

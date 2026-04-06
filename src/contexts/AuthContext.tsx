@@ -305,7 +305,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
     clearAccountsQueryCache();
     clearAccountIdFromStorage();
-    window.location.href = "/brands";
+    window.location.href = "/super-admin/users";
   };
 
   return (

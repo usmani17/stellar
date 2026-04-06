@@ -11,6 +11,7 @@ export const getStatusBadgeLabel = (status: string): any => {
     ENABLED: "Enable",
     PAUSED: "Paused",
     REMOVED: "Removed",
+    ENDED: "Ended",
     [CAMPAIGN_STATUS_SAVED_DRAFT]: "Draft",
     DRAFT: "Draft", // backward compat: legacy rows
   };
@@ -50,6 +51,7 @@ export const getStatusLabel = (status: string): string => {
     ENABLED: "Enabled",
     PAUSED: "Paused",
     REMOVED: "Removed",
+    ENDED: "Ended",
     [CAMPAIGN_STATUS_SAVED_DRAFT]: "Draft",
     DRAFT: "Draft", // backward compat: legacy rows
     PENDING: "Pending",
@@ -72,6 +74,7 @@ export const getStatusColor = (status: string): string => {
     PENDING: "bg-blue-100 text-blue-800",
     REMOVED: "bg-red-100 text-red-800",
     INACTIVE: "bg-gray-100 text-gray-800",
+    ENDED: "bg-gray-100 text-gray-500",
   };
   return statusColorMap[status.toUpperCase()] || "bg-gray-100 text-gray-800";
 };

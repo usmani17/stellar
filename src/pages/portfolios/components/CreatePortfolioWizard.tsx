@@ -284,6 +284,10 @@ export const CreatePortfolioWizard: React.FC<Props> = ({
   >(null);
   const [grScheduleDays, setGrScheduleDays] = useState<string[]>([]);
 
+  const [portfolioInstructions, setPortfolioInstructions] = useState(
+    editPortfolio?.portfolioInstructions ?? "",
+  );
+
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -775,6 +779,7 @@ export const CreatePortfolioWizard: React.FC<Props> = ({
           targetValue: targetValue ? parseFloat(targetValue) : null,
           tags: parsedTags,
           guardrails: gPayload,
+          portfolioInstructions,
           campaigns: campaignsPayload,
           metrics: metricsPayload,
         };
@@ -795,6 +800,7 @@ export const CreatePortfolioWizard: React.FC<Props> = ({
           targetValue: targetValue ? parseFloat(targetValue) : undefined,
           tags: parsedTags,
           guardrails: gPayload,
+          portfolioInstructions: portfolioInstructions || undefined,
           campaigns: campaignsPayload,
           metrics: metricsPayload,
         };
@@ -1618,6 +1624,21 @@ export const CreatePortfolioWizard: React.FC<Props> = ({
                   </div>
                 ))}
               </div>
+
+              {/* Portfolio Instructions */}
+              <div className="space-y-1.5">
+                <label className="form-label">Portfolio Instructions</label>
+                <p className="text-[12px] text-forest-f30 leading-relaxed">
+                  Goals, context, and guidance for the AI agent during analysis and action creation
+                </p>
+                <textarea
+                  value={portfolioInstructions}
+                  onChange={(e) => setPortfolioInstructions(e.target.value)}
+                  placeholder="e.g. Focus on reducing CPA below $50. Don't pause brand campaigns. Prioritize scaling top converters..."
+                  rows={3}
+                  className="w-full text-[13px] border border-sandstorm-s40 rounded-lg px-3 py-2.5 bg-sandstorm-s5 text-forest-f60 placeholder:text-forest-f20 focus:ring-1 focus:ring-forest-f40 focus:border-forest-f40 resize-y"
+                />
+              </div>
             </div>
           )}
 
@@ -1781,6 +1802,15 @@ export const CreatePortfolioWizard: React.FC<Props> = ({
                   </div>
                 )}
               </div>
+
+              {portfolioInstructions.trim() && (
+                <div>
+                  <p className="text-[13px] text-forest-f30 mb-1">Portfolio Instructions</p>
+                  <div className="px-3 py-2.5 bg-sandstorm-s5 border border-sandstorm-s40 rounded-lg text-[12px] text-forest-f60 leading-relaxed whitespace-pre-wrap">
+                    {portfolioInstructions}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <p className="text-[13px] text-forest-f30 mb-2">Campaigns</p>

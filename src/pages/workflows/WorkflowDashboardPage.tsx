@@ -1,27 +1,32 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useCallback } from "react";
 import { flushSync } from "react-dom";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Share2, Moon, Sun, RotateCw, Copy, X } from "lucide-react";
+import { ArrowLeft, Share2, Moon, Sun, RotateCw, Copy, X, Sparkles } from "lucide-react";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useSidebar } from "../../contexts/SidebarContext";
+import { useAssistant } from "../../contexts/AssistantContext";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { DashboardGrid } from "./components/dashboard/DashboardGrid";
-import { getDashboardDetail, updateDashboardConfig, updateDashboardComponent, createDashboardShare } from "../../services/dashboard";
+import { getDashboardDetail, updateDashboardConfig, updateDashboardComponent, createDashboardShare, type DashboardResponse } from "../../services/dashboard";
+import { portfoliosService } from "../../services/portfolios";
 import { DashboardThemeProvider, useDashboardTheme } from "./contexts/DashboardThemeContext";
 import { Assistant } from "../../components/layout/Assistant";
 import { BaseModal, Loader } from "../../components/ui";
 
 export const WorkflowDashboardPage: React.FC = () => {
   const { accountId, dashboardId } = useParams<{ accountId: string; dashboardId: string }>();
+  const [searchParams] = useSearchParams();
   const { sidebarWidth } = useSidebar();
+  const { setDashboardScope, clearDashboardScope, setPortfolioScope, clearPortfolioScope } = useAssistant();
   const [shareModalOpen, setShareModalOpen] = React.useState(false);
   const [shareLink, setShareLink] = React.useState("");
   const [shareError, setShareError] = React.useState<string | null>(null);
 
   const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
   const dashboardIdNum = dashboardId ? parseInt(dashboardId, 10) : undefined;
+  const urlPortfolioId = searchParams.get("portfolioId") ? parseInt(searchParams.get("portfolioId")!, 10) : undefined;
 
   const { data: dashboard, isLoading: isLoadingDashboard, refetch: refetchDashboard } = useQuery({
     queryKey: ["dashboard", accountIdNum, dashboardIdNum],
@@ -29,10 +34,55 @@ export const WorkflowDashboardPage: React.FC = () => {
     enabled: !!accountIdNum && !!dashboardIdNum,
   });
 
+  const effectivePortfolioId = dashboard?.portfolioId ?? urlPortfolioId;
+
+  const { data: portfolio } = useQuery({
+    queryKey: ["portfolio", accountIdNum, effectivePortfolioId],
+    queryFn: () => portfoliosService.getPortfolio(accountIdNum!, effectivePortfolioId!),
+    enabled: !!accountIdNum && !!effectivePortfolioId,
+    staleTime: 60_000,
+  });
+
   useEffect(() => {
     setPageTitle(dashboard?.name ? `${dashboard.name} — Dashboard` : "Dashboard");
     return () => resetPageTitle();
   }, [dashboard?.name]);
+
+  useEffect(() => {
+    if (dashboard && accountIdNum && dashboardIdNum) {
+      const widgetCount = dashboard.config?.components?.filter((c) => !c.deleted_at)?.length ?? 0;
+      setDashboardScope(dashboardIdNum, dashboard.name, {
+        accountId: accountIdNum,
+        channelId: dashboard.channelId,
+        profileId: dashboard.profileId,
+        profileName: dashboard.profileName,
+        platform: dashboard.platform,
+        dashboardDetail: {
+          platform: dashboard.platform,
+          profileName: dashboard.profileName,
+          channelName: dashboard.channelName,
+          description: dashboard.description,
+          widgetCount,
+          portfolioId: effectivePortfolioId,
+          portfolioName: portfolio?.name,
+        },
+      });
+    }
+    return () => clearDashboardScope();
+  }, [dashboard, portfolio, accountIdNum, dashboardIdNum, effectivePortfolioId, setDashboardScope, clearDashboardScope]);
+
+  useEffect(() => {
+    if (effectivePortfolioId && portfolio && accountIdNum) {
+      setPortfolioScope(effectivePortfolioId, portfolio.name, {
+        accountId: accountIdNum,
+        channelId: portfolio.channelId ?? undefined,
+        profileId: portfolio.profileId ?? undefined,
+        profileName: portfolio.profileName ?? undefined,
+        platform: portfolio.platform ?? undefined,
+      });
+    }
+    return () => { if (effectivePortfolioId) clearPortfolioScope(); };
+  }, [effectivePortfolioId, portfolio, accountIdNum, setPortfolioScope, clearPortfolioScope]);
 
   const handleShare = async () => {
     if (!accountIdNum || !dashboardIdNum) return;
@@ -68,6 +118,7 @@ export const WorkflowDashboardPage: React.FC = () => {
         config={dashboard?.config}
         accountIdNum={accountIdNum}
         dashboardId={dashboard?.id}
+        dashboard={dashboard ?? undefined}
         refetchDashboard={refetchDashboard}
         shareModalOpen={shareModalOpen}
         shareLink={shareLink}
@@ -87,6 +138,7 @@ function WorkflowDashboardContent({
   config,
   accountIdNum,
   dashboardId,
+  dashboard,
   refetchDashboard,
   shareModalOpen,
   shareLink,
@@ -101,6 +153,7 @@ function WorkflowDashboardContent({
   config: import("./types/dashboard").DashboardConfig | undefined;
   accountIdNum: number | undefined;
   dashboardId: number | undefined;
+  dashboard?: DashboardResponse;
   refetchDashboard: () => void;
   shareModalOpen: boolean;
   shareLink: string;
@@ -112,6 +165,13 @@ function WorkflowDashboardContent({
   const [copySuccess, setCopySuccess] = React.useState(false);
   const queryClient = useQueryClient();
   const [hardRefreshTrigger, setHardRefreshTrigger] = React.useState(0);
+  const { startNewSession, openAssistant } = useAssistant();
+
+  const handleUpdateDashboard = useCallback(() => {
+    if (!dashboard || !accountIdNum || !dashboardId) return;
+    startNewSession();
+    openAssistant();
+  }, [dashboard, accountIdNum, dashboardId, startNewSession, openAssistant]);
 
   const updateConfigMutation = useMutation({
     mutationFn: (newConfig: import("./types/dashboard").DashboardConfig) =>
@@ -266,6 +326,19 @@ function WorkflowDashboardContent({
                 </button>
                 <button
                   type="button"
+                  onClick={handleUpdateDashboard}
+                  disabled={!dashboardId}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-medium border transition-colors ${isDark
+                      ? "border-forest-f40 bg-forest-f40/10 text-forest-f40 hover:bg-forest-f40/20"
+                      : "border-forest-f40 bg-forest-f40 text-white hover:bg-forest-f50"
+                    } disabled:opacity-50`}
+                  aria-label="Update dashboard"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Update Dashboard
+                </button>
+                <button
+                  type="button"
                   onClick={handleShare}
                   disabled={!dashboardId}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-medium border transition-colors ${isDark
@@ -354,6 +427,7 @@ function WorkflowDashboardContent({
                   )}
                 </div>
               </BaseModal>
+
               {isLoadingDashboard && (
                 <div className="flex items-center justify-center py-20">
                   <Loader size="lg" variant={isDark ? "white" : "default"} />
@@ -371,9 +445,11 @@ function WorkflowDashboardContent({
                   hardRefreshTrigger={hardRefreshTrigger}
                 />
               ) : (
-                <div className={`p-12 text-center rounded-xl border border-dashed ${isDark ? "border-neutral-700 text-neutral-400" : "border-sandstorm-s40 text-forest-f30"}`}>
-                  <p>No dashboard configuration found.</p>
-                </div>
+                !isLoadingDashboard && (
+                  <div className={`p-12 text-center rounded-xl border border-dashed ${isDark ? "border-neutral-700 text-neutral-400" : "border-sandstorm-s40 text-forest-f30"}`}>
+                    <p>No dashboard configuration found.</p>
+                  </div>
+                )
               )}
             </div>
           </div>

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -6,37 +7,34 @@ import {
   LayoutDashboard,
   Bot,
   AlertTriangle,
+  History,
   Pencil,
   RefreshCw,
+  Trash2,
+  Zap,
 } from "lucide-react";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-  LineChart,
-  Line,
-} from "recharts";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { useAssistant } from "../../contexts/AssistantContext";
-import { usePortfolio, usePortfolioTracking } from "../../hooks/queries/usePortfolios";
+import { usePortfolio, usePortfolioLiveMetrics } from "../../hooks/queries/usePortfolios";
 import {
   useRunPortfolio,
   useUpdatePortfolio,
 } from "../../hooks/mutations/usePortfolioMutations";
+import { portfoliosService } from "../../services/portfolios";
+import type { PortfolioLatestTracking } from "../../services/portfolios";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { AccountsHeader } from "../../components/layout/AccountsHeader";
 import { Assistant } from "../../components/layout/Assistant";
 import { Banner, Button, ConfirmationModal, KPICard, Loader } from "../../components/ui";
 import { cn } from "../../lib/cn";
 import { CreatePortfolioWizard } from "./components/CreatePortfolioWizard";
+import { AnalysisHistoryModal } from "./components/AnalysisHistoryModal";
+import { PortfolioActionsTab } from "./components/PortfolioActionsTab";
+import { PortfolioExecutionHistoryTab } from "./components/PortfolioExecutionHistoryTab";
+import { getPortfolioRefreshStatus } from "../../services/portfolioActions";
 
-type Tab = "dashboard" | "campaigns" | "dashboards" | "settings";
+type Tab = "campaigns" | "dashboards" | "actions" | "history";
 
 function fmt(val: number | null | undefined, prefix = ""): string {
   if (val == null) return "—";
@@ -50,6 +48,30 @@ function fmtDate(dateStr: string | null | undefined): string {
   return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
+function healthBadgeClasses(health: string | null | undefined): string {
+  if (!health) return "bg-sandstorm-s20 text-forest-f30 border-sandstorm-s40";
+  const h = health.toLowerCase();
+  if (h.includes("excellent")) return "bg-forest-f0 text-forest-f50 border-forest-f40/40";
+  if (h.includes("good")) return "bg-forest-f0/60 text-forest-f40 border-forest-f40/30";
+  if (h.includes("fair") || h.includes("moderate")) return "bg-yellow-50 text-yellow-700 border-yellow-300";
+  if (h.includes("poor") || h.includes("critical")) return "bg-red-50 text-red-700 border-red-300";
+  return "bg-sandstorm-s20 text-forest-f30 border-sandstorm-s40";
+}
+
+function pacingTextClass(pct: number): string {
+  if (pct > 110) return "text-red-600";
+  if (pct > 100) return "text-yellow-600";
+  return "text-forest-f60";
+}
+
+function formatKpiValue(targetType: string | null | undefined, val: number | null | undefined): string {
+  if (val == null) return "—";
+  const t = (targetType ?? "").toUpperCase();
+  if (t === "CPA" || t === "CPC" || t === "CPM") return `$${val.toFixed(2)}`;
+  if (t === "ROAS") return `${val.toFixed(2)}x`;
+  return val.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
 export const PortfolioDetail: React.FC = () => {
   const navigate = useNavigate();
   const { accountId: accountIdStr, portfolioId: portfolioIdStr } =
@@ -60,22 +82,36 @@ export const PortfolioDetail: React.FC = () => {
   const { setPortfolioScope, clearPortfolioScope } = useAssistant();
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  const [activeTab, setActiveTab] = useState<Tab>("actions");
   const [successMsg, setSuccessMsg] = useState("");
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [showRunConfirm, setShowRunConfirm] = useState(false);
   const isEditMode = searchParams.get("edit") === "true";
 
-  const { data: portfolio, isLoading, error } = usePortfolio(
+  const { data: portfolio, isLoading, error, refetch: refetchPortfolio } = usePortfolio(
     accountId,
     portfolioId,
   );
 
-  const { data: trackingData, isLoading: trackingLoading } =
-    usePortfolioTracking(accountId, portfolioId, 1);
+  const { data: liveMetrics, isLoading: metricsLoading } = usePortfolioLiveMetrics(
+    [portfolioId],
+    { enabled: !!portfolioId },
+  );
+  const tracking: PortfolioLatestTracking | null = liveMetrics?.[String(portfolioId)] ?? null;
 
   const runMutation = useRunPortfolio(accountId);
   const updateMutation = useUpdatePortfolio(accountId, portfolioId);
+
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const { data: refreshStatus } = useQuery({
+    queryKey: ["portfolio-refresh-status", accountId, portfolioId],
+    queryFn: () => getPortfolioRefreshStatus(accountId, portfolioId),
+    enabled: !!portfolioId,
+    refetchInterval: isAnalyzing ? 60_000 : false,
+  });
+  useEffect(() => {
+    if (refreshStatus) setIsAnalyzing(refreshStatus.isAnalyzing);
+  }, [refreshStatus]);
 
   useEffect(() => {
     if (portfolio) {
@@ -106,8 +142,14 @@ export const PortfolioDetail: React.FC = () => {
 
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab === "dashboards" || tab === "agents") {
+    if (tab === "dashboards" || tab === "agents" || tab === "dashboard") {
       setActiveTab("dashboards");
+    } else if (tab === "campaigns") {
+      setActiveTab("campaigns");
+    } else if (tab === "history") {
+      setActiveTab("history");
+    } else {
+      setActiveTab("actions");
     }
   }, [searchParams]);
 
@@ -185,9 +227,10 @@ export const PortfolioDetail: React.FC = () => {
   }
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+    { id: "actions", label: "Actions", icon: <Zap className="w-4 h-4" /> },
+    { id: "history", label: "Execution History", icon: <History className="w-4 h-4" /> },
     { id: "campaigns", label: "Campaigns", icon: <Settings className="w-4 h-4" /> },
-    { id: "dashboards", label: "Agents", icon: <Bot className="w-4 h-4" /> },
+    { id: "dashboards", label: "Dashboards", icon: <LayoutDashboard className="w-4 h-4" /> },
   ];
 
   return (
@@ -195,12 +238,12 @@ export const PortfolioDetail: React.FC = () => {
       <Sidebar />
 
       <div
-        className="flex-1 w-full"
+        className="flex-1 w-full min-w-0"
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
         <AccountsHeader />
         <Assistant>
-        <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white min-h-[calc(100vh-64px)]">
+        <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white min-h-[calc(100vh-64px)] overflow-x-hidden">
           <div className="space-y-6">
             {successMsg && (
               <Banner
@@ -209,6 +252,15 @@ export const PortfolioDetail: React.FC = () => {
                 dismissable
                 onDismiss={() => setSuccessMsg("")}
               />
+            )}
+
+            {isAnalyzing && (
+              <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-forest-f40/10 border border-forest-f40/20">
+                <RefreshCw className="w-4 h-4 text-forest-f40 animate-spin shrink-0" />
+                <p className="text-[13px] font-medium text-forest-f60">
+                  Agent is re-analyzing your portfolio actions...
+                </p>
+              </div>
             )}
 
             {/* Breadcrumb + Actions */}
@@ -262,7 +314,7 @@ export const PortfolioDetail: React.FC = () => {
             </div>
 
             {/* KPI Summary */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               <KPICard label="Total Budget" value={fmt(portfolio.totalBudget, "$")} />
               <KPICard label="Campaigns" value={portfolio.campaigns?.length ?? 0} />
               <KPICard label="Status" value={portfolio.status === "enabled" ? "Live" : "Disabled"} />
@@ -334,14 +386,25 @@ export const PortfolioDetail: React.FC = () => {
             </div>
 
             {/* Tab Content */}
-            {activeTab === "dashboard" && (
-              <DashboardTab portfolio={portfolio} trackingData={trackingData} trackingLoading={trackingLoading} />
-            )}
             {activeTab === "campaigns" && (
-              <CampaignsTab campaigns={portfolio.campaigns ?? []} />
+              <CampaignsTab
+                campaigns={portfolio.campaigns ?? []}
+                portfolio={portfolio}
+                accountId={accountId}
+                portfolioId={portfolioId}
+                tracking={tracking}
+                metricsLoading={metricsLoading}
+                onPortfolioUpdate={refetchPortfolio}
+              />
             )}
             {activeTab === "dashboards" && (
               <PortfolioDashboardsTab accountId={accountId} portfolioId={portfolioId} />
+            )}
+            {activeTab === "actions" && (
+              <PortfolioActionsTab accountId={accountId} portfolioId={portfolioId} portfolioName={portfolio?.name} />
+            )}
+            {activeTab === "history" && (
+              <PortfolioExecutionHistoryTab accountId={accountId} portfolioId={portfolioId} />
             )}
           </div>
         </div>
@@ -391,149 +454,6 @@ export const PortfolioDetail: React.FC = () => {
   );
 };
 
-// ── Dashboard Tab ─────────────────────────────────────────────────────────
-
-const DashboardTab: React.FC<{ portfolio: any; trackingData: any; trackingLoading: boolean }> = ({
-  portfolio,
-  trackingData,
-  trackingLoading,
-}) => {
-  const rows = trackingData?.data?.results ?? trackingData?.results ?? [];
-  const successRows = rows.filter((r: any) => r.status === "success");
-  const chartData = [...successRows]
-    .reverse()
-    .map((r: any) => ({
-      date: r.trackedAt ? fmtShortDate(r.trackedAt) : "",
-      spend: r.totalSpend ?? 0,
-      clicks: r.clicks ?? 0,
-      impressions: r.impressions ?? 0,
-      conversions: r.conversions ?? 0,
-      cpc: r.cpc ?? 0,
-      cpm: r.cpm ?? 0,
-      cpa: r.cpa ?? 0,
-      roas: r.roas ?? 0,
-      pacing: r.pacingPercentage ?? 0,
-      totalSpend: r.totalSpend ?? 0,
-    }));
-
-  const latestRow = successRows[0];
-  const pacingPct = latestRow?.pacingPercentage ?? null;
-  const budgetUsed = latestRow?.totalSpend ?? 0;
-  const budgetTotal = portfolio.totalBudget ?? 0;
-  const budgetPct = budgetTotal > 0 ? Math.min((budgetUsed / budgetTotal) * 100, 100) : 0;
-
-  return (
-    <div className="space-y-6">
-      {/* Loading state for tracking data */}
-      {trackingLoading && (
-        <div className="flex justify-center py-8">
-          <Loader size="md" message="Loading performance data..." />
-        </div>
-      )}
-
-      {/* Budget, pacing, snapshot summary */}
-      {!trackingLoading && rows.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-5 bg-sandstorm-s5 border border-sandstorm-s40 rounded-[16px]">
-            <p className="text-[12px] text-forest-f30 uppercase tracking-wider font-medium mb-3">Budget Usage</p>
-            <div className="flex items-end justify-between mb-2">
-              <span className="text-[22px] font-medium text-forest-f60">{fmt(budgetUsed, "$")}</span>
-              <span className="text-[13px] text-forest-f30">of {fmt(budgetTotal, "$")}</span>
-            </div>
-            <div className="w-full h-2 bg-sandstorm-s20 rounded-full overflow-hidden">
-              <div className={cn("h-full rounded-full transition-all duration-500", budgetPct > 90 ? "bg-red-r30" : budgetPct > 70 ? "bg-yellow-y10" : "bg-forest-f40")} style={{ width: `${budgetPct}%` }} />
-            </div>
-            <p className="text-[11px] text-forest-f30 mt-1.5">{budgetPct.toFixed(1)}% used</p>
-          </div>
-
-          <div className="p-5 bg-sandstorm-s5 border border-sandstorm-s40 rounded-[16px]">
-            <p className="text-[12px] text-forest-f30 uppercase tracking-wider font-medium mb-3">Pacing</p>
-            <p className={cn("text-[28px] font-medium", pacingPct != null && pacingPct > 100 ? "text-red-r30" : "text-forest-f60")}>
-              {pacingPct != null ? `${pacingPct.toFixed(1)}%` : "—"}
-            </p>
-            <p className="text-[11px] text-forest-f30 mt-1">
-              {pacingPct != null && pacingPct <= 100 ? "Within budget pace" : pacingPct != null ? "Over budget pace" : "No data"}
-            </p>
-          </div>
-
-          <div className="p-5 bg-sandstorm-s5 border border-sandstorm-s40 rounded-[16px]">
-            <p className="text-[12px] text-forest-f30 uppercase tracking-wider font-medium mb-3">Snapshots</p>
-            <p className="text-[28px] font-medium text-forest-f60">{rows.length}</p>
-            <p className="text-[11px] text-forest-f30 mt-1">{successRows.length} successful</p>
-          </div>
-        </div>
-      )}
-
-      {/* Sparkline grid */}
-      {!trackingLoading && chartData.length >= 2 && (
-        <div>
-          <p className="text-[13px] font-medium text-forest-f60 mb-3">Metric Trends</p>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            {SPARKLINE_METRICS.map((metric) => {
-              const values = chartData.map((d: any) => d[metric.key] as number);
-              const latest = values[values.length - 1] ?? 0;
-              const prev = values.length >= 2 ? values[values.length - 2] : latest;
-              const changePct = prev ? ((latest - prev) / prev) * 100 : 0;
-              const isUp = changePct >= 0;
-              return (
-                <div key={metric.key} className="p-3 bg-sandstorm-s5 border border-sandstorm-s40 rounded-[12px]">
-                  <p className="text-[11px] text-forest-f30 mb-1">{metric.label}</p>
-                  <div className="flex items-end justify-between mb-2">
-                    <span className="text-[15px] font-medium text-forest-f60">
-                      {metric.prefix}{latest.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                    </span>
-                    {values.length >= 2 && (
-                      <span className={cn("text-[10px] font-medium", isUp ? "text-green-600" : "text-red-600")}>
-                        {isUp ? "+" : ""}{changePct.toFixed(1)}%
-                      </span>
-                    )}
-                  </div>
-                  <div className="h-[32px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData}>
-                        <Line type="monotone" dataKey={metric.key} stroke={isUp ? "#136D6D" : "#CE1313"} strokeWidth={1.5} dot={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Spend & Pacing chart */}
-      {!trackingLoading && chartData.length >= 2 && (
-        <div className="p-5 bg-sandstorm-s5 border border-sandstorm-s40 rounded-[16px]">
-          <p className="text-[13px] font-medium text-forest-f60 mb-4">Spend & Pacing Over Time</p>
-          <div className="h-[260px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 5, right: 20, bottom: 0, left: 10 }}>
-                <defs>
-                  <linearGradient id="spendGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#136D6D" stopOpacity={0.15} />
-                    <stop offset="100%" stopColor="#136D6D" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E3" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#506766" }} axisLine={false} tickLine={false} />
-                <YAxis yAxisId="left" tick={{ fontSize: 11, fill: "#506766" }} axisLine={false} tickLine={false} width={50} />
-                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: "#506766" }} axisLine={false} tickLine={false} width={40} domain={[0, "auto"]} />
-                <RechartsTooltip content={<CustomTooltipContent />} />
-                <Area yAxisId="left" type="monotone" dataKey="spend" stroke="#136D6D" strokeWidth={2} fill="url(#spendGradient)" name="Spend ($)" />
-                <Line yAxisId="right" type="monotone" dataKey="pacing" stroke="#FF991F" strokeWidth={2} dot={{ r: 3, fill: "#FF991F" }} name="Pacing (%)" />
-                {budgetTotal > 0 && (
-                  <ReferenceLine yAxisId="left" y={budgetTotal} stroke="#CE1313" strokeDasharray="6 3" strokeWidth={1.5} label={{ value: `Budget: ${fmt(budgetTotal, "$")}`, position: "right", fontSize: 10, fill: "#CE1313" }} />
-                )}
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
 // ── Portfolio Dashboards Tab ──────────────────────────────────────────────
 
 const PortfolioDashboardsTab: React.FC<{ accountId: number; portfolioId: number }> = ({ accountId, portfolioId }) => {
@@ -541,6 +461,7 @@ const PortfolioDashboardsTab: React.FC<{ accountId: number; portfolioId: number 
   const [dashboards, setDashboards] = useState<Array<{ id: number; name: string; updatedAt: string | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const fetchDashboards = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -565,36 +486,45 @@ const PortfolioDashboardsTab: React.FC<{ accountId: number; portfolioId: number 
 
   return (
     <div className="space-y-3">
-      {/* Always-visible header with refresh */}
       <div className="flex items-center justify-between">
         <p className="text-[13px] text-forest-f30">
           {loading ? "" : `${dashboards.length} dashboard${dashboards.length !== 1 ? "s" : ""}`}
         </p>
-        <button
-          onClick={() => fetchDashboards(true)}
-          disabled={refreshing || loading}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-forest-f40 border border-sandstorm-s40 rounded-lg hover:bg-sandstorm-s5 transition-colors disabled:opacity-50"
-          aria-label="Refresh dashboards"
-        >
-          <RefreshCw className={cn("w-3.5 h-3.5", (refreshing || loading) && "animate-spin")} />
-          {refreshing ? "Refreshing..." : "Refresh"}
-        </button>
+        <div className="flex items-center gap-1.5">
+          {dashboards.length > 0 && (
+            <button
+              onClick={() => setHistoryOpen(true)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold text-forest-f40 border border-sandstorm-s40 hover:border-forest-f40/30 hover:bg-sandstorm-s5 transition-colors"
+              aria-label="View analysis history"
+            >
+              <History className="w-3 h-3" />
+              Analysis History
+            </button>
+          )}
+          <button
+            onClick={() => fetchDashboards(true)}
+            disabled={refreshing || loading}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold text-forest-f40 border border-sandstorm-s40 hover:bg-sandstorm-s5 transition-colors disabled:opacity-50"
+            aria-label="Refresh dashboards"
+          >
+            <RefreshCw className={cn("w-3 h-3", (refreshing || loading) && "animate-spin")} />
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
 
-      {/* Loading state */}
       {(loading || refreshing) && (
         <div className="flex items-center justify-center py-12">
           <Loader size="md" message={loading ? "Loading dashboards..." : "Refreshing..."} />
         </div>
       )}
 
-      {/* Empty state */}
       {!loading && !refreshing && dashboards.length === 0 && (
         <div className="text-center py-12">
           <Bot className="w-10 h-10 mx-auto mb-3 text-forest-f20" />
-          <p className="text-[14px] text-forest-f30 mb-1">No actions yet</p>
+          <p className="text-[14px] text-forest-f30 mb-1">No dashboards yet</p>
           <p className="text-[12px] text-forest-f20 mb-4">
-            Use the Assistant to create actions for this portfolio.
+            Use the Assistant to create dashboards for this portfolio.
           </p>
           <button
             type="button"
@@ -607,11 +537,10 @@ const PortfolioDashboardsTab: React.FC<{ accountId: number; portfolioId: number 
         </div>
       )}
 
-      {/* Dashboard list */}
       {!loading && dashboards.length > 0 && dashboards.map((d) => (
         <div
           key={d.id}
-          onClick={() => window.open(`/brands/${accountId}/dashboards/${d.id}`, "_blank")}
+          onClick={() => window.open(`/brands/${accountId}/dashboards/${d.id}?portfolioId=${portfolioId}`, "_blank")}
           className={cn(
             "flex items-center justify-between p-4 border border-sandstorm-s40 rounded-lg hover:bg-sandstorm-s5 cursor-pointer transition-colors",
             refreshing && "opacity-50 pointer-events-none",
@@ -630,91 +559,222 @@ const PortfolioDashboardsTab: React.FC<{ accountId: number; portfolioId: number 
           </div>
         </div>
       ))}
+
+      <AnalysisHistoryModal
+        isOpen={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        accountId={accountId}
+        dashboards={dashboards}
+      />
     </div>
   );
 };
 
 // ── Campaigns Tab ─────────────────────────────────────────────────────────
 
-const CampaignsTab: React.FC<{ campaigns: any[] }> = ({ campaigns }) => {
-  if (campaigns.length === 0) {
-    return (
-      <div className="text-center py-12 text-[14px] text-forest-f30">
-        No campaigns in this portfolio.
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-sandstorm-s5 border border-sandstorm-s40 rounded-[12px] overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr>
-            <th className="table-header">Campaign Name</th>
-            <th className="table-header">Campaign ID</th>
-            <th className="table-header">Type</th>
-            <th className="table-header">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {campaigns.map((c: any) => (
-            <tr key={c.id} className="table-row">
-              <td className="table-cell text-[13px] text-forest-f60">
-                {c.campaignName}
-              </td>
-              <td className="table-cell text-[12px] text-forest-f30 font-mono">
-                {c.campaignId}
-              </td>
-              <td className="table-cell text-[12px] text-forest-f30">
-                {c.campaignType || "—"}
-              </td>
-              <td className="table-cell">
-                <span
-                  className={cn(
-                    "inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium",
-                    (c.campaignStatus || "").toLowerCase() === "enabled"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-gray-100 text-gray-600",
-                  )}
-                >
-                  {c.campaignStatus || "—"}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-};
-
-// ── Dashboard chart helpers ───────────────────────────────────────────────
-
-function fmtShortDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+interface CampaignsTabProps {
+  campaigns: any[];
+  portfolio: any;
+  accountId: number;
+  portfolioId: number;
+  tracking: PortfolioLatestTracking | null;
+  metricsLoading: boolean;
+  onPortfolioUpdate: () => void;
 }
 
-const SPARKLINE_METRICS = [
-  { key: "totalSpend", label: "Spend", prefix: "$" },
-  { key: "clicks", label: "Clicks", prefix: "" },
-  { key: "impressions", label: "Impressions", prefix: "" },
-  { key: "conversions", label: "Conversions", prefix: "" },
-  { key: "cpc", label: "CPC", prefix: "$" },
-  { key: "roas", label: "ROAS", prefix: "" },
-];
+const CampaignsTab: React.FC<CampaignsTabProps> = ({
+  campaigns,
+  portfolio,
+  accountId,
+  portfolioId,
+  tracking,
+  metricsLoading,
+  onPortfolioUpdate,
+}) => {
+  const [removingId, setRemovingId] = useState<number | null>(null);
+  const [removeLoading, setRemoveLoading] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
-const CustomTooltipContent: React.FC<any> = ({ active, payload, label }) => {
-  if (!active || !payload?.length) return null;
+  const handleRemoveCampaign = useCallback(async (campaignDbId: number, campaignName: string) => {
+    setRemovingId(campaignDbId);
+  }, []);
+
+  const confirmRemove = useCallback(async () => {
+    if (removingId == null) return;
+    setRemoveLoading(true);
+    setRemoveError(null);
+    try {
+      const remaining = campaigns
+        .filter((c: any) => c.id !== removingId)
+        .map((c: any) => ({
+          campaign_id: c.campaignId,
+          campaign_name: c.campaignName,
+          campaign_type: c.campaignType || "",
+          campaign_status: c.campaignStatus || "",
+        }));
+      await portfoliosService.updatePortfolio(accountId, portfolioId, {
+        campaigns: remaining,
+      });
+      onPortfolioUpdate();
+      setRemovingId(null);
+    } catch (err: any) {
+      setRemoveError(err?.response?.data?.error ?? err?.message ?? "Failed to remove campaign");
+    } finally {
+      setRemoveLoading(false);
+    }
+  }, [removingId, campaigns, accountId, portfolioId, onPortfolioUpdate]);
+
+  const removingCampaign = campaigns.find((c: any) => c.id === removingId);
+  const t = tracking;
+
   return (
-    <div className="bg-forest-f60 text-white px-3 py-2 rounded-lg shadow-lg text-[12px]">
-      <p className="font-medium mb-1">{label}</p>
-      {payload.map((entry: any) => (
-        <p key={entry.dataKey} style={{ color: entry.color }}>
-          {entry.name}: {typeof entry.value === "number" ? entry.value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : entry.value}
+    <div className="space-y-5">
+      {/* Live ETL Metrics Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <MetricCard label="Spend (FTD)" value={metricsLoading ? null : t?.totalSpend} prefix="$" />
+        <MetricCard
+          label="Pacing"
+          value={metricsLoading ? null : t?.pacingPercentage}
+          suffix="%"
+          valueClassName={t?.pacingPercentage != null ? pacingTextClass(t.pacingPercentage) : undefined}
+        />
+        <MetricCard label="Conversions" value={metricsLoading ? null : t?.conversions} />
+        <MetricCard label="Revenue" value={metricsLoading ? null : t?.revenue} prefix="$" />
+        <div className="p-3 bg-sandstorm-s5 border border-sandstorm-s40 rounded-[10px]">
+          <p className="text-[11px] text-forest-f30 mb-1">Health</p>
+          {metricsLoading ? (
+            <div className="h-5 w-20 bg-sandstorm-s20 rounded animate-pulse" />
+          ) : t?.health ? (
+            <span className={cn(
+              "inline-flex px-2 py-0.5 rounded text-[11px] font-medium border",
+              healthBadgeClasses(t.health),
+            )}>
+              {t.health}
+            </span>
+          ) : (
+            <span className="text-[13px] text-forest-f30">—</span>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <MetricCard label="CPC" value={metricsLoading ? null : t?.cpc} prefix="$" />
+        <MetricCard label="CPA" value={metricsLoading ? null : t?.cpa} prefix="$" />
+        <MetricCard label="ROAS" value={metricsLoading ? null : t?.roas} suffix="x" />
+        <MetricCard
+          label="Achievement"
+          value={metricsLoading ? null : t?.achievementPercentage}
+          suffix="%"
+        />
+      </div>
+
+      {tracking?.isLive && (
+        <p className="text-[11px] text-forest-f30 -mt-2">
+          Metrics computed live from ETL data
         </p>
-      ))}
+      )}
+
+      {/* Campaigns Table */}
+      <div className="flex items-center justify-between">
+        <p className="text-[13px] font-medium text-forest-f60">
+          {campaigns.length} campaign{campaigns.length !== 1 ? "s" : ""}
+        </p>
+      </div>
+
+      {campaigns.length === 0 ? (
+        <div className="text-center py-12 text-[14px] text-forest-f30">
+          No campaigns in this portfolio. Select campaigns from the Campaigns page and use &ldquo;Add to Portfolio&rdquo; to add them.
+        </div>
+      ) : (
+        <div className="bg-sandstorm-s5 border border-sandstorm-s40 rounded-[12px] overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr>
+                <th className="table-header">Campaign Name</th>
+                <th className="table-header">Campaign ID</th>
+                <th className="table-header">Type</th>
+                <th className="table-header">Status</th>
+                <th className="table-header w-12" />
+              </tr>
+            </thead>
+            <tbody>
+              {campaigns.map((c: any) => (
+                <tr key={c.id} className="table-row group">
+                  <td className="table-cell text-[13px] text-forest-f60">
+                    {c.campaignName}
+                  </td>
+                  <td className="table-cell text-[12px] text-forest-f30 font-mono">
+                    {c.campaignId}
+                  </td>
+                  <td className="table-cell text-[12px] text-forest-f30">
+                    {c.campaignType || "—"}
+                  </td>
+                  <td className="table-cell">
+                    <span
+                      className={cn(
+                        "inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium",
+                        (c.campaignStatus || "").toLowerCase() === "enabled"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-600",
+                      )}
+                    >
+                      {c.campaignStatus || "—"}
+                    </span>
+                  </td>
+                  <td className="table-cell">
+                    <button
+                      onClick={() => handleRemoveCampaign(c.id, c.campaignName)}
+                      className="p-1 rounded hover:bg-red-50 text-forest-f30 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                      aria-label={`Remove ${c.campaignName}`}
+                      title="Remove from portfolio"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Remove confirmation */}
+      <ConfirmationModal
+        isOpen={removingId != null}
+        onClose={() => { if (!removeLoading) { setRemovingId(null); setRemoveError(null); } }}
+        onConfirm={confirmRemove}
+        title="Remove Campaign"
+        message={
+          removeError
+            ? removeError
+            : `Remove "${removingCampaign?.campaignName ?? ""}" from this portfolio? The campaign itself won't be deleted.`
+        }
+        confirmButtonLabel="Remove"
+        isDangerous
+        isLoading={removeLoading}
+        loadingLabel="Removing..."
+      />
     </div>
   );
 };
 
+// ── Metric Card helper ────────────────────────────────────────────────────
+
+const MetricCard: React.FC<{
+  label: string;
+  value: number | null | undefined;
+  prefix?: string;
+  suffix?: string;
+  valueClassName?: string;
+}> = ({ label, value, prefix = "", suffix = "", valueClassName }) => (
+  <div className="p-3 bg-sandstorm-s5 border border-sandstorm-s40 rounded-[10px]">
+    <p className="text-[11px] text-forest-f30 mb-1">{label}</p>
+    {value === null || value === undefined ? (
+      <div className="h-5 w-16 bg-sandstorm-s20 rounded animate-pulse" />
+    ) : (
+      <p className={cn("text-[14px] font-medium text-forest-f60 tabular-nums", valueClassName)}>
+        {prefix}{value.toLocaleString(undefined, { maximumFractionDigits: 2 })}{suffix}
+      </p>
+    )}
+  </div>
+);

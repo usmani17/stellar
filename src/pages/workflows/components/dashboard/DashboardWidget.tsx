@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -39,24 +39,15 @@ import { DashboardGaugeChart } from "./DashboardGaugeChart";
 import { DashboardHorizontalBarChart } from "./DashboardHorizontalBarChart";
 import { Dropdown, ConfirmationModal } from "../../../../components/ui";
 import type { DropdownOption } from "../../../../components/ui";
-import type { DashboardComponent, LineChartDatum, PieChartDatum, SingleMetricDatum, FunnelChartDatum, VisualizationType, ActionRule, ActionProposal, ActionExecution } from "../../types/dashboard";
+import type { DashboardComponent, LineChartDatum, PieChartDatum, SingleMetricDatum, FunnelChartDatum, VisualizationType } from "../../types/dashboard";
 import { isMultiGaqlQuery, isMultiMetaQuery } from "../../types/dashboard";
 import {
   getDashboardComponentDataStream,
   getSharedDashboardComponentDataStream,
 } from "../../../../services/dashboard";
-import {
-  executeActions,
-  getActionHistory,
-  type ActionHistoryParams,
-  type ActionHistoryResponse,
-} from "../../../../services/dashboardActions";
 import { getMockDataForComponent } from "../../utils/dashboardMockData";
 import { useDashboardTheme } from "../../contexts/DashboardThemeContext";
 import { cn } from "../../../../lib/cn";
-import { DashboardWidgetActions } from "./DashboardWidgetActions";
-import { ActionConfirmationModal } from "./ActionConfirmationModal";
-import { ActionHistoryModal } from "./ActionHistoryModal";
 
 const VIZ_ICON_CLS = "w-4 h-4 shrink-0";
 
@@ -164,8 +155,6 @@ interface DashboardWidgetProps {
   ) => void;
   /** Called when user deletes the widget (editable mode); parent persists via config update */
   onWidgetDelete?: (componentId: string) => void;
-  /** Called when action rules are changed (pause, edit, delete) */
-  onActionsChange?: (componentId: string, actions: ActionRule[]) => void | Promise<void>;
 }
 
 type WidgetStatus =
@@ -192,7 +181,6 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   onCustomColumnsChange,
   onManageColumnsApply,
   onWidgetDelete,
-  onActionsChange,
 }) => {
   const vizType = effectiveVisualizationType ?? component.visualization_type;
   const [status, setStatus] = useState<WidgetStatus>("pending");
@@ -205,10 +193,6 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [streamActiveStep, setStreamActiveStep] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [actionProposals, setActionProposals] = useState<ActionProposal[]>([]);
-  const [showActionModal, setShowActionModal] = useState(false);
-  const [historyModalOpen, setHistoryModalOpen] = useState(false);
-  const [executions, setExecutions] = useState<ActionExecution[]>([]);
   const mountedRef = useRef(true);
   const hasFetchedRef = useRef(false);
   const inFlightRef = useRef(false);
@@ -402,37 +386,6 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   const activeStep: string = streamActiveStep ?? getActiveStepId(status);
   const { isDark } = useDashboardTheme();
 
-  const handleShowHistory = (executions: ActionExecution[]) => {
-    setExecutions(executions);
-    setHistoryModalOpen(true);
-  };
-
-  const handleHistoryFilters = useCallback(async (filters: ActionHistoryParams): Promise<ActionHistoryResponse> => {
-    if (!accountId || !dashboardId) {
-      return {
-        executions: [],
-        total: 0,
-        limit: filters.limit ?? 0,
-        offset: filters.offset ?? 0,
-      };
-    }
-    try {
-      const response = await getActionHistory(accountId, dashboardId, {
-        component_id: component.id,
-        ...filters,
-      });
-      setExecutions(response.executions);
-      return response;
-    } catch (err) {
-      console.error("Failed to fetch filtered action history:", err);
-      return {
-        executions: [],
-        total: 0,
-        limit: filters.limit ?? 0,
-        offset: filters.offset ?? 0,
-      };
-    }
-  }, [accountId, dashboardId, component.id]);
 
   return (
     <div
@@ -812,62 +765,6 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
         )}
       </div>
 
-      {/* Action rules panel */}
-      {editable && component.actions && component.actions.length > 0 && accountId && dashboardId && (
-        <>
-          <DashboardWidgetActions
-            actions={component.actions}
-            accountId={accountId}
-            dashboardId={dashboardId}
-            componentId={component.id}
-            isDark={isDark}
-            onActionsChange={
-              onActionsChange
-                ? (updated) => onActionsChange(component.id, updated)
-                : undefined
-            }
-            onReviewChanges={(proposals) => {
-              setActionProposals(proposals);
-              setShowActionModal(true);
-            }}
-            onShowHistory={handleShowHistory}
-          />
-          <ActionConfirmationModal
-            isOpen={showActionModal}
-            onClose={() => setShowActionModal(false)}
-            proposals={actionProposals}
-            onApply={async (ruleIds) => {
-              if (!accountId || !dashboardId)
-                return { results: [] };
-              return executeActions(accountId, dashboardId, {
-                component_id: component.id,
-                action_rule_ids: ruleIds,
-              });
-            }}
-            isDark={isDark}
-            keywordAnalysisContext={
-              accountId != null && dashboardId != null
-                ? {
-                    accountId,
-                    dashboardId,
-                    componentId: component.id,
-                    component,
-                  }
-                : undefined
-            }
-          />
-          <ActionHistoryModal
-            isOpen={historyModalOpen}
-            onClose={() => {
-              setHistoryModalOpen(false);
-              setExecutions([]);
-            }}
-            executions={executions}
-            isDark={isDark}
-            onShowHistory={handleHistoryFilters}
-          />
-        </>
-      )}
     </div>
   );
 };

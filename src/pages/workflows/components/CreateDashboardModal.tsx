@@ -58,8 +58,8 @@ export const CreateDashboardModal: React.FC<CreateDashboardModalProps> = ({
     // Open assistant with pre-filled message; include workflow prompt only for create
     const message =
       isUpdate && dashboardId
-        ? `Update dashboard (ID: ${dashboardId} : ${existingDashboard?.name}) for workflow (id ${workflow.id} : ${workflow.name})`
-        : `${workflow.prompt}\n\nCreate a dashboard for above with workflow id (${workflow.id} : ${workflow.name})`;
+        ? `Update dashboard "${existingDashboard?.name}" for workflow "${workflow.name}"`
+        : `${workflow.prompt}\n\nCreate a dashboard for above with workflow "${workflow.name}"`;
 
     startNewSession();
     setAssistantScope({

@@ -104,12 +104,6 @@ export const Sidebar: React.FC = () => {
       : null) ??
     channels.find((c) => c.channel_type === "meta")?.id ??
     0;
-  const tiktokChannelId =
-    (location.pathname.includes("/tiktok/")
-      ? getChannelIdFromUrl(location.pathname)
-      : null) ??
-    channels.find((c) => c.channel_type === "tiktok")?.id ??
-    0;
 
   const workspaceList: WorkspaceMembershipSummary[] =
     user?.workspaces && user.workspaces.length > 0
@@ -168,36 +162,36 @@ export const Sidebar: React.FC = () => {
     });
 
   useEffect(() => {
-    const marketplace = getMarketplaceFromUrl(location.pathname);
-    const isBrandsArea =
-      location.pathname === "/brands" ||
-      /^\/brands\/\d+\/integrations$/.test(location.pathname) ||
-      /^\/brands\/\d+\/profiles$/.test(location.pathname) ||
-      /^\/brands\/\d+\/workflows(\/|$)/.test(location.pathname) ||
-      /^\/brands\/\d+\/knowledge(\/|$)/.test(location.pathname) ||
-      /^\/brands\/\d+\/google-sheets(\/|$)/.test(location.pathname) ||
-      location.pathname === "/workspace/users";
+    queueMicrotask(() => {
+      const marketplace = getMarketplaceFromUrl(location.pathname);
+      const isBrandsArea =
+        location.pathname === "/brands" ||
+        /^\/brands\/\d+\/integrations$/.test(location.pathname) ||
+        /^\/brands\/\d+\/profiles$/.test(location.pathname) ||
+        /^\/brands\/\d+\/workflows(\/|$)/.test(location.pathname) ||
+        /^\/brands\/\d+\/knowledge(\/|$)/.test(location.pathname) ||
+        /^\/brands\/\d+\/google-sheets(\/|$)/.test(location.pathname) ||
+        location.pathname === "/workspace/users";
 
-    if (isBrandsArea) {
-      setIsWorkspaceSectionCollapsed(false);
-    }
-    // If on brands page, collapse all marketplace sections
-    if (location.pathname === "/brands") {
-      setIsAmazonSectionCollapsed(true);
-      setIsGoogleSectionCollapsed(true);
-      setIsMetaSectionCollapsed(true);
-    } else {
-      // Auto-expand the relevant marketplace section when on that page
-      if (marketplace === "amazon") {
-        setIsAmazonSectionCollapsed(false);
-      } else if (marketplace === "google") {
-        setIsGoogleSectionCollapsed(false);
-      } else if (marketplace === "meta") {
-        setIsMetaSectionCollapsed(false);
-      } else if (marketplace === "tiktok") {
-        setIsTikTokSectionCollapsed(false);
+      if (isBrandsArea) {
+        setIsWorkspaceSectionCollapsed(false);
       }
-    }
+      if (location.pathname === "/brands") {
+        setIsAmazonSectionCollapsed(true);
+        setIsGoogleSectionCollapsed(true);
+        setIsMetaSectionCollapsed(true);
+      } else {
+        if (marketplace === "amazon") {
+          setIsAmazonSectionCollapsed(false);
+        } else if (marketplace === "google") {
+          setIsGoogleSectionCollapsed(false);
+        } else if (marketplace === "meta") {
+          setIsMetaSectionCollapsed(false);
+        } else if (marketplace === "tiktok") {
+          setIsTikTokSectionCollapsed(false);
+        }
+      }
+    });
   }, [location.pathname]);
 
   useEffect(() => {
@@ -234,13 +228,6 @@ export const Sidebar: React.FC = () => {
       String(isTikTokSectionCollapsed),
     );
   }, [isTikTokSectionCollapsed]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      META_SECTION_STORAGE_KEY,
-      String(isMetaSectionCollapsed),
-    );
-  }, [isMetaSectionCollapsed]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -994,7 +981,7 @@ export const Sidebar: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => navigate("/super-admin/workspaces")}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg w-full text-left ${location.pathname.startsWith("/super-admin")
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg w-full text-left ${location.pathname === "/super-admin/workspaces" || location.pathname === "/super-admin"
                     ? "bg-forest-f60 text-white"
                     : "text-forest-f60 hover:bg-sandstorm-s10"
                     }`}

@@ -170,6 +170,10 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   const autoApplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const onApplyRef = useRef(onApply);
+  useEffect(() => {
+    onApplyRef.current = onApply;
+  }, [onApply]);
 
   // Load filter fields from backend on mount
   useEffect(() => {
@@ -286,28 +290,25 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
 
   // Auto-apply filters when they change (with debouncing)
   useEffect(() => {
-    // Skip auto-apply on initial mount
     if (isInitialMountRef.current) {
       isInitialMountRef.current = false;
       return;
     }
 
-    // Clear any existing timeout
     if (autoApplyTimeoutRef.current) {
       clearTimeout(autoApplyTimeoutRef.current);
     }
 
-    // Debounce auto-apply to avoid too many API calls
     autoApplyTimeoutRef.current = setTimeout(() => {
-      onApply(activeFilters);
-    }, 500); // 500ms debounce delay
+      onApplyRef.current(activeFilters);
+    }, 500);
 
     return () => {
       if (autoApplyTimeoutRef.current) {
         clearTimeout(autoApplyTimeoutRef.current);
       }
     };
-  }, [activeFilters, onApply]);
+  }, [activeFilters]);
 
   const getCurrentField = (): FilterField | undefined => {
     return filterFields.find((f) => f.field_name === selectedField);
