@@ -553,7 +553,7 @@ function statusBadge(status: string) {
 
 function PortfolioExpandActions({ portfolio: p }: { portfolio: PortfolioListItem }) {
   const navigate = useNavigate();
-  const { openAssistant, startNewSession, setPortfolioScope } = useAssistant();
+  const { openAssistant, startNewSession, setInputValue, setPortfolioScope } = useAssistant();
   const accountId = p.accountId;
   const portfolioId = p.id;
   const portfolioName = p.name;
@@ -696,6 +696,10 @@ function PortfolioExpandActions({ portfolio: p }: { portfolio: PortfolioListItem
                         campaignCount: p.campaignCount ?? 0,
                       },
                     });
+
+                    setInputValue(
+                      `/portfolio-actions Create actions for portfolio "${portfolioName}" (ID: ${portfolioId}). Analyze this portfolio and create optimization actions`,
+                    );
                     openAssistant();
                   }}
                 >

@@ -398,10 +398,44 @@ export const PortfolioDetail: React.FC = () => {
               />
             )}
             {activeTab === "dashboards" && (
-              <PortfolioDashboardsTab accountId={accountId} portfolioId={portfolioId} />
+              <PortfolioDashboardsTab
+                accountId={accountId}
+                portfolioId={portfolioId}
+                portfolioScopeData={{
+                  name: portfolio.name,
+                  channelId: portfolio.channelId ?? undefined,
+                  profileId: portfolio.profileId ?? undefined,
+                  profileName: portfolio.profileName ?? undefined,
+                  platform: portfolio.platform ?? undefined,
+                  status: portfolio.status,
+                  totalBudget: portfolio.totalBudget ?? undefined,
+                  targetType: portfolio.targetType ?? undefined,
+                  targetValue: portfolio.targetValue ?? undefined,
+                  startDate: portfolio.startDate ?? undefined,
+                  endDate: portfolio.endDate ?? undefined,
+                  campaignCount: portfolio.campaigns?.length ?? 0,
+                }}
+              />
             )}
             {activeTab === "actions" && (
-              <PortfolioActionsTab accountId={accountId} portfolioId={portfolioId} portfolioName={portfolio?.name} />
+              <PortfolioActionsTab
+                accountId={accountId}
+                portfolioId={portfolioId}
+                portfolioName={portfolio?.name}
+                portfolioScopeData={{
+                  channelId: portfolio.channelId ?? undefined,
+                  profileId: portfolio.profileId ?? undefined,
+                  profileName: portfolio.profileName ?? undefined,
+                  platform: portfolio.platform ?? undefined,
+                  status: portfolio.status,
+                  totalBudget: portfolio.totalBudget ?? undefined,
+                  targetType: portfolio.targetType ?? undefined,
+                  targetValue: portfolio.targetValue ?? undefined,
+                  startDate: portfolio.startDate ?? undefined,
+                  endDate: portfolio.endDate ?? undefined,
+                  campaignCount: portfolio.campaigns?.length ?? 0,
+                }}
+              />
             )}
             {activeTab === "history" && (
               <PortfolioExecutionHistoryTab accountId={accountId} portfolioId={portfolioId} />
@@ -456,8 +490,27 @@ export const PortfolioDetail: React.FC = () => {
 
 // ── Portfolio Dashboards Tab ──────────────────────────────────────────────
 
-const PortfolioDashboardsTab: React.FC<{ accountId: number; portfolioId: number }> = ({ accountId, portfolioId }) => {
-  const { openAssistant } = useAssistant();
+type AssistantPortfolioScopeData = {
+  name?: string | null;
+  channelId?: number | null;
+  profileId?: number | null;
+  profileName?: string | null;
+  platform?: string | null;
+  status?: string | null;
+  totalBudget?: number | null;
+  targetType?: string | null;
+  targetValue?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  campaignCount?: number | null;
+};
+
+const PortfolioDashboardsTab: React.FC<{
+  accountId: number;
+  portfolioId: number;
+  portfolioScopeData?: AssistantPortfolioScopeData;
+}> = ({ accountId, portfolioId, portfolioScopeData }) => {
+  const { openAssistant, setInputValue, startNewSession, setPortfolioScope } = useAssistant();
   const [dashboards, setDashboards] = useState<Array<{ id: number; name: string; updatedAt: string | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -528,7 +581,30 @@ const PortfolioDashboardsTab: React.FC<{ accountId: number; portfolioId: number 
           </p>
           <button
             type="button"
-            onClick={openAssistant}
+            onClick={()=> {
+              startNewSession();
+              setPortfolioScope(portfolioId, portfolioScopeData?.name ?? `Portfolio ${portfolioId}`, {
+                accountId,
+                channelId: portfolioScopeData?.channelId ?? undefined,
+                profileId: portfolioScopeData?.profileId ?? undefined,
+                profileName: portfolioScopeData?.profileName ?? undefined,
+                platform: portfolioScopeData?.platform ?? undefined,
+                portfolioDetail: {
+                  status: portfolioScopeData?.status ?? undefined,
+                  platform: portfolioScopeData?.platform ?? undefined,
+                  totalBudget: portfolioScopeData?.totalBudget ?? undefined,
+                  targetType: portfolioScopeData?.targetType ?? undefined,
+                  targetValue: portfolioScopeData?.targetValue ?? undefined,
+                  startDate: portfolioScopeData?.startDate ?? "",
+                  endDate: portfolioScopeData?.endDate ?? "",
+                  campaignCount: portfolioScopeData?.campaignCount ?? 0,
+                },
+              });
+              setInputValue(
+                `/custom-dashboard Create a dashboard for portfolio (ID: ${portfolioId}). Analyze the campaigns, set up relevant KPI widgets, and suggest actions.`,
+              );
+              openAssistant();
+            }}
             className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-semibold text-white bg-forest-f40 rounded-lg hover:bg-forest-f50 transition-colors shadow-sm"
           >
             <Bot className="w-4 h-4" />

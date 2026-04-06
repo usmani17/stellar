@@ -39,6 +39,19 @@ interface Props {
   accountId: number;
   portfolioId: number;
   portfolioName?: string;
+  portfolioScopeData?: {
+    channelId?: number | null;
+    profileId?: number | null;
+    profileName?: string | null;
+    platform?: string | null;
+    status?: string | null;
+    totalBudget?: number | null;
+    targetType?: string | null;
+    targetValue?: number | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    campaignCount?: number | null;
+  };
 }
 
 function toActionItems(actions: PortfolioAction[]): ActionItem[] {
@@ -807,7 +820,12 @@ function PortfolioExecutionHistoryModal({
   );
 }
 
-export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, portfolioName: _portfolioName }) => {
+export const PortfolioActionsTab: React.FC<Props> = ({
+  accountId,
+  portfolioId,
+  portfolioName: _portfolioName,
+  portfolioScopeData: _portfolioScopeData,
+}) => {
   const [actions, setActions] = useState<PortfolioAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
