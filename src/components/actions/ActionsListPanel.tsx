@@ -1767,10 +1767,16 @@ const ScheduleEditorPopover: React.FC<{
     const update = () => {
       const r = anchorEl.getBoundingClientRect();
       const w = 280;
+      const panelH = panelRef.current?.offsetHeight || 360;
+      const spaceBelow = window.innerHeight - r.bottom - 8;
+      const spaceAbove = r.top - 8;
+      const openAbove = spaceBelow < panelH && spaceAbove > spaceBelow;
+      const top = openAbove ? r.top - panelH - 6 : r.bottom + 6;
       const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
-      setLayout({ top: r.bottom + 6, left, width: w });
+      setLayout({ top: Math.max(8, top), left, width: w });
     };
     update();
+    requestAnimationFrame(update);
     window.addEventListener("resize", update);
     document.addEventListener("scroll", update, true);
     return () => {

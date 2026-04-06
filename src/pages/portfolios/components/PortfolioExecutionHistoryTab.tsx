@@ -95,12 +95,22 @@ function ExecutionCard({ exec }: { exec: Record<string, unknown> }) {
   const isSuccess = execStatus === "success";
   const isFailed = execStatus === "failed" || execStatus === "error";
   const entityIds = Array.isArray(exec.entity_ids) ? (exec.entity_ids as string[]) : [];
-  const previewResult = Array.isArray(exec.preview_result)
-    ? (exec.preview_result as PreviewEntity[])
-    : [];
   const result = exec.result as Record<string, unknown> | null | undefined;
   const error = exec.error as string | null | undefined;
   const actionParams = exec.action_params as Record<string, unknown> | null | undefined;
+
+  const previewResult = useMemo<PreviewEntity[]>(() => {
+    if (Array.isArray(exec.preview_result) && exec.preview_result.length > 0) {
+      return exec.preview_result as PreviewEntity[];
+    }
+    if (result && Array.isArray(result.proposal)) {
+      return result.proposal as PreviewEntity[];
+    }
+    if (result && Array.isArray((result as Record<string, unknown>).entities)) {
+      return (result as Record<string, unknown>).entities as PreviewEntity[];
+    }
+    return [];
+  }, [exec.preview_result, result]);
 
   const hasDetails = previewResult.length > 0 || entityIds.length > 0;
 
@@ -205,14 +215,14 @@ function ExecutionCard({ exec }: { exec: Record<string, unknown> }) {
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-sandstorm-s10 border-b border-sandstorm-s40">
-                    <th className="px-3 py-2 text-[10px] font-semibold text-forest-f30 uppercase tracking-wider">Entity ID</th>
-                    <th className="px-3 py-2 text-[10px] font-semibold text-forest-f30 uppercase tracking-wider">Name</th>
+                    <th className="px-3 py-2 text-[10px] font-semibold text-forest-f30 uppercase tracking-wider">Entity</th>
                     {previewResult.some((e) => e.before) && (
-                      <th className="px-3 py-2 text-[10px] font-semibold text-forest-f30 uppercase tracking-wider">Before</th>
+                      <th className="px-3 py-2 text-[10px] font-semibold text-forest-f30 uppercase tracking-wider">Was</th>
                     )}
                     {previewResult.some((e) => e.after) && (
-                      <th className="px-3 py-2 text-[10px] font-semibold text-forest-f30 uppercase tracking-wider">After</th>
+                      <th className="px-3 py-2 text-[10px] font-semibold text-forest-f30 uppercase tracking-wider">Changed to</th>
                     )}
+                    <th className="px-3 py-2 text-[10px] font-semibold text-forest-f30 uppercase tracking-wider w-20">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -221,34 +231,49 @@ function ExecutionCard({ exec }: { exec: Record<string, unknown> }) {
                     const hasAfter = previewResult.some((e) => e.after);
                     return (
                       <tr key={entity.id || i} className={cn("border-b border-sandstorm-s40/50 last:border-b-0", i % 2 === 0 ? "bg-white" : "bg-sandstorm-s5/50")}>
-                        <td className="px-3 py-2 text-[11px] font-mono text-forest-f40">{entity.id}</td>
-                        <td className="px-3 py-2 text-[11px] text-forest-f60 max-w-[240px] truncate" title={entity.name}>
-                          {entity.name || "—"}
+                        <td className="px-3 py-2">
+                          <div className="text-[11px] font-medium text-forest-f60">{entity.name || entity.id}</div>
+                          {entity.name && entity.id && (
+                            <div className="text-[10px] text-forest-f20 font-mono">ID: {entity.id}</div>
+                          )}
                         </td>
                         {hasBefore && (
                           <td className="px-3 py-2 text-[11px] text-forest-f30">
                             {entity.before
                               ? Object.entries(entity.before).map(([k, v]) => (
-                                  <span key={k} className="inline-flex items-center gap-1 mr-2">
-                                    <span className="text-forest-f20">{k}:</span>
-                                    <span className="font-medium">{typeof v === "number" ? v.toLocaleString() : String(v)}</span>
-                                  </span>
+                                  <div key={k} className="text-[11px]">
+                                    <span className="text-forest-f20">{k}:</span>{" "}
+                                    <span className="font-medium text-forest-f30 line-through">{typeof v === "number" ? v.toLocaleString() : String(v)}</span>
+                                  </div>
                                 ))
                               : "—"}
                           </td>
                         )}
                         {hasAfter && (
-                          <td className="px-3 py-2 text-[11px] text-forest-f40 font-medium">
+                          <td className="px-3 py-2">
                             {entity.after
                               ? Object.entries(entity.after).map(([k, v]) => (
-                                  <span key={k} className="inline-flex items-center gap-1 mr-2">
-                                    <span className="text-forest-f20">{k}:</span>
-                                    <span className="font-semibold">{typeof v === "number" ? v.toLocaleString() : String(v)}</span>
-                                  </span>
+                                  <div key={k} className="text-[11px]">
+                                    <span className="text-forest-f20">{k}:</span>{" "}
+                                    <span className="font-semibold text-emerald-600">{typeof v === "number" ? v.toLocaleString() : String(v)}</span>
+                                  </div>
                                 ))
                               : "—"}
                           </td>
                         )}
+                        <td className="px-3 py-2">
+                          {isSuccess ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600">
+                              <CheckCircle2 className="w-3 h-3" /> Updated
+                            </span>
+                          ) : isFailed ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-red-500">
+                              <XCircle className="w-3 h-3" /> Failed
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-forest-f20">—</span>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -275,15 +300,34 @@ function ExecutionCard({ exec }: { exec: Record<string, unknown> }) {
             </div>
           )}
 
-          {/* Result */}
-          {result && typeof result === "object" && Object.keys(result).length > 0 && (
-            <div className="pt-1 border-t border-sandstorm-s40/50">
-              <p className="text-[10px] font-medium text-green-600 mb-1">Result:</p>
-              <div className="text-[11px] text-forest-f30 bg-white rounded-lg p-2.5 border border-sandstorm-s40 overflow-hidden">
-                <pre className="whitespace-pre-wrap break-all text-[10px]">{JSON.stringify(result, null, 2).slice(0, 400)}</pre>
+          {/* Execution summary from result */}
+          {isSuccess && result && typeof result === "object" && (() => {
+            const execRes = (result.exec_result ?? result) as Record<string, unknown>;
+            const updated = typeof execRes.updated === "number" ? execRes.updated : null;
+            const failed = typeof execRes.failed === "number" ? execRes.failed : null;
+            const errors = Array.isArray(execRes.errors) ? execRes.errors.filter(Boolean) : [];
+            if (updated === null && failed === null) return null;
+            return (
+              <div className="flex items-center gap-2 pt-1 border-t border-sandstorm-s40/50">
+                {updated !== null && updated > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-200 font-medium">
+                    <CheckCircle2 className="w-3 h-3" /> {updated} updated
+                  </span>
+                )}
+                {failed !== null && failed > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 font-medium">
+                    <XCircle className="w-3 h-3" /> {failed} failed
+                  </span>
+                )}
+                {failed === 0 && updated !== null && (
+                  <span className="text-[10px] text-green-600">No errors</span>
+                )}
+                {errors.length > 0 && errors.map((err, i) => (
+                  <span key={i} className="text-[10px] text-red-500">{String(err)}</span>
+                ))}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Error */}
           {error && (
