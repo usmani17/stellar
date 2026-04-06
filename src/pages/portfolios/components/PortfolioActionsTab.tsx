@@ -39,6 +39,19 @@ interface Props {
   accountId: number;
   portfolioId: number;
   portfolioName?: string;
+  portfolioScopeData?: {
+    channelId?: number | null;
+    profileId?: number | null;
+    profileName?: string | null;
+    platform?: string | null;
+    status?: string | null;
+    totalBudget?: number | null;
+    targetType?: string | null;
+    targetValue?: number | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    campaignCount?: number | null;
+  };
 }
 
 function toActionItems(actions: PortfolioAction[]): ActionItem[] {
@@ -788,14 +801,19 @@ function PortfolioExecutionHistoryModal({
   );
 }
 
-export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, portfolioName: _portfolioName }) => {
+export const PortfolioActionsTab: React.FC<Props> = ({
+  accountId,
+  portfolioId,
+  portfolioName: _portfolioName,
+  portfolioScopeData,
+}) => {
   const [actions, setActions] = useState<PortfolioAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [trailOpen, setTrailOpen] = useState(false);
-  const { openAndSend, startNewSession, openAssistant } = useAssistant();
+  const { openAndSend, startNewSession, openAssistant, setInputValue, setPortfolioScope } = useAssistant();
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const prevAnalyzing = useRef(false);
@@ -841,8 +859,37 @@ export const PortfolioActionsTab: React.FC<Props> = ({ accountId, portfolioId, p
 
   const handleCreateActions = useCallback(() => {
     startNewSession();
+    setPortfolioScope(portfolioId, _portfolioName ?? `Portfolio ${portfolioId}`, {
+      accountId,
+      channelId: portfolioScopeData?.channelId ?? undefined,
+      profileId: portfolioScopeData?.profileId ?? undefined,
+      profileName: portfolioScopeData?.profileName ?? undefined,
+      platform: portfolioScopeData?.platform ?? undefined,
+      portfolioDetail: {
+        status: portfolioScopeData?.status ?? undefined,
+        platform: portfolioScopeData?.platform ?? undefined,
+        totalBudget: portfolioScopeData?.totalBudget ?? undefined,
+        targetType: portfolioScopeData?.targetType ?? undefined,
+        targetValue: portfolioScopeData?.targetValue ?? undefined,
+        startDate: portfolioScopeData?.startDate ?? "",
+        endDate: portfolioScopeData?.endDate ?? "",
+        campaignCount: portfolioScopeData?.campaignCount ?? 0,
+      },
+    });
+    setInputValue(
+      `/portfolio-actions Create actions for portfolio (ID: ${portfolioId}). Analyze this portfolio and create optimization actions`,
+    );
     openAssistant();
-  }, [startNewSession, openAssistant]);
+  }, [
+    startNewSession,
+    setPortfolioScope,
+    portfolioId,
+    _portfolioName,
+    accountId,
+    portfolioScopeData,
+    setInputValue,
+    openAssistant,
+  ]);
 
   const handleReanalyze = useCallback(() => {
     setReanalyzePrompt(DEFAULT_REANALYZE_PROMPT);
