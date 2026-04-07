@@ -22,6 +22,10 @@ import {
   History,
   Pencil,
   Calendar,
+  CalendarDays,
+  RotateCw,
+  Target,
+  CircleSlash,
   X,
   Eye,
   PlayCircle,
@@ -157,35 +161,6 @@ function fmtNextRun(iso: string): string {
     + " at "
     + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: DISPLAY_TZ })
     + ` ${DISPLAY_TZ_LABEL}`;
-}
-
-function formatScheduleLabel(schedule?: ActionItem["schedule"]): string {
-  if (!schedule || !schedule.frequency) return "Not scheduled";
-  const t = schedule.time ?? "09:00";
-  const displayTime = utcTimeToDisplay(t);
-  switch (schedule.frequency) {
-    case "hourly":
-      return `Hourly (${DISPLAY_TZ_LABEL})`;
-    case "daily":
-      return `Daily at ${displayTime} (${DISPLAY_TZ_LABEL})`;
-    case "weekly": {
-      const days = (schedule.weekdays ?? []).map((d) => WEEKDAY_SHORT[d] ?? "?").join(", ");
-      return `Weekly ${days || "Mon"} at ${displayTime} (${DISPLAY_TZ_LABEL})`;
-    }
-    case "monthly": {
-      const days = (schedule.monthDays ?? []).sort((a, b) => a - b).join(", ");
-      return `Monthly on ${days || "1"} at ${displayTime} (${DISPLAY_TZ_LABEL})`;
-    }
-    case "once": {
-      if (schedule.date) {
-        const disp = utcDateTimeToDisplay(schedule.date, t);
-        return `Once on ${disp.date} at ${disp.time} (${DISPLAY_TZ_LABEL})`;
-      }
-      return `Once at ${displayTime} (${DISPLAY_TZ_LABEL})`;
-    }
-    default:
-      return `${schedule.frequency} at ${displayTime} (${DISPLAY_TZ_LABEL})`;
-  }
 }
 
 function formatMetricLabel(field: string): string {
@@ -1021,6 +996,16 @@ const FREQ_OPTIONS = [
   { value: "monthly", label: "Monthly" },
   { value: "once", label: "Once" },
 ];
+
+const FREQ_BADGE_CONFIG: Record<string, { icon: React.FC<{ className?: string }>; label: string; bg: string; text: string; border: string }> = {
+  daily:   { icon: RotateCw,    label: "Daily",   bg: "bg-forest-f40/10", text: "text-forest-f40", border: "border-forest-f40/20" },
+  weekly:  { icon: CalendarDays, label: "Weekly",  bg: "bg-blue-50",       text: "text-blue-700",   border: "border-blue-200" },
+  monthly: { icon: Calendar,     label: "Monthly", bg: "bg-purple-50",     text: "text-purple-700", border: "border-purple-200" },
+  once:    { icon: Target,       label: "Once",    bg: "bg-amber-50",      text: "text-amber-700",  border: "border-amber-200" },
+  hourly:  { icon: RotateCw,    label: "Hourly",  bg: "bg-forest-f40/10", text: "text-forest-f40", border: "border-forest-f40/20" },
+};
+
+const FREQ_BADGE_DEFAULT = { icon: CircleSlash, label: "Not scheduled", bg: "bg-gray-50", text: "text-gray-500", border: "border-gray-200" };
 
 const SCHED_TIME_OPTIONS = Array.from({ length: 24 }, (_, i) => {
   const h = String(i).padStart(2, "0");
@@ -2513,7 +2498,9 @@ export const ActionsListPanel: React.FC<ActionsListPanelProps> = ({
         grouped.map((group) => (
           <div
             key={group.key}
-            className="border border-sandstorm-s40 rounded-lg overflow-hidden"
+            className={cn(
+              groupBy !== "none" && "border border-sandstorm-s40 rounded-lg overflow-hidden",
+            )}
           >
             {/* Group header */}
             {groupBy !== "none" && (
@@ -2741,7 +2728,6 @@ const ActionCard: React.FC<ActionCardProps> = ({
   const typeLabel = ACTION_TYPE_LABELS[action.type] ?? action.type;
   const typeColors = ACTION_TYPE_COLORS[action.type] ?? { bg: "bg-gray-50", text: "text-gray-700" };
   const statusCfg = STATUS_CONFIG[action.status] ?? STATUS_CONFIG.active;
-  const scheduleText = formatScheduleLabel(localSchedule);
   const isPaused = action.status === "paused";
   const isPendingReview = action.status === "pending_review";
   const accentColor = TYPE_ACCENT_COLORS[action.type] || "border-l-forest-f40";
@@ -3060,14 +3046,62 @@ const ActionCard: React.FC<ActionCardProps> = ({
       )}
 
       {/* Schedule */}
-      <div ref={scheduleAnchorRef} className="flex items-center gap-2">
-        <Clock className={cn("w-3.5 h-3.5 shrink-0", localSchedule ? "text-forest-f20" : "text-amber-400")} />
-        <span className="text-[11px] text-forest-f30">{scheduleText}</span>
+      <div ref={scheduleAnchorRef} className="flex items-center gap-2 flex-wrap">
+        {(() => {
+          const freq = localSchedule?.frequency;
+          const badge = (freq && FREQ_BADGE_CONFIG[freq]) || FREQ_BADGE_DEFAULT;
+          const BadgeIcon = badge.icon;
+          const t = localSchedule?.time ?? "09:00";
+          const displayTime = utcTimeToDisplay(t);
+
+          return (
+            <>
+              <span className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold border", badge.bg, badge.text, badge.border)}>
+                <BadgeIcon className="w-3 h-3" />
+                {badge.label}
+              </span>
+
+              {freq && freq !== "hourly" && (
+                <span className="text-[11px] text-forest-f30">
+                  at {displayTime} <span className="text-forest-f20">{DISPLAY_TZ_LABEL}</span>
+                </span>
+              )}
+
+              {freq === "weekly" && (localSchedule?.weekdays ?? []).length > 0 && (
+                <div className="flex items-center gap-1">
+                  {(localSchedule!.weekdays!).map((d) => (
+                    <span key={d} className="px-1.5 py-px rounded bg-blue-50 border border-blue-200 text-[9px] font-medium text-blue-700">
+                      {WEEKDAY_SHORT[d] ?? "?"}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {freq === "monthly" && (localSchedule?.monthDays ?? []).length > 0 && (
+                <div className="flex items-center gap-1">
+                  {(localSchedule!.monthDays!).sort((a, b) => a - b).map((d) => (
+                    <span key={d} className="px-1.5 py-px rounded bg-purple-50 border border-purple-200 text-[9px] font-medium text-purple-700">
+                      {d}{d === 1 || d === 21 || d === 31 ? "st" : d === 2 || d === 22 ? "nd" : d === 3 || d === 23 ? "rd" : "th"}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {freq === "once" && localSchedule?.date && (
+                <span className="px-1.5 py-px rounded bg-amber-50 border border-amber-200 text-[9px] font-medium text-amber-700">
+                  {utcDateTimeToDisplay(localSchedule.date, t).date}
+                </span>
+              )}
+            </>
+          );
+        })()}
+
         {localSchedule?.next_run_at && (
           <span className="text-[10px] text-forest-f20">
             · Next: {fmtNextRun(localSchedule.next_run_at)}
           </span>
         )}
+
         {portfolioId && (
           <button
             type="button"
