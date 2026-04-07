@@ -54,6 +54,17 @@ export interface ColumnMapping {
   position: number;
 }
 
+export interface CsvImport {
+  id: number;
+  account: number;
+  original_filename: string;
+  file_size_bytes: number;
+  row_count: number;
+  column_mapping: ColumnMapping[];
+  dump_table_name: string;
+  created_at: string;
+}
+
 export async function getGoogleSheetsConnectUrl(accountId: number) {
   const res = await api.get<{ authorization_url: string }>(
     `/brands/${accountId}/google-sheets/connect`,
@@ -64,6 +75,23 @@ export async function getGoogleSheetsConnectUrl(accountId: number) {
 export async function listGoogleSheetsIntegrations(accountId: number) {
   const res = await api.get<GoogleSheetsIntegration[]>(
     `/brands/${accountId}/google-sheets/integrations`,
+  );
+  return res.data;
+}
+
+export async function listCsvImports(accountId: number) {
+  const res = await api.get<CsvImport[]>(
+    `/brands/${accountId}/google-sheets/csv-imports`,
+  );
+  return res.data;
+}
+
+export async function uploadCsvImport(accountId: number, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await api.post<CsvImport>(
+    `/brands/${accountId}/google-sheets/csv-imports`,
+    form,
   );
   return res.data;
 }

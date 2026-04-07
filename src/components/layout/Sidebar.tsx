@@ -42,7 +42,7 @@ import {
   Briefcase,
   CalendarClock,
   ChevronDown,
-  FileSpreadsheet,
+  Import,
   MessageSquare,
   Shield,
   Users,
@@ -909,16 +909,16 @@ export const Sidebar: React.FC = () => {
                         ? "w-full bg-forest-f60 !text-white hover:!text-white"
                         : "text-black hover:bg-transparent hover:text-[#136D6D]"
                         }`}
-                      title="Google Sheets"
+                      title="Data import"
                     >
-                      <FileSpreadsheet
+                      <Import
                         className={`w-5 h-5 shrink-0 ${isActive("/brands/google-sheets")
                           ? "text-white"
                           : "text-forest-f30"
                           }`}
                       />
                       <span className="text-[12.32px] font-normal leading-[16px]">
-                        Google Sheets
+                        Data import
                       </span>
                     </Link>
                     <Link

@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
+import { FileUp, LayoutGrid } from "lucide-react";
 import {
   Button,
   Loader,
@@ -9,14 +10,19 @@ import {
 import { Sidebar } from "../../../components/layout/Sidebar";
 import { DashboardHeader } from "../../../components/layout/DashboardHeader";
 import { useSidebar } from "../../../contexts/SidebarContext";
+import { cn } from "../../../lib/cn";
 import {
   listGoogleSheetsIntegrations,
   deleteGoogleSheetsIntegration,
   triggerManualSync,
+  listCsvImports,
+  uploadCsvImport,
 } from "./api";
-import type { GoogleSheetsIntegration } from "./api";
+import type { CsvImport, GoogleSheetsIntegration } from "./api";
 
 const PAGE_SIZE = 10;
+
+type IntegrationsTab = "sheets" | "csv";
 
 const DeleteIcon = () => (
   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -37,6 +43,13 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<GoogleSheetsIntegration | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [syncingIntegrationId, setSyncingIntegrationId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<IntegrationsTab>("sheets");
+  const [csvImports, setCsvImports] = useState<CsvImport[]>([]);
+  const [csvLoading, setCsvLoading] = useState(false);
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [csvError, setCsvError] = useState<string | null>(null);
+  const [csvSuccess, setCsvSuccess] = useState<string | null>(null);
+  const csvFileInputRef = useRef<HTMLInputElement>(null);
 
   const loadIntegrations = useCallback(async () => {
     if (!accountIdNum) return;
@@ -63,6 +76,29 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
     }
     loadIntegrations();
   }, [accountIdNum, navigate, loadIntegrations]);
+
+  const loadCsvImports = useCallback(async () => {
+    if (!accountIdNum) return;
+    setCsvLoading(true);
+    setCsvError(null);
+    try {
+      const data = await listCsvImports(accountIdNum);
+      setCsvImports(data);
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      setCsvError(
+        err?.response?.data?.detail ?? "Failed to load CSV imports.",
+      );
+    } finally {
+      setCsvLoading(false);
+    }
+  }, [accountIdNum]);
+
+  useEffect(() => {
+    if (activeTab === "csv" && accountIdNum) {
+      void loadCsvImports();
+    }
+  }, [activeTab, accountIdNum, loadCsvImports]);
 
   const handleConnectGoogle = () => {
     if (!accountIdNum) return;
@@ -102,6 +138,35 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
     }
   };
 
+  const handleCsvFileSelected = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !accountIdNum) return;
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      setCsvError("Please choose a .csv file.");
+      return;
+    }
+    setCsvUploading(true);
+    setCsvError(null);
+    setCsvSuccess(null);
+    try {
+      const created = await uploadCsvImport(accountIdNum, file);
+      setCsvSuccess(
+        `Imported ${created.row_count.toLocaleString()} rows into google_sheets.${created.dump_table_name}.`,
+      );
+      await loadCsvImports();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      setCsvError(
+        err?.response?.data?.detail ?? "Upload failed.",
+      );
+    } finally {
+      setCsvUploading(false);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(integrations.length / PAGE_SIZE));
   const paginatedIntegrations = integrations.slice(
     (currentPage - 1) * PAGE_SIZE,
@@ -124,7 +189,7 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
             />
           )}
 
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
             <div>
               <h1 className="text-[24px] font-medium text-forest-f60">
                 Google Sheets Integrations
@@ -133,17 +198,173 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
                 Connect Google Sheets and configure sheet imports for this brand.
               </p>
             </div>
-            <Button
-              className="create-entity-button"
-              onClick={handleConnectGoogle}
-              disabled={loading}
-            >
-              {loading ? "Adding..." : "Add Google Sheet"}
-            </Button>
+            {activeTab === "sheets" ? (
+              <Button
+                className="create-entity-button shrink-0"
+                onClick={handleConnectGoogle}
+                disabled={loading}
+              >
+                {loading ? "Adding..." : "Add Google Sheet"}
+              </Button>
+            ) : null}
           </div>
 
+          <div
+            className="flex gap-1 border-b border-sandstorm-s40 mb-6"
+            role="tablist"
+            aria-label="Google Sheets sections"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "sheets"}
+              className={cn(
+                "inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+                activeTab === "sheets"
+                  ? "border-forest-f40 text-forest-f60"
+                  : "border-transparent text-forest-f30 hover:text-forest-f60",
+              )}
+              onClick={() => {
+                setActiveTab("sheets");
+                setCsvSuccess(null);
+              }}
+            >
+              <LayoutGrid className="w-4 h-4 shrink-0" aria-hidden />
+              Sheet integrations
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "csv"}
+              className={cn(
+                "inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+                activeTab === "csv"
+                  ? "border-forest-f40 text-forest-f60"
+                  : "border-transparent text-forest-f30 hover:text-forest-f60",
+              )}
+              onClick={() => setActiveTab("csv")}
+            >
+              <FileUp className="w-4 h-4 shrink-0" aria-hidden />
+              Upload CSV
+            </button>
+          </div>
+
+          {activeTab === "csv" && csvSuccess && (
+            <Banner
+              type="success"
+              message={csvSuccess}
+              dismissable
+              onDismiss={() => setCsvSuccess(null)}
+              className="mb-4"
+            />
+          )}
+          {activeTab === "csv" && csvError && (
+            <Banner
+              type="error"
+              message={csvError}
+              dismissable
+              onDismiss={() => setCsvError(null)}
+              className="mb-4"
+            />
+          )}
+
           <div className="">
-            {loading && integrations.length === 0 ? (
+            {activeTab === "csv" ? (
+              <div className="space-y-6">
+                <input
+                  ref={csvFileInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="sr-only"
+                  onChange={handleCsvFileSelected}
+                  aria-label="Choose CSV file"
+                />
+                <div className="rounded-lg border border-sandstorm-s40 bg-sandstorm-s5 p-6">
+                  <p className="text-[14px] text-forest-f60 mb-1 font-medium">
+                    Import a CSV file
+                  </p>
+                  <p className="text-[13px] text-forest-f30 mb-4 max-w-xl">
+                    Valid UTF-8 CSV files are parsed, metadata is stored in{" "}
+                    <span className="font-mono text-[12px]">csv_imports</span>, and
+                    row data is loaded into the{" "}
+                    <span className="font-mono text-[12px]">google_sheets</span>{" "}
+                    schema in{" "}
+                    <span className="font-mono text-[12px]">
+                      csv_dump_[account id]_[import id]
+                    </span>
+                    . Column types are inferred from your data (same rules as sheet
+                    sync).
+                  </p>
+                  <Button
+                    type="button"
+                    onClick={() => csvFileInputRef.current?.click()}
+                    disabled={csvUploading}
+                  >
+                    {csvUploading ? "Uploading…" : "Choose CSV file"}
+                  </Button>
+                </div>
+
+                {csvLoading && csvImports.length === 0 ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader size="md" message="Loading imports..." />
+                  </div>
+                ) : csvImports.length === 0 ? (
+                  <p className="text-[14px] text-forest-f30 py-4">
+                    No CSV imports yet for this brand.
+                  </p>
+                ) : (
+                  <div className="table-container">
+                    <div className="overflow-x-auto w-full">
+                      <table className="min-w-[720px] w-full">
+                        <thead>
+                          <tr className="border-b border-[#e8e8e3]">
+                            <th className="table-header text-left py-3 px-4">
+                              File
+                            </th>
+                            <th className="table-header text-left py-3 px-4">
+                              Dump table
+                            </th>
+                            <th className="table-header text-left py-3 px-4">
+                              Rows
+                            </th>
+                            <th className="table-header text-left py-3 px-4">
+                              Uploaded
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {csvImports.map((row) => (
+                            <tr
+                              key={row.id}
+                              className="group table-row border-b border-[#e8e8e3]"
+                            >
+                              <td className="table-cell py-3 px-4">
+                                <span className="table-text">{row.original_filename}</span>
+                              </td>
+                              <td className="table-cell py-3 px-4">
+                                <span className="font-mono text-[12px] text-forest-f60">
+                                  google_sheets.{row.dump_table_name}
+                                </span>
+                              </td>
+                              <td className="table-cell py-3 px-4">
+                                <span className="table-text">
+                                  {row.row_count.toLocaleString()}
+                                </span>
+                              </td>
+                              <td className="table-cell py-3 px-4">
+                                <span className="table-text whitespace-nowrap">
+                                  {new Date(row.created_at).toLocaleString()}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : loading && integrations.length === 0 ? (
               <div className="flex items-center justify-center py-16">
                 <Loader size="md" message="Loading integrations..." />
               </div>
